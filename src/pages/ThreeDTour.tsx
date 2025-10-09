@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Maximize2, ZoomIn, ZoomOut, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, Maximize2, ZoomIn, ZoomOut, Download, Share2, RotateCcw, Move } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const ThreeDTour = () => {
   const { id } = useParams();
   const [selectedRoom, setSelectedRoom] = useState('living-room');
   const [zoom, setZoom] = useState(100);
+  const [rotation, setRotation] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const rooms = [
     { id: 'living-room', name: 'Living Room', image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1200' },
@@ -33,6 +38,40 @@ export const ThreeDTour = () => {
     toast.success('Floor plan download started');
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPosition({ x: newX, y: newY });
+      
+      // Calculate rotation based on horizontal movement
+      const rotationChange = (e.movementX * 0.5);
+      setRotation(prev => (prev + rotationChange) % 360);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const resetView = () => {
+    setRotation(0);
+    setPosition({ x: 0, y: 0 });
+    setZoom(100);
+    toast.success('View reset');
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsDragging(false);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -45,6 +84,9 @@ export const ThreeDTour = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={resetView}>
+              <RotateCcw className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
             </Button>
@@ -81,19 +123,36 @@ export const ThreeDTour = () => {
         </div>
 
         {/* 3D Viewer Area */}
-        <div className="flex-1 relative">
+        <div 
+          ref={containerRef}
+          className="flex-1 relative overflow-hidden cursor-move"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+        >
           <div
-            className="w-full h-full bg-cover bg-center transition-all duration-500"
+            className="w-full h-full bg-cover bg-center transition-transform duration-100"
             style={{
               backgroundImage: `url(${currentRoom.image})`,
-              transform: `scale(${zoom / 100})`,
+              transform: `scale(${zoom / 100}) translateX(${position.x}px) translateY(${position.y}px) perspective(1000px) rotateY(${rotation}deg)`,
+              transformStyle: 'preserve-3d',
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-8">
+            {/* Overlay with room info */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-8">
               <div className="text-white">
                 <h2 className="text-3xl font-bold mb-2 animate-fade-in">{currentRoom.name}</h2>
-                <p className="text-white/80">Click and drag to explore the room</p>
+                <div className="flex items-center gap-2 text-white/80">
+                  <Move className="w-4 h-4" />
+                  <p>Drag to rotate • Scroll to zoom • Click rooms to explore</p>
+                </div>
               </div>
+            </div>
+            
+            {/* 360° indicator */}
+            <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg text-white">
+              <p className="text-sm font-medium">360° View</p>
+              <p className="text-xs text-white/70">Rotation: {Math.round(rotation)}°</p>
             </div>
           </div>
         </div>

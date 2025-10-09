@@ -48,7 +48,7 @@ export const Home = () => {
         <div className="relative z-10 container mx-auto px-4 text-center text-white">
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 animate-fade-in">
             Find Your Dream
-            <span className="block text-gradient-purple bg-gradient-to-r from-purple-400 to-purple-200 bg-clip-text text-transparent">
+            <span className="block text-gradient-purple">
               Property Today
             </span>
           </h1>
@@ -63,7 +63,7 @@ export const Home = () => {
               </Button>
             </Link>
             <Link to="/how-it-works">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white/10 text-white border-white hover:bg-white hover:text-foreground">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white/10 text-white border-white/30 hover:bg-white hover:text-foreground backdrop-blur-sm">
                 Learn More
               </Button>
             </Link>
@@ -98,12 +98,13 @@ export const Home = () => {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature) => (
+            {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="p-8 rounded-xl border-gradient card-glow text-center group hover-lift"
+                className="p-8 rounded-xl border-animated card-glow text-center group hover-lift stagger-animation"
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary to-primary-light rounded-xl flex items-center justify-center group-hover:animate-glow">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary to-primary-light rounded-xl flex items-center justify-center group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-shadow duration-300">
                   <feature.icon className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-3">{feature.title}</h3>
@@ -129,8 +130,14 @@ export const Home = () => {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+            {featuredProperties.map((property, index) => (
+              <div 
+                key={property.id}
+                className="stagger-animation"
+                style={{ animationDelay: `${index * 0.15}s` }}
+              >
+                <PropertyCard property={property} />
+              </div>
             ))}
           </div>
         </div>

@@ -9,45 +9,49 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
+    --foreground: 220 20% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 220 20% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 220 20% 10%;
 
-    --primary: 262 83% 58%;
+    --primary: 220 70% 50%;
     --primary-foreground: 0 0% 100%;
     
-    --primary-light: 262 83% 68%;
-    --primary-dark: 262 83% 48%;
-    --primary-glow: 262 83% 78%;
+    --primary-light: 220 70% 60%;
+    --primary-dark: 220 70% 40%;
+    --primary-glow: 220 70% 70%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 220 20% 10%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 220 15% 45%;
 
     --accent: 262 70% 95%;
-    --accent-foreground: 0 0% 0%;
+    --accent-foreground: 220 20% 10%;
+    
+    --accent-purple: 262 83% 58%;
+    --accent-purple-light: 262 83% 68%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 262 83% 58%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 220 70% 50%;
 
     --radius: 0.75rem;
     
-    --gradient-purple: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-light)) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-light)) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+    --gradient-purple-accent: linear-gradient(135deg, hsl(var(--accent-purple)) 0%, hsl(var(--accent-purple-light)) 100%);
     
-    --shadow-purple: 0 10px 40px -10px hsl(var(--primary) / 0.3);
-    --shadow-purple-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
-    --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.08);
+    --shadow-primary: 0 10px 40px -10px hsl(var(--primary) / 0.25);
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.3);
+    --shadow-card: 0 2px 8px hsl(220 20% 10% / 0.08);
     
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -69,6 +73,13 @@ All colors MUST be HSL.
 
 @layer utilities {
   .text-gradient-purple {
+    background: linear-gradient(to right, hsl(var(--accent-purple)), hsl(var(--accent-purple-light)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .text-gradient-primary {
     @apply bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent;
   }
   
@@ -82,7 +93,7 @@ All colors MUST be HSL.
   }
   
   .card-glow:hover {
-    box-shadow: var(--shadow-purple);
+    box-shadow: var(--shadow-primary);
   }
   
   .border-gradient {
@@ -91,16 +102,43 @@ All colors MUST be HSL.
                 linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light))) border-box;
   }
   
+  .border-animated {
+    position: relative;
+    border: 2px solid hsl(var(--border));
+    overflow: hidden;
+  }
+  
+  .border-animated::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      hsl(var(--accent-purple) / 0.5) 50%, 
+      transparent 100%);
+    animation: border-flow 3s linear infinite;
+    z-index: -1;
+  }
+  
+  @keyframes border-flow {
+    0% {
+      transform: translateX(-100%) rotate(0deg);
+    }
+    100% {
+      transform: translateX(100%) rotate(360deg);
+    }
+  }
+  
   .animate-glow {
     animation: glow 3s ease-in-out infinite;
   }
   
   @keyframes glow {
     0%, 100% {
-      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+      box-shadow: 0 0 20px hsl(var(--accent-purple) / 0.3);
     }
     50% {
-      box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
+      box-shadow: 0 0 40px hsl(var(--accent-purple) / 0.5);
     }
   }
   
@@ -114,6 +152,38 @@ All colors MUST be HSL.
     }
     50% {
       transform: translateY(-20px);
+    }
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out forwards;
+    opacity: 0;
+  }
+  
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .stagger-animation {
+    opacity: 0;
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+  
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(40px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 }

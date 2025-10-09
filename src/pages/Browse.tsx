@@ -131,8 +131,14 @@ export const Browse = () => {
         {/* Properties Grid */}
         {filteredProperties.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+            {filteredProperties.map((property, index) => (
+              <div 
+                key={property.id}
+                className="stagger-animation"
+                style={{ animationDelay: `${index * 0.08}s` }}
+              >
+                <PropertyCard property={property} />
+              </div>
             ))}
           </div>
         ) : (

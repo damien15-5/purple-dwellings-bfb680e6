@@ -19,7 +19,7 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
 
   return (
     <Link to={`/property/${property.id}`}>
-      <Card className="overflow-hidden hover-lift card-glow cursor-pointer group">
+      <Card className="overflow-hidden hover-lift card-glow cursor-pointer group border-animated">
         <div className="relative h-64 overflow-hidden">
           <img
             src={property.images[0]}
