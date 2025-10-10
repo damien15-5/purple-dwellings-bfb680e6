@@ -19,7 +19,7 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
 
   return (
     <Link to={`/property/${property.id}`}>
-      <Card className="overflow-hidden hover-lift card-glow cursor-pointer group border-animated">
+      <Card className="overflow-hidden bg-white border-2 border-[#D8C4F0] hover:shadow-xl cursor-pointer group transition-all duration-300 hover:-translate-y-1">
         <div className="relative h-64 overflow-hidden">
           <img
             src={property.images[0]}
@@ -27,18 +27,18 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
           />
-          <Badge className="absolute top-4 right-4 bg-primary text-primary-foreground">
+          <Badge className="absolute top-4 right-4 bg-[#9B6FD1] text-white border-0">
             {property.propertyType}
           </Badge>
         </div>
-        <div className="p-6 space-y-3">
+        <div className="p-6 space-y-3 bg-white">
           <div className="flex items-start justify-between">
-            <h3 className="font-semibold text-lg text-foreground line-clamp-1">
+            <h3 className="font-bold text-lg text-foreground line-clamp-1">
               {property.title}
             </h3>
           </div>
           <div className="flex items-center text-muted-foreground text-sm">
-            <MapPin className="w-4 h-4 mr-1" />
+            <MapPin className="w-4 h-4 mr-1 text-[#9B6FD1]" />
             {property.location}
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -61,8 +61,8 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
               </div>
             )}
           </div>
-          <div className="pt-3 border-t border-border">
-            <p className="text-2xl font-bold text-primary">{formatPrice(property.price)}</p>
+          <div className="pt-3 border-t border-[#D8C4F0]">
+            <p className="text-2xl font-bold text-black">{formatPrice(property.price)}</p>
           </div>
         </div>
       </Card>

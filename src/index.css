@@ -35,6 +35,8 @@ All colors MUST be HSL.
     
     --accent-purple: 262 83% 58%;
     --accent-purple-light: 262 83% 68%;
+    --light-purple-border: 270 50% 90%;
+    --light-purple-accent: 262 50% 65%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
