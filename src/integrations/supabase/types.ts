@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      kyc_documents: {
+        Row: {
+          created_at: string | null
+          id: string
+          identity_number: string | null
+          identity_type: string | null
+          status: string | null
+          submitted_at: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          identity_number?: string | null
+          identity_type?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          identity_number?: string | null
+          identity_type?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

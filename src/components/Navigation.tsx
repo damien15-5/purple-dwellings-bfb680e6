@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Home, Search, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import xavorianLogo from '@/assets/xavorian-logo.png';
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,16 +12,33 @@ export const Navigation = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-      setIsLoggedIn(true);
-      const userData = JSON.parse(user);
-      setUserName(userData.name);
-    }
-  }, [location]);
+    // Check authentication status
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsLoggedIn(true);
+        setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User');
+      }
+    };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User');
+      } else {
+        setIsLoggedIn(false);
+        setUserName('');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsLoggedIn(false);
     window.location.href = '/';
   };
@@ -35,12 +54,14 @@ export const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-light rounded-lg flex items-center justify-center animate-glow">
-              <span className="text-white font-bold text-xl">PM</span>
-            </div>
-            <span className="text-xl font-bold text-foreground hidden sm:block">
-              Property<span className="text-gradient-purple">Market</span>
+          <Link to="/" className="flex items-center space-x-3 group">
+            <img 
+              src={xavorianLogo} 
+              alt="Xavorian" 
+              className="w-10 h-10 transition-transform group-hover:scale-110"
+            />
+            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent hidden sm:block">
+              Xavorian
             </span>
           </Link>
 

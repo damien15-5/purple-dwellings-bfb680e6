@@ -1,112 +1,85 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Home, PlusCircle, LayoutDashboard, MessageSquare, ShieldCheck, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import xavorianLogo from '@/assets/xavorian-logo.png';
 
 export const VerifiedUser = () => {
-  const userName = localStorage.getItem('userName') || 'Guest';
-  
-  const stats = [
-    { label: 'My Listings', value: '3', icon: Home, color: 'text-primary' },
-    { label: 'Active Chats', value: '5', icon: MessageSquare, color: 'text-blue-500' },
-    { label: 'Pending Transactions', value: '2', icon: ShieldCheck, color: 'text-green-500' },
-  ];
+  const navigate = useNavigate();
+  const [verifying, setVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const recentActivity = [
-    { text: 'Your listing "Modern Home in Lekki" received 12 new views', time: '2 hours ago' },
-    { text: 'New message from John Doe', time: '3 hours ago' },
-    { text: 'Escrow transaction #ESC-123 is pending', time: '1 day ago' },
-  ];
+  useEffect(() => {
+    const verifyUser = async () => {
+      try {
+        // Check if user is authenticated
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          setVerifying(false);
+          // Redirect to dashboard after 3 seconds
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 3000);
+        } else {
+          setError('Verification failed. Please try logging in.');
+          setVerifying(false);
+        }
+      } catch (err: any) {
+        setError(err.message);
+        setVerifying(false);
+      }
+    };
+
+    verifyUser();
+  }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background">
-      <div className="container mx-auto px-4 py-12">
-        {/* Welcome Header */}
-        <div className="text-center mb-12 animate-fade-in">
-          <div className="flex items-center justify-center mb-4">
-            <CheckCircle2 className="h-16 w-16 text-success animate-float" />
-          </div>
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {userName}! 🎉</h1>
-          <p className="text-muted-foreground text-lg">
-            Your account is verified and ready to go
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {stats.map((stat, index) => (
-            <Card
-              key={stat.label}
-              className="hover-lift card-glow"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <CardContent className="flex items-center justify-between p-6">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent-purple/10">
+      <div className="w-full max-w-md">
+        <div className="bg-card p-8 rounded-2xl shadow-2xl border-animated text-center space-y-6">
+          <img src={xavorianLogo} alt="Xavorian" className="w-20 h-20 mx-auto" />
+          
+          {verifying ? (
+            <>
+              <div className="animate-pulse">
+                <div className="w-16 h-16 bg-primary/20 rounded-full mx-auto flex items-center justify-center">
+                  <div className="w-10 h-10 bg-primary rounded-full"></div>
                 </div>
-                <stat.icon className={`h-12 w-12 ${stat.color}`} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Quick Actions */}
-        <Card className="mb-12 card-glow">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with these common tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link to="/browse">
-              <Button variant="outline" className="w-full h-20 hover-lift">
-                <Home className="mr-2 h-5 w-5" />
-                Browse Properties
-              </Button>
-            </Link>
-            <Link to="/upload-listing">
-              <Button className="w-full h-20 hover-lift animate-glow">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Post New Listing
-              </Button>
-            </Link>
-            <Link to="/dashboard">
-              <Button variant="outline" className="w-full h-20 hover-lift">
-                <LayoutDashboard className="mr-2 h-5 w-5" />
-                View Dashboard
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="card-glow">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Stay updated with your latest actions</CardDescription>
               </div>
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-4 p-4 rounded-lg bg-accent/50 hover:bg-accent transition-colors"
-                >
-                  <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm">{activity.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              <h1 className="text-2xl font-bold">Verifying your account...</h1>
+              <p className="text-muted-foreground">Please wait while we verify your email address</p>
+            </>
+          ) : error ? (
+            <>
+              <div className="w-16 h-16 bg-destructive/20 rounded-full mx-auto flex items-center justify-center">
+                <span className="text-3xl">❌</span>
+              </div>
+              <h1 className="text-2xl font-bold text-destructive">Verification Failed</h1>
+              <p className="text-muted-foreground">{error}</p>
+              <Button
+                onClick={() => navigate('/login')}
+                className="w-full bg-gradient-to-r from-primary to-accent-purple"
+              >
+                Go to Login
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-green-500/20 rounded-full mx-auto flex items-center justify-center animate-scale-in">
+                <CheckCircle2 className="w-10 h-10 text-green-500" />
+              </div>
+              <h1 className="text-2xl font-bold text-green-500">Email Verified!</h1>
+              <p className="text-muted-foreground">
+                Your account has been successfully verified. Redirecting to dashboard...
+              </p>
+              <div className="w-full bg-accent rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-primary to-accent-purple animate-[slide-in-right_3s_ease-in-out]"></div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
