@@ -37,10 +37,10 @@ export const Footer = () => {
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-light rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">PM</span>
+                <span className="text-white font-bold text-xl">X</span>
               </div>
               <span className="text-xl font-bold text-foreground">
-                Property<span className="text-gradient-purple">Market</span>
+                Xavorian
               </span>
             </Link>
             <p className="text-sm text-muted-foreground">
@@ -83,7 +83,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} PropertyMarket. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Xavorian. All rights reserved.</p>
         </div>
       </div>
     </footer>

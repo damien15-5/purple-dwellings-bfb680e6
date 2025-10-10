@@ -22,6 +22,15 @@ import { UploadListing } from "./pages/UploadListing";
 import { Contact } from "./pages/Contact";
 import { MyListings } from "./pages/MyListings";
 import { MyEscrow } from "./pages/MyEscrow";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
+import { Disclaimer } from "./pages/Disclaimer";
+import { AboutUs } from "./pages/AboutUs";
+import { OurVision } from "./pages/OurVision";
+import { TermsAndConditions } from "./pages/TermsAndConditions";
+import { FAQ } from "./pages/FAQ";
+import { Blog } from "./pages/Blog";
+import { MyChats } from "./pages/MyChats";
+import { AccountSettings } from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +62,15 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/my-escrow" element={<MyEscrow />} />
+              <Route path="/my-chats" element={<MyChats />} />
+              <Route path="/account-settings" element={<AccountSettings />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/disclaimer" element={<Disclaimer />} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/vision" element={<OurVision />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/blog" element={<Blog />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
