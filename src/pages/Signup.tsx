@@ -179,40 +179,14 @@ export const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 lg:p-0">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border-animated">
-        {/* Left side - Welcome section */}
+    <div className="min-h-screen flex items-center justify-center p-4 lg:p-0 bg-background">
+      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border-2 border-light-purple-border">
+        {/* Left side - House image without overlay */}
         <div 
-          className="hidden lg:flex flex-col justify-center p-12 text-white relative bg-cover bg-center"
+          className="hidden lg:flex flex-col justify-center items-center p-0 relative bg-cover bg-center"
           style={{ backgroundImage: `url(${houseBackground})` }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary/60"></div>
-          <div className="relative z-10 space-y-6 animate-fade-in">
-            <img src={xavorianLogo} alt="Xavorian" className="w-24 h-24 mb-4" />
-            <h1 className="text-5xl font-bold leading-tight">
-              Join Xavorian<br />Today
-            </h1>
-            <p className="text-lg text-white/90">
-              Create your account and start buying or selling properties with confidence and security.
-            </p>
-            
-            {/* Progress indicator */}
-            <div className="flex items-center space-x-4 pt-8">
-              <div className="flex items-center space-x-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-white text-primary' : 'bg-white/30 text-white'}`}>
-                  {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : '1'}
-                </div>
-                <span className="text-sm">Account Info</span>
-              </div>
-              <div className="w-12 h-0.5 bg-white/30"></div>
-              <div className="flex items-center space-x-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-white text-primary' : 'bg-white/30 text-white'}`}>
-                  2
-                </div>
-                <span className="text-sm">KYC (Optional)</span>
-              </div>
-            </div>
-          </div>
+          {/* No overlay - pure image */}
         </div>
 
         {/* Right side - Signup form */}

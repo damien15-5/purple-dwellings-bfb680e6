@@ -72,23 +72,14 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 lg:p-0">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border-animated">
-        {/* Left side - Welcome section with house background */}
+    <div className="min-h-screen flex items-center justify-center p-4 lg:p-0 bg-background">
+      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border-2 border-light-purple-border">
+        {/* Left side - House image without overlay */}
         <div 
-          className="hidden lg:flex flex-col justify-center p-12 text-white relative bg-cover bg-center"
+          className="hidden lg:flex flex-col justify-center items-center p-0 relative bg-cover bg-center"
           style={{ backgroundImage: `url(${houseBackground})` }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary/60"></div>
-          <div className="relative z-10 space-y-6 animate-fade-in">
-            <img src={xavorianLogo} alt="Xavorian" className="w-24 h-24 mb-4" />
-            <h1 className="text-5xl font-bold leading-tight">
-              Welcome back to<br />Xavorian
-            </h1>
-            <p className="text-lg text-white/90">
-              Your trusted platform for secure property transactions with verified listings and escrow protection.
-            </p>
-          </div>
+          {/* No overlay - pure image */}
         </div>
 
         {/* Right side - Login form */}

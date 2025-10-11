@@ -35,16 +35,17 @@ export const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background py-12">
+    <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h1 className="text-4xl font-bold text-center mb-12 animate-fade-in">Contact Customer Care</h1>
+        <h1 className="text-4xl font-bold text-center mb-4 animate-fade-in text-foreground">Contact Customer Care</h1>
+        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">Get instant support from our AI assistant or create a ticket for human assistance</p>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* AI Chat */}
-          <Card className="card-glow">
+          <Card className="bg-white border-2 border-light-purple-border hover-lift">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Bot className="h-5 w-5 text-light-purple-accent" />
                 Chat with AI Assistant
               </CardTitle>
             </CardHeader>
@@ -52,7 +53,7 @@ export const Contact = () => {
               <div className="h-96 overflow-y-auto space-y-4 mb-4">
                 {aiMessages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                    <div className={`max-w-[80%] p-3 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-accent'}`}>
+                    <div className={`max-w-[80%] p-3 rounded-lg ${msg.sender === 'user' ? 'bg-light-purple-accent text-white' : 'bg-accent/50 border border-light-purple-border'}`}>
                       {msg.text}
                     </div>
                   </div>
@@ -78,10 +79,10 @@ export const Contact = () => {
           </Card>
 
           {/* Support Ticket */}
-          <Card className="card-glow">
+          <Card className="bg-white border-2 border-light-purple-border hover-lift">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <User className="h-5 w-5 text-light-purple-accent" />
                 Create Support Ticket
               </CardTitle>
             </CardHeader>
