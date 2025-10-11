@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,14 +8,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Upload, X, CheckCircle2 } from 'lucide-react';
+import { Upload, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export const UploadListing = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [images, setImages] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     propertyType: '',
@@ -30,6 +33,19 @@ export const UploadListing = () => {
     amenities: [] as string[],
     status: 'draft',
   });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please login to upload listings');
+        navigate('/login');
+      } else {
+        setUserId(session.user.id);
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const amenitiesList = [
     'Pool', 'Garden', 'Security', 'Gym', 'Parking', 
@@ -55,9 +71,78 @@ export const UploadListing = () => {
     toast.success(`${newImages.length} image(s) uploaded`);
   };
 
-  const handleSubmit = () => {
-    toast.success('Listing published successfully!');
-    setTimeout(() => navigate('/dashboard'), 2000);
+  const uploadImages = async (): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    
+    for (const image of images) {
+      const fileExt = image.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('property-images')
+        .upload(filePath, image);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('property-images')
+        .getPublicUrl(filePath);
+
+      uploadedUrls.push(publicUrl);
+    }
+
+    return uploadedUrls;
+  };
+
+  const handleSubmit = async () => {
+    if (!userId) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setUploading(true);
+    
+    try {
+      // Upload images
+      const imageUrls = await uploadImages();
+
+      // Insert property
+      const { data, error } = await supabase
+        .from('properties')
+        .insert([
+          {
+            user_id: userId,
+            title: formData.title,
+            description: formData.description,
+            property_type: formData.propertyType,
+            address: formData.address,
+            price: parseFloat(formData.price),
+            bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+            bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+            area: formData.area ? parseFloat(formData.area) : null,
+            year_built: formData.yearBuilt ? parseInt(formData.yearBuilt) : null,
+            condition: formData.condition,
+            amenities: formData.amenities,
+            status: 'published',
+            images: imageUrls,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Listing published successfully!');
+      setStep(6);
+    } catch (error: any) {
+      console.error('Error uploading listing:', error);
+      toast.error(error.message || 'Failed to upload listing');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (step === 6) {
@@ -355,12 +440,19 @@ export const UploadListing = () => {
                   Save as Draft
                 </Button>
                 {step < 5 ? (
-                  <Button onClick={handleNext} className="hover-lift">
+                  <Button onClick={handleNext} className="hover-lift" disabled={uploading}>
                     Next Step
                   </Button>
                 ) : (
-                  <Button onClick={handleSubmit} className="hover-lift animate-glow">
-                    Publish Listing
+                  <Button onClick={handleSubmit} className="hover-lift animate-glow" disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      'Publish Listing'
+                    )}
                   </Button>
                 )}
               </div>

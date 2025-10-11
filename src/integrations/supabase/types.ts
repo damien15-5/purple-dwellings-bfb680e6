@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          buyer_id: string
+          buyer_unread: number | null
+          created_at: string
+          id: string
+          last_message: string | null
+          last_message_time: string | null
+          property_id: string | null
+          seller_id: string
+          seller_unread: number | null
+        }
+        Insert: {
+          buyer_id: string
+          buyer_unread?: number | null
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_message_time?: string | null
+          property_id?: string | null
+          seller_id: string
+          seller_unread?: number | null
+        }
+        Update: {
+          buyer_id?: string
+          buyer_unread?: number | null
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_message_time?: string | null
+          property_id?: string | null
+          seller_id?: string
+          seller_unread?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_documents: {
         Row: {
           created_at: string | null
@@ -47,6 +91,50 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_deleted: boolean | null
+          is_read: boolean | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_read?: boolean | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_read?: boolean | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
@@ -71,6 +159,69 @@ export type Database = {
           full_name?: string
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          address: string
+          amenities: string[] | null
+          area: number | null
+          bathrooms: number | null
+          bedrooms: number | null
+          condition: string | null
+          created_at: string
+          description: string
+          id: string
+          images: string[] | null
+          price: number
+          property_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          video_url: string | null
+          year_built: number | null
+        }
+        Insert: {
+          address: string
+          amenities?: string[] | null
+          area?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          condition?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          images?: string[] | null
+          price: number
+          property_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+          year_built?: number | null
+        }
+        Update: {
+          address?: string
+          amenities?: string[] | null
+          area?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          condition?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          images?: string[] | null
+          price?: number
+          property_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+          year_built?: number | null
         }
         Relationships: []
       }
