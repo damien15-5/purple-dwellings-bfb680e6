@@ -57,24 +57,25 @@ export const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
+          <Link to="/" className="flex items-center space-x-2 group shrink-0">
             <img 
               src={xavorianLogo} 
               alt="Xavorian" 
               className="w-10 h-10 transition-transform group-hover:scale-110"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent hidden sm:block">
+            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent hidden sm:inline-block">
               Xavorian
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center px-4">
             {navLinks.map((link) => (
               <Link key={link.to} to={link.to}>
                 <Button
                   variant={location.pathname === link.to ? 'default' : 'ghost'}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-sm"
+                  size="sm"
                 >
                   {link.icon && <link.icon className="w-4 h-4" />}
                   {link.label}
@@ -84,20 +85,20 @@ export const Navigation = () => {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="hidden lg:flex items-center space-x-2 shrink-0">
             {isLoggedIn ? (
               <>
                 <Link to="/dashboard">
-                  <Button variant="ghost" className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Button>
                 </Link>
-                <Button variant="ghost" className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <User className="w-4 h-4" />
                   {userName}
                 </Button>
-                <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
                   <LogOut className="w-4 h-4" />
                   Logout
                 </Button>
@@ -105,10 +106,10 @@ export const Navigation = () => {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost">Login</Button>
+                  <Button variant="ghost" size="sm">Login</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button variant="hero">Get Started</Button>
+                  <Button variant="hero" size="sm">Get Started</Button>
                 </Link>
               </>
             )}
@@ -116,7 +117,7 @@ export const Navigation = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors shrink-0"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -125,7 +126,7 @@ export const Navigation = () => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 space-y-2 border-t border-border">
+          <div className="lg:hidden py-4 space-y-2 border-t border-border">
             {navLinks.map((link) => (
               <Link key={link.to} to={link.to} onClick={() => setIsOpen(false)}>
                 <Button

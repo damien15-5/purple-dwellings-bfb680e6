@@ -19,6 +19,7 @@ export const AccountSettings = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [accountType, setAccountType] = useState<'buyer' | 'seller' | 'agent'>('buyer');
 
   // KYC fields
   const [identityType, setIdentityType] = useState<'nin' | 'passport' | 'drivers_license'>('nin');
@@ -46,6 +47,7 @@ export const AccountSettings = () => {
 
     if (data) {
       setFullName(data.full_name || '');
+      setAccountType(data.account_type || 'buyer');
     }
   };
 
@@ -59,7 +61,10 @@ export const AccountSettings = () => {
 
       const { error } = await supabase
         .from('profiles')
-        .update({ full_name: fullName })
+        .update({ 
+          full_name: fullName,
+          account_type: accountType 
+        })
         .eq('id', user.id);
 
       if (error) throw error;
@@ -181,6 +186,40 @@ export const AccountSettings = () => {
                       placeholder="+234 xxx xxx xxxx"
                       className="h-12"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="accountType" className="text-sm font-medium">
+                      Account Type
+                    </Label>
+                    <Select value={accountType} onValueChange={(value: any) => setAccountType(value)}>
+                      <SelectTrigger id="accountType" className="h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyer">
+                          <div className="flex flex-col items-start py-1">
+                            <span className="font-semibold">Buyer</span>
+                            <span className="text-xs text-muted-foreground">Browse and purchase properties</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="seller">
+                          <div className="flex flex-col items-start py-1">
+                            <span className="font-semibold">Seller</span>
+                            <span className="text-xs text-muted-foreground">List and sell properties</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="agent">
+                          <div className="flex flex-col items-start py-1">
+                            <span className="font-semibold">Agent (Buyer + Seller)</span>
+                            <span className="text-xs text-muted-foreground">Buy and sell properties</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Switch between buyer, seller, or agent (both) mode
+                    </p>
                   </div>
 
                   <Button

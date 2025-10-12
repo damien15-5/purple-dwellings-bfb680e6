@@ -22,6 +22,7 @@ export const Signup = () => {
   const [age, setAge] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [accountType, setAccountType] = useState<'buyer' | 'seller' | 'agent'>('buyer');
 
   // Step 2 fields (KYC)
   const [identityType, setIdentityType] = useState<'nin' | 'passport' | 'drivers_license'>('nin');
@@ -78,6 +79,7 @@ export const Signup = () => {
           data: {
             full_name: fullName,
             age: ageNum,
+            account_type: accountType,
           },
           emailRedirectTo: `${window.location.origin}/verified`,
         },
@@ -94,6 +96,7 @@ export const Signup = () => {
             full_name: fullName,
             email,
             age: ageNum,
+            account_type: accountType,
           });
 
         if (profileError) throw profileError;
@@ -250,6 +253,37 @@ export const Signup = () => {
                       required
                       className="h-12"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="accountType" className="text-sm font-medium">
+                      Account Type
+                    </Label>
+                    <Select value={accountType} onValueChange={(value: any) => setAccountType(value)}>
+                      <SelectTrigger id="accountType" className="h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyer">
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Buyer</span>
+                            <span className="text-xs text-muted-foreground">Browse and purchase properties</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="seller">
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Seller</span>
+                            <span className="text-xs text-muted-foreground">List and sell properties</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="agent">
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">Agent (Buyer + Seller)</span>
+                            <span className="text-xs text-muted-foreground">Buy and sell properties</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

@@ -137,6 +137,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: Database["public"]["Enums"]["account_type"] | null
           age: number | null
           created_at: string | null
           email: string
@@ -145,6 +146,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
           created_at?: string | null
           email: string
@@ -153,6 +155,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
           created_at?: string | null
           email?: string
@@ -233,7 +236,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      account_type: "buyer" | "seller" | "agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -360,6 +363,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_type: ["buyer", "seller", "agent"],
+    },
   },
 } as const
