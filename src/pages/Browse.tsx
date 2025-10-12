@@ -98,103 +98,124 @@ export const Browse = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background py-8 animate-fade-in">
+    <div className="min-h-screen py-16 bg-gradient-to-b from-secondary/30 to-background">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Browse <span className="text-gradient-primary">Properties</span>
+        <div className="mb-12 text-center animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground leading-tight">
+            Browse <span className="text-gradient-purple">Properties</span>
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Discover verified properties from trusted sellers across Nigeria
+          <p className="text-muted-foreground text-xl max-w-3xl mx-auto leading-relaxed">
+            Discover <span className="text-accent-purple font-semibold">verified properties</span> from trusted sellers across Nigeria
           </p>
         </div>
 
         {/* Search & Filters */}
-        <Card className="p-6 mb-8 bg-white border-2 border-light-purple-border hover-lift animate-fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+        <Card className="p-8 mb-10 card-glow border-2 border-border animate-fade-in">
+          <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+            <SlidersHorizontal className="w-6 h-6 text-accent-purple" />
+            Filter Properties
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1 relative">
+              <label className="text-sm font-semibold text-foreground mb-2 block">Search Location</label>
+              <Search className="absolute left-3 bottom-4 text-muted-foreground w-5 h-5" />
               <Input
-                placeholder="Search by title, location, or keyword..."
+                placeholder="Enter location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-12 border-2 border-light-purple-border focus:border-light-purple-accent"
+                className="pl-10 h-12 border-2 focus:border-accent-purple"
               />
             </div>
-            <Select value={propertyType} onValueChange={setPropertyType}>
-              <SelectTrigger className="h-12 border-2 border-light-purple-border">
-                <HomeIcon className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Property Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="House">House</SelectItem>
-                <SelectItem value="Apartment">Apartment</SelectItem>
-                <SelectItem value="Villa">Villa</SelectItem>
-                <SelectItem value="Land">Land</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priceRange} onValueChange={setPriceRange}>
-              <SelectTrigger className="h-12 border-2 border-light-purple-border">
-                <SlidersHorizontal className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Price Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Prices</SelectItem>
-                <SelectItem value="under10m">Under ₦10M</SelectItem>
-                <SelectItem value="10m-50m">₦10M - ₦50M</SelectItem>
-                <SelectItem value="50m-100m">₦50M - ₦100M</SelectItem>
-                <SelectItem value="over100m">Over ₦100M</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">Property Type</label>
+              <Select value={propertyType} onValueChange={setPropertyType}>
+                <SelectTrigger className="h-12 border-2">
+                  <HomeIcon className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="House">House</SelectItem>
+                  <SelectItem value="Apartment">Apartment</SelectItem>
+                  <SelectItem value="Villa">Villa</SelectItem>
+                  <SelectItem value="Land">Land</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">Price Range</label>
+              <Select value={priceRange} onValueChange={setPriceRange}>
+                <SelectTrigger className="h-12 border-2">
+                  <SelectValue placeholder="All Prices" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Prices</SelectItem>
+                  <SelectItem value="under10m">Under ₦10M</SelectItem>
+                  <SelectItem value="10m-50m">₦10M - ₦50M</SelectItem>
+                  <SelectItem value="50m-100m">₦50M - ₦100M</SelectItem>
+                  <SelectItem value="over100m">Over ₦100M</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </Card>
 
         {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-muted-foreground">
+        <div className="flex items-center justify-between mb-8">
+          <p className="text-lg">
             {loading ? (
-              'Loading properties...'
+              <span className="text-muted-foreground">Loading properties...</span>
             ) : (
               <>
-                <span className="font-semibold text-foreground">{filteredProperties.length}</span> properties found
+                <span className="font-bold text-accent-purple text-2xl">{filteredProperties.length}</span> 
+                <span className="text-foreground font-semibold ml-2">{filteredProperties.length === 1 ? 'property' : 'properties'} found</span>
               </>
             )}
           </p>
-          <Button variant="outline" className="border-2 border-light-purple-border hover:bg-light-purple-accent/10">
-            <MapPin className="w-4 h-4 mr-2" />
-            Map View
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setSearchTerm('');
+              setPropertyType('all');
+              setPriceRange('all');
+            }}
+            className="border-2 hover:border-accent-purple hover:bg-accent-purple/5"
+          >
+            Clear Filters
           </Button>
         </div>
 
         {/* Properties Grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-12 h-12 animate-spin text-light-purple-accent" />
+          <div className="flex flex-col items-center justify-center py-32">
+            <Loader2 className="w-16 h-16 animate-spin text-accent-purple mb-6" />
+            <p className="text-muted-foreground text-lg">Loading amazing properties...</p>
           </div>
         ) : filteredProperties.length === 0 ? (
-          <div className="text-center py-20">
-            <HomeIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50 animate-float" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">No properties found</h3>
-            <p className="text-muted-foreground mb-6">Try adjusting your search filters</p>
+          <Card className="text-center py-24 card-glow">
+            <HomeIcon className="w-24 h-24 mx-auto mb-6 text-accent-purple/40 animate-float" />
+            <h3 className="text-3xl font-bold text-foreground mb-4">No properties found</h3>
+            <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
+              Try adjusting your filters to see more results
+            </p>
             <Button
+              variant="hero"
               onClick={() => {
                 setSearchTerm('');
                 setPropertyType('all');
                 setPriceRange('all');
               }}
-              className="bg-light-purple-accent hover:bg-light-purple-accent/90"
             >
-              Clear Filters
+              Clear All Filters
             </Button>
-          </div>
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProperties.map((property, index) => (
               <div
                 key={property.id}
-                className="animate-fade-in"
+                className="stagger-animation"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <PropertyCard
