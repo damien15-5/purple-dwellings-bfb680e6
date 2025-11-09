@@ -31,6 +31,8 @@ import { FAQ } from "./pages/FAQ";
 import { Blog } from "./pages/Blog";
 import { MyChats } from "./pages/MyChats";
 import { AccountSettings } from "./pages/AccountSettings";
+import { Support } from "./pages/Support";
+import { CustomerServiceDashboard } from "./pages/CustomerServiceDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +78,8 @@ const App = () => (
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/customer-service" element={<CustomerServiceDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

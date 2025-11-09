@@ -1,165 +1,270 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  LayoutDashboard, 
+  Home, 
+  TrendingUp, 
+  ShoppingCart, 
+  MessageSquare, 
+  Settings,
+  Upload,
+  Eye,
+  DollarSign,
+  AlertCircle,
+  BarChart3
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { User } from '@/types/property';
-import { LayoutDashboard, Heart, MessageSquare, Shield, Upload, Settings } from 'lucide-react';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const Dashboard = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = localStorage.getItem('currentUser');
-    if (!currentUser) {
-      navigate('/login');
-    } else {
-      setUser(JSON.parse(currentUser));
-    }
+    loadDashboardData();
   }, [navigate]);
 
-  if (!user) return null;
+  const loadDashboardData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
 
-  const dashboardCards = [
-    {
-      icon: Heart,
-      title: 'My Favorites',
-      description: 'View your saved properties',
-      link: '/dashboard/favorites',
-      color: 'from-pink-500 to-rose-500',
-    },
-    {
-      icon: MessageSquare,
-      title: 'My Chats',
-      description: 'Messages with sellers and buyers',
-      link: '/dashboard/chats',
-      color: 'from-blue-500 to-cyan-500',
-    },
-    {
-      icon: Shield,
-      title: 'Escrow Transactions',
-      description: 'View your active and completed transactions',
-      link: '/dashboard/escrow',
-      color: 'from-green-500 to-emerald-500',
-    },
-    {
-      icon: Upload,
-      title: 'My Listings',
-      description: 'Manage your property listings',
-      link: '/dashboard/listings',
-      color: 'from-purple-500 to-violet-500',
-      showForSeller: true,
-    },
-    {
-      icon: Settings,
-      title: 'Account Settings',
-      description: 'Update your profile and preferences',
-      link: '/account-settings',
-      color: 'from-gray-500 to-slate-500',
-    },
+    // Load profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    // Load roles
+    const { data: rolesData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    // Load analytics
+    const { data: analyticsData } = await supabase
+      .from('user_analytics')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    // Load properties if seller
+    const { data: propertiesData } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    setProfile(profileData);
+    setRoles(rolesData?.map(r => r.role) || []);
+    setAnalytics(analyticsData);
+    setProperties(propertiesData || []);
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const isSeller = roles.includes('seller') || roles.includes('agent') || roles.includes('admin');
+  const isBuyer = roles.includes('buyer') || roles.includes('agent');
+  const isAdmin = roles.includes('admin');
+
+  // Mock data for charts
+  const revenueData = [
+    { name: 'Jan', value: 4000 },
+    { name: 'Feb', value: 3000 },
+    { name: 'Mar', value: 5000 },
+    { name: 'Apr', value: 4500 },
+    { name: 'May', value: 6000 },
+    { name: 'Jun', value: 5500 },
   ];
 
-  const filteredCards = dashboardCards.filter(
-    (card) => !card.showForSeller || user.userType === 'Seller' || user.userType === 'Admin' || user.userType === 'Agent'
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary py-12">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
-            Welcome back, <span className="text-gradient-purple">{user.name}</span>!
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            Welcome back, <span className="text-primary">{profile?.full_name}</span>
           </h1>
-          <p className="text-muted-foreground text-lg">
-            {user.userType === 'Seller' || user.userType === 'Admin' || user.userType === 'Agent'
-              ? 'Manage your property listings and transactions' 
-              : 'Browse properties and manage your account'}
+          <p className="text-muted-foreground">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <Card className="p-6 bg-gradient-to-br from-primary to-accent-purple text-white border-0 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/80 mb-1 font-medium">Account Type</p>
-                <p className="text-3xl font-bold">{user.userType}</p>
-              </div>
-              <LayoutDashboard className="w-12 h-12 text-white/30" />
-            </div>
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="hover-lift border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Listings</CardTitle>
+              <Home className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{analytics?.total_listings || properties.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Active properties</p>
+            </CardContent>
           </Card>
-          <Card className="p-6 bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-0 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/80 mb-1 font-medium">Active Chats</p>
-                <p className="text-3xl font-bold">3</p>
-              </div>
-              <MessageSquare className="w-12 h-12 text-white/30" />
-            </div>
+
+          <Card className="hover-lift border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Views</CardTitle>
+              <Eye className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{analytics?.total_views || 0}</div>
+              <p className="text-xs text-emerald-500 mt-1">↑ 12% from last month</p>
+            </CardContent>
           </Card>
-          <Card className="p-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white border-0 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/80 mb-1 font-medium">Saved Properties</p>
-                <p className="text-3xl font-bold">12</p>
+
+          <Card className="hover-lift border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Sales</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{analytics?.total_sales || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Completed transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">
+                ${(analytics?.total_revenue || 0).toLocaleString()}
               </div>
-              <Heart className="w-12 h-12 text-white/30" />
-            </div>
+              <p className="text-xs text-emerald-500 mt-1">↑ 8% from last month</p>
+            </CardContent>
           </Card>
         </div>
 
-        {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCards.map((card) => (
-            <Link key={card.title} to={card.link}>
-              <Card className="p-6 hover-lift card-glow cursor-pointer group h-full bg-white border-2 border-border hover:border-primary transition-all duration-300">
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg`}>
-                  <card.icon className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">{card.title}</h3>
-                <p className="text-muted-foreground text-sm">{card.description}</p>
-              </Card>
-            </Link>
-          ))}
-        </div>
-
-        {/* Quick Actions for Sellers/Agents */}
-        {(user.userType === 'Seller' || user.userType === 'Admin' || user.userType === 'Agent') && (
-          <Card className="mt-12 p-8 card-glow bg-gradient-to-br from-primary/5 to-accent-purple/5 border-2 border-primary/20">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Ready to list a property?</h2>
-                <p className="text-muted-foreground text-lg">
-                  Upload a new property listing and reach thousands of potential buyers
-                </p>
-              </div>
-              <Link to="/upload-listing">
-                <Button variant="hero" size="lg" className="whitespace-nowrap shadow-lg">
-                  <Upload className="w-5 h-5 mr-2" />
-                  Upload Property
-                </Button>
-              </Link>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Revenue Chart */}
+          <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Revenue Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={revenueData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorRevenue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
           </Card>
-        )}
 
-        {/* Buyer-Specific Section */}
-        {user.userType === 'Buyer' && (
-          <Card className="mt-12 p-8 card-glow bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border-2 border-blue-500/20">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Find Your Dream Property</h2>
-                <p className="text-muted-foreground text-lg">
-                  Browse thousands of verified listings from trusted sellers
-                </p>
-              </div>
+          {/* Quick Actions */}
+          <Card className="border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isSeller && (
+                <Link to="/upload-listing">
+                  <Button className="w-full justify-start" variant="outline">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Property
+                  </Button>
+                </Link>
+              )}
               <Link to="/browse">
-                <Button size="lg" className="whitespace-nowrap bg-gradient-to-r from-blue-500 to-cyan-500 hover:opacity-90 shadow-lg">
+                <Button className="w-full justify-start" variant="outline">
+                  <TrendingUp className="mr-2 h-4 w-4" />
                   Browse Properties
                 </Button>
               </Link>
-            </div>
+              <Link to="/dashboard/chats">
+                <Button className="w-full justify-start" variant="outline">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Messages
+                </Button>
+              </Link>
+              <Link to="/support">
+                <Button className="w-full justify-start" variant="outline">
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Get Support
+                </Button>
+              </Link>
+              <Link to="/account-settings">
+                <Button className="w-full justify-start" variant="outline">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Properties */}
+        {isSeller && properties.length > 0 && (
+          <Card className="border-border/50 bg-card/80 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Recent Listings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {properties.map((property) => (
+                  <Link 
+                    key={property.id} 
+                    to={`/property/${property.id}`}
+                    className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors border border-border/50"
+                  >
+                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                      {property.images?.[0] ? (
+                        <img src={property.images[0]} alt={property.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Home className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground">{property.title}</h4>
+                      <p className="text-sm text-muted-foreground">{property.address}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-foreground">${property.price.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{property.status}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         )}
       </div>

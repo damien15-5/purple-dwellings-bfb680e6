@@ -58,6 +58,45 @@ export type Database = {
           },
         ]
       }
+      customer_service_tickets: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          priority: string | null
+          resolved_at: string | null
+          status: string | null
+          subject: string
+          updated_at: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          subject: string
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kyc_documents: {
         Row: {
           created_at: string | null
@@ -228,15 +267,73 @@ export type Database = {
         }
         Relationships: []
       }
+      user_analytics: {
+        Row: {
+          id: string
+          total_listings: number | null
+          total_revenue: number | null
+          total_sales: number | null
+          total_views: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          total_listings?: number | null
+          total_revenue?: number | null
+          total_sales?: number | null
+          total_views?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          total_listings?: number | null
+          total_revenue?: number | null
+          total_sales?: number | null
+          total_views?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       account_type: "buyer" | "seller" | "agent"
+      app_role: "buyer" | "seller" | "agent" | "admin" | "customer_service"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -365,6 +462,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["buyer", "seller", "agent"],
+      app_role: ["buyer", "seller", "agent", "admin", "customer_service"],
     },
   },
 } as const
