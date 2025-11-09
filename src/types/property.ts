@@ -21,7 +21,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  userType: 'Buyer' | 'Seller' | 'Admin';
+  userType: 'Buyer' | 'Seller' | 'Agent' | 'Admin';
   profilePhoto?: string;
   phone?: string;
 }

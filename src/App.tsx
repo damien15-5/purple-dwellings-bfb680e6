@@ -53,6 +53,11 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/verified" element={<VerifiedUser />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/favorites" element={<Browse />} />
+              <Route path="/dashboard/chats" element={<MyChats />} />
+              <Route path="/dashboard/escrow" element={<MyEscrow />} />
+              <Route path="/dashboard/listings" element={<MyListings />} />
+              <Route path="/dashboard/settings" element={<AccountSettings />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/3d-tour/:id" element={<ThreeDTour />} />
               <Route path="/chat/:id" element={<ChatWithSeller />} />

@@ -3,14 +3,24 @@ import { useState } from 'react';
 import { mockProperties } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ChatInterface } from '@/components/ChatInterface';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 export const PropertyDetails = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   const property = mockProperties.find((p) => p.id === Number(id));
 
@@ -157,13 +167,28 @@ export const PropertyDetails = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Link to={`/chat/${property.id}`}>
-                    <Button variant="hero" className="w-full" size="lg">
-                      <MessageSquare className="w-5 h-5 mr-2" />
-                      Contact Seller
-                    </Button>
-                  </Link>
-                  <Link to={`/escrow/${property.id}`}>
+                  <Dialog open={showChat} onOpenChange={setShowChat}>
+                    <DialogTrigger asChild>
+                      <Button variant="hero" className="w-full" size="lg">
+                        <MessageSquare className="w-5 h-5 mr-2" />
+                        Contact Seller
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                      <DialogHeader>
+                        <DialogTitle>Chat with Seller</DialogTitle>
+                        <DialogDescription>
+                          Connect directly with the property owner
+                        </DialogDescription>
+                      </DialogHeader>
+                      <ChatInterface
+                        propertyId={property.id.toString()}
+                        propertyOwnerId={property.seller.id.toString()}
+                        propertyTitle={property.title}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Link to={`/start-escrow/${property.id}`}>
                     <Button variant="default" className="w-full" size="lg">
                       <Shield className="w-5 h-5 mr-2" />
                       Start Escrow

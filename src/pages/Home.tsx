@@ -42,7 +42,7 @@ export const Home = () => {
             alt="Beautiful luxury house"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute inset-0 bg-black/50" />
         </div>
         
         <div className="relative z-10 container mx-auto px-4 text-center text-white">
@@ -53,7 +53,7 @@ export const Home = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-white/95 max-w-2xl mx-auto leading-relaxed font-medium">
-            Secure, verified property transactions with <span className="text-[#D8C4F0]">escrow protection</span>
+            Secure, verified property transactions with <span className="text-purple-300">escrow protection</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/browse">
@@ -71,43 +71,54 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-gradient-to-b from-secondary to-white">
+      {/* Featured Properties - MOVED UP */}
+      <section className="py-20 bg-gradient-to-b from-background to-secondary">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-white rounded-2xl border-2 border-[#D8C4F0]">
-                  <stat.icon className="w-8 h-8 text-[#9B6FD1] stroke-[2px]" />
-                </div>
-                <p className="text-4xl font-bold text-foreground mb-2">{stat.value}</p>
-                <p className="text-muted-foreground text-lg">{stat.label}</p>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-4">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-2 leading-tight">
+                Featured <span className="text-gradient-purple">Properties</span>
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed">Discover our <span className="text-primary font-semibold">handpicked selection</span> of premium properties</p>
+            </div>
+            <Link to="/browse">
+              <Button variant="outline" className="hover:bg-primary/10">View All Properties</Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredProperties.map((property, index) => (
+              <div 
+                key={property.id}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <PropertyCard property={property} />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Why Choose Xavorian Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
-              Why Choose <span className="text-[#9B6FD1]">Xavorian</span>
+              Why Choose <span className="text-gradient-purple">Xavorian</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Experience a <span className="text-[#9B6FD1] font-semibold">secure and seamless</span> property transaction platform
+              Experience a <span className="text-primary font-semibold">secure and seamless</span> property transaction platform
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="p-8 rounded-xl bg-white border-2 border-[#D8C4F0] hover:shadow-lg transition-all duration-300 hover:-translate-y-1 stagger-animation"
+                className="p-8 rounded-xl bg-white border-2 border-border hover:border-primary hover:shadow-xl transition-all duration-300 hover:-translate-y-1 card-glow"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-white rounded-xl border-2 border-[#9B6FD1]">
-                  <feature.icon className="w-8 h-8 text-white fill-white stroke-[#9B6FD1] stroke-[2px]" />
+                <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-gradient-to-br from-primary to-accent-purple rounded-xl">
+                  <feature.icon className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-4 leading-snug">{feature.title}</h3>
                 <p className="text-muted-foreground leading-relaxed text-base">{feature.description}</p>
@@ -117,28 +128,17 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Featured Properties */}
-      <section className="py-20 bg-gradient-to-b from-white to-secondary">
+      {/* Statistics Section - MOVED DOWN */}
+      <section className="py-16 bg-gradient-to-b from-secondary to-background">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-4">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-2 leading-tight">
-                Featured <span className="text-[#9B6FD1]">Properties</span>
-              </h2>
-              <p className="text-muted-foreground text-lg leading-relaxed">Discover our <span className="text-[#9B6FD1] font-semibold">handpicked selection</span> of premium properties</p>
-            </div>
-            <Link to="/browse">
-              <Button variant="outline" className="border-[#D8C4F0] hover:border-[#9B6FD1] hover:bg-[#9B6FD1]/5">View All</Button>
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredProperties.map((property, index) => (
-              <div 
-                key={property.id}
-                className="stagger-animation"
-                style={{ animationDelay: `${index * 0.15}s` }}
-              >
-                <PropertyCard property={property} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center p-8 rounded-xl bg-white/50 backdrop-blur-sm border border-border hover:shadow-lg transition-all duration-300">
+                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-gradient-to-br from-primary to-accent-purple rounded-2xl">
+                  <stat.icon className="w-8 h-8 text-white" />
+                </div>
+                <p className="text-4xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">{stat.value}</p>
+                <p className="text-muted-foreground text-lg font-medium">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -146,17 +146,17 @@ export const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#9B6FD1]/5 to-[#D8C4F0]/5" />
+      <section className="py-20 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-background relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
             Ready to Get Started?
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join <span className="text-[#9B6FD1] font-semibold">thousands of satisfied</span> buyers and sellers on our platform
+            Join <span className="text-primary font-semibold">thousands of satisfied</span> buyers and sellers on our platform
           </p>
           <Link to="/signup">
-            <Button variant="hero" size="lg">
+            <Button variant="hero" size="lg" className="hover-lift">
               Create Free Account
             </Button>
           </Link>
