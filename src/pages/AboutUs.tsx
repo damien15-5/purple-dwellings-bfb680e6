@@ -4,23 +4,23 @@ export const AboutUs = () => {
   const values = [
     {
       icon: Shield,
-      title: 'Trust & Security',
-      description: 'We implement AI-powered verification and escrow protection to ensure every transaction is secure and trustworthy.',
+      title: 'Security',
+      description: 'We prioritize the safety of your personal information and financial transactions. Our escrow service is designed to protect both tenants and landlords, ensuring that funds are only released when all parties are satisfied.',
     },
     {
       icon: Users,
-      title: 'User-Centric',
-      description: 'Our platform is designed with you in mind, making property transactions simple, transparent, and accessible.',
+      title: 'Transparency',
+      description: 'We believe in clear communication and transparency throughout the rental process. Our platform provides detailed property listings, allowing renters to make informed choices.',
     },
     {
       icon: Building2,
-      title: 'Innovation',
-      description: 'We leverage cutting-edge technology to revolutionize the real estate industry and create better experiences.',
+      title: 'Support',
+      description: 'Our dedicated customer support team is available to assist you at every step of your journey. Whether you have questions about the rental process or need help resolving an issue, we are here to help.',
     },
     {
       icon: Award,
-      title: 'Excellence',
-      description: 'We strive for excellence in every aspect of our service, from verification to customer support.',
+      title: 'Community Focused',
+      description: 'At XAVORIAN, we are committed to fostering a community where renters and landlords can connect meaningfully. We strive to create lasting relationships built on trust and mutual respect.',
     },
   ];
 
@@ -46,21 +46,30 @@ export const AboutUs = () => {
           <div className="bg-white rounded-2xl p-8 md:p-12 border-2 border-light-purple-border hover-lift">
             <h2 className="text-3xl font-bold mb-6 text-foreground">Our Mission</h2>
             <p className="text-lg text-muted-foreground leading-relaxed mb-4">
-              Xavorian was founded with a simple yet powerful mission: to make property transactions <span className="text-light-purple-accent font-semibold">safe, transparent, and accessible</span> for everyone. We recognized that the traditional real estate industry was plagued by fraud, inefficiency, and a lack of trust between buyers and sellers.
-            </p>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Our platform combines <span className="text-light-purple-accent font-semibold">AI-powered document verification</span>, secure escrow services, and intelligent fraud detection to create a marketplace where users can transact with confidence. We believe that technology can solve the fundamental challenges in real estate and create a better future for property transactions.
+              Our mission is to simplify the rental process by providing a reliable platform that safeguards the interests of all parties involved. We aim to empower renters with the information they need to make informed decisions while offering landlords and agents a trustworthy avenue to connect with potential tenants.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Values Section */}
+      {/* What We Do Section */}
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl p-8 md:p-12 border-2 border-light-purple-border hover-lift">
+            <h2 className="text-3xl font-bold mb-6 text-foreground">What We Do</h2>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              XAVORIAN acts as an intermediary in rental transactions, ensuring that all agreements are honored and that funds are securely held until all conditions of the rental agreement are met. Our user-friendly platform allows tenants to browse available properties, communicate directly with landlords or agents, and complete transactions with confidence.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Why Choose XAVORIAN Section */}
       <div className="bg-gradient-to-br from-secondary to-background py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">
-              Our <span className="text-gradient-primary">Core Values</span>
+              Why Choose <span className="text-gradient-primary">XAVORIAN</span>
             </h2>
             <div className="grid md:grid-cols-2 gap-8">
               {values.map((value, index) => {
@@ -84,39 +93,20 @@ export const AboutUs = () => {
         </div>
       </div>
 
-      {/* Story Section */}
+      {/* Join Us Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl p-8 md:p-12 border-2 border-light-purple-border hover-lift">
-            <h2 className="text-3xl font-bold mb-6 text-foreground">Our Story</h2>
+            <h2 className="text-3xl font-bold mb-6 text-foreground">Join Us Today</h2>
             <div className="space-y-4 text-muted-foreground leading-relaxed">
               <p>
-                Xavorian was born from firsthand experience with the challenges of property transactions. Our founders witnessed countless cases of <span className="text-light-purple-accent font-semibold">fraud, title disputes, and failed deals</span> that left both buyers and sellers frustrated and financially hurt.
-              </p>
-              <p>
-                We knew there had to be a better way. By combining expertise in real estate, technology, and artificial intelligence, we built a platform that addresses the root causes of these problems. Our <span className="text-light-purple-accent font-semibold">AI verification system</span> can detect fraudulent documents with unprecedented accuracy, while our secure escrow process ensures that funds are protected throughout the transaction.
-              </p>
-              <p>
-                Today, Xavorian serves thousands of users who have successfully completed property transactions on our platform. But we're just getting started. We continue to innovate, improve, and expand our services to make real estate transactions safer and more efficient for everyone.
+                Whether you are a tenant looking for your next home or a landlord seeking reliable tenants, XAVORIAN is here to facilitate your journey. Explore our platform today and experience a new standard in rental transactions.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Team Section */}
-      <div className="bg-gradient-to-br from-secondary to-background py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Join Our <span className="text-gradient-primary">Journey</span>
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-              We're building the future of real estate, one transaction at a time. Whether you're buying your first home or selling a commercial property, Xavorian is here to make your experience <span className="text-light-purple-accent font-semibold">safe, simple, and successful</span>.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

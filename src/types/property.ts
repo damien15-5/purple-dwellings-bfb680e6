@@ -15,6 +15,7 @@ export interface Property {
   status: 'draft' | 'pending' | 'published';
   amenities?: string[];
   sqft?: number;
+  isVerified?: boolean;
 }
 
 export interface User {

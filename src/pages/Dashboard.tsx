@@ -196,14 +196,12 @@ export const Dashboard = () => {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {isSeller && (
-                <Link to="/upload-listing">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Property
-                  </Button>
-                </Link>
-              )}
+              <Link to="/upload-listing">
+                <Button className="w-full justify-start" variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Property
+                </Button>
+              </Link>
               <Link to="/browse">
                 <Button className="w-full justify-start" variant="outline">
                   <TrendingUp className="mr-2 h-4 w-4" />

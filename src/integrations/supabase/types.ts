@@ -214,8 +214,10 @@ export type Database = {
           condition: string | null
           created_at: string
           description: string
+          documents: Json | null
           id: string
           images: string[] | null
+          is_verified: boolean | null
           price: number
           property_type: string
           status: string
@@ -234,8 +236,10 @@ export type Database = {
           condition?: string | null
           created_at?: string
           description: string
+          documents?: Json | null
           id?: string
           images?: string[] | null
+          is_verified?: boolean | null
           price: number
           property_type: string
           status?: string
@@ -254,8 +258,10 @@ export type Database = {
           condition?: string | null
           created_at?: string
           description?: string
+          documents?: Json | null
           id?: string
           images?: string[] | null
+          is_verified?: boolean | null
           price?: number
           property_type?: string
           status?: string

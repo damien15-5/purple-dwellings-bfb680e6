@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Property } from '@/types/property';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bed, Bath, Square, MapPin } from 'lucide-react';
+import { Bed, Bath, Square, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -27,9 +27,26 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
           />
-          <Badge className="absolute top-4 right-4 bg-[#9B6FD1] text-white border-0">
-            {property.propertyType}
-          </Badge>
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Badge className="bg-[#9B6FD1] text-white border-0">
+              {property.propertyType}
+            </Badge>
+            {property.isVerified !== undefined && (
+              <Badge className={property.isVerified ? "bg-green-500 text-white border-0" : "bg-yellow-500 text-white border-0"}>
+                {property.isVerified ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Verified
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Not Verified
+                  </>
+                )}
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="p-6 space-y-3 bg-white">
           <div className="flex items-start justify-between">

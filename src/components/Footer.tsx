@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { Instagram, Youtube } from 'lucide-react';
+import { SiTiktok, SiX } from 'react-icons/si';
 
 export const Footer = () => {
   const footerSections = [
@@ -47,17 +48,17 @@ export const Footer = () => {
               Your trusted platform for secure property transactions
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="https://www.instagram.com/xavorianxyz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Linkedin className="w-5 h-5" />
+              <a href="https://x.com/Xavorianxyz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <SiX className="w-5 h-5" />
+              </a>
+              <a href="https://tiktok.com/@xavorianxyz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <SiTiktok className="w-5 h-5" />
+              </a>
+              <a href="https://www.youtube.com/@Xavorianxyz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <Youtube className="w-5 h-5" />
               </a>
             </div>
           </div>
