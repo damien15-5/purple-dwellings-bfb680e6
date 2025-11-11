@@ -45,10 +45,12 @@ export const Navigation = () => {
 
   const navLinks = [
     { to: '/', label: 'Home', icon: Home },
-    { to: '/browse', label: 'Browse', icon: Search },
-    { to: '/how-it-works', label: 'How It Works', icon: null },
-    { to: '/about', label: 'About', icon: null },
-    { to: '/faq', label: 'FAQ', icon: null },
+    { to: '/browse?type=house', label: 'Houses', icon: null },
+    { to: '/browse?type=land', label: 'Lands', icon: null },
+    { to: '/browse?type=shop', label: 'Shops', icon: null },
+    { to: '/browse?type=apartment', label: 'Apartments', icon: null },
+    { to: '/browse?type=rental', label: 'Rentals', icon: null },
+    { to: '/about', label: 'About Us', icon: null },
     { to: '/contact', label: 'Contact', icon: null },
   ];
 
@@ -68,24 +70,8 @@ export const Navigation = () => {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center px-4">
-            {navLinks.map((link) => (
-              <Link key={link.to} to={link.to}>
-                <Button
-                  variant={location.pathname === link.to ? 'default' : 'ghost'}
-                  className="flex items-center gap-2 text-sm"
-                  size="sm"
-                >
-                  {link.icon && <link.icon className="w-4 h-4" />}
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
-          </div>
-
           {/* Desktop Auth Buttons */}
-          <div className="hidden lg:flex items-center space-x-2 shrink-0">
+          <div className="hidden md:flex items-center space-x-2 shrink-0">
             {isLoggedIn ? (
               <>
                 <Link to="/dashboard">
@@ -115,18 +101,19 @@ export const Navigation = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Hamburger Menu Button */}
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors shrink-0"
+            className="p-2 rounded-lg hover:bg-accent transition-colors shrink-0"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle menu"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Sidebar Menu */}
         {isOpen && (
-          <div className="lg:hidden py-4 space-y-2 border-t border-border">
+          <div className="py-4 space-y-2 border-t border-border">
             {navLinks.map((link) => (
               <Link key={link.to} to={link.to} onClick={() => setIsOpen(false)}>
                 <Button
@@ -138,7 +125,7 @@ export const Navigation = () => {
                 </Button>
               </Link>
             ))}
-            <div className="pt-2 space-y-2 border-t border-border">
+            <div className="pt-2 space-y-2 border-t border-border md:hidden">
               {isLoggedIn ? (
                 <>
                   <Link to="/dashboard" onClick={() => setIsOpen(false)}>

@@ -100,53 +100,36 @@ export const Home = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-3xl font-bold text-foreground">{title}</h2>
             <Link to={`/browse?type=${title.toLowerCase()}`}>
-              <Button variant="ghost" className="text-primary hover:text-primary-dark">
-                View all {title} →
+              <Button variant="ghost" className="text-primary hover:text-primary-dark text-sm">
+                View all →
               </Button>
             </Link>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => scrollCategory(categoryId, 'left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-
-            <div
-              id={categoryId}
-              className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar scroll-smooth"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {properties.map((property) => (
-                <div key={property.id} className="flex-none w-[320px]">
-                  <PropertyCard
-                    property={{
-                      id: parseInt(property.id) || 1,
-                      title: property.title,
-                      location: property.address,
-                      price: property.price,
-                      bedrooms: property.bedrooms || 0,
-                      bathrooms: property.bathrooms || 0,
-                      sqft: property.area || 0,
-                      propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
-                      images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
-                      description: property.description,
-                      seller: { id: 1, name: 'Seller' },
-                      status: 'published',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => scrollCategory(categoryId, 'right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
+          <div
+            id={categoryId}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-4"
+          >
+            {properties.map((property) => (
+              <PropertyCard
+                key={property.id}
+                property={{
+                  id: property.id,
+                  title: property.title,
+                  location: property.address,
+                  price: property.price,
+                  bedrooms: property.bedrooms || 0,
+                  bathrooms: property.bathrooms || 0,
+                  sqft: property.area || 0,
+                  propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
+                  images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
+                  description: property.description,
+                  seller: { id: 1, name: 'Seller' },
+                  status: 'published',
+                  isVerified: property.is_verified,
+                }}
+              />
+            ))}
           </div>
         </div>
       </section>

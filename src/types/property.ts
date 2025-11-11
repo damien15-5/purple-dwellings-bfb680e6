@@ -1,5 +1,5 @@
 export interface Property {
-  id: number;
+  id: number | string;
   title: string;
   price: number;
   location: string;
