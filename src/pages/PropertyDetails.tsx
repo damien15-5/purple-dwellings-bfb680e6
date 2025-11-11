@@ -1,11 +1,12 @@
-import { useParams, Link } from 'react-router-dom';
-import { useState } from 'react';
-import { mockProperties } from '@/data/mockData';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, X } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, X, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ChatInterface } from '@/components/ChatInterface';
+import { supabase } from '@/integrations/supabase/client';
+import { toast as sonnerToast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -15,14 +16,89 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+type Property = {
+  id: string;
+  title: string;
+  description: string;
+  property_type: string;
+  address: string;
+  price: number;
+  bedrooms: number;
+  bathrooms: number;
+  area: number;
+  images: string[];
+  video_url?: string;
+  amenities?: string[];
+  condition?: string;
+  year_built?: number;
+  status: string;
+  user_id: string;
+  is_verified: boolean;
+};
+
 export const PropertyDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sellerName, setSellerName] = useState('Seller');
 
-  const property = mockProperties.find((p) => p.id === Number(id));
+  useEffect(() => {
+    fetchProperty();
+  }, [id]);
+
+  const fetchProperty = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('id', id)
+        .eq('status', 'published')
+        .single();
+
+      if (error) throw error;
+      
+      if (!data) {
+        sonnerToast.error('Property not found');
+        navigate('/browse');
+        return;
+      }
+
+      setProperty(data);
+
+      // Fetch seller name
+      const { data: sellerData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', data.user_id)
+        .single();
+
+      if (sellerData) {
+        setSellerName(sellerData.full_name);
+      }
+    } catch (error: any) {
+      console.error('Error fetching property:', error);
+      sonnerToast.error('Failed to load property');
+      navigate('/browse');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading property...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!property) {
     return (
@@ -76,17 +152,41 @@ export const PropertyDetails = () => {
             {/* Main Image */}
             <div className="relative h-[500px] rounded-xl overflow-hidden card-glow">
               <img
-                src={property.images[selectedImage]}
+                src={property.images && property.images[selectedImage] || 'https://images.unsplash.com/photo-1568605114967-8130f3a36994'}
                 alt={property.title}
                 className="w-full h-full object-cover"
               />
               <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
-                {property.propertyType}
+                {property.property_type}
               </Badge>
+              {property.is_verified && (
+                <Badge className="absolute top-4 right-4 bg-green-500 text-white">
+                  Verified
+                </Badge>
+              )}
             </div>
 
+            {/* Video Section */}
+            {property.video_url && (
+              <div className="bg-white rounded-xl p-6 card-glow">
+                <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Play className="w-5 h-5 text-primary" />
+                  3D Virtual Tour
+                </h3>
+                <div className="aspect-video rounded-lg overflow-hidden">
+                  <video 
+                    controls 
+                    className="w-full h-full"
+                    src={property.video_url}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              </div>
+            )}
+
             {/* Thumbnail Images */}
-            {property.images.length > 1 && (
+            {property.images && property.images.length > 1 && (
               <div className="grid grid-cols-4 gap-4">
                 {property.images.map((image, index) => (
                   <button
@@ -137,16 +237,16 @@ export const PropertyDetails = () => {
                     <p className="text-sm text-muted-foreground">Bathrooms</p>
                   </div>
                 )}
-                {property.sqft && (
+                {property.area && (
                   <div className="text-center">
                     <Square className="w-8 h-8 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold text-foreground">{property.sqft}</p>
+                    <p className="font-semibold text-foreground">{property.area}</p>
                     <p className="text-sm text-muted-foreground">Sq Ft</p>
                   </div>
                 )}
                 <div className="text-center">
                   <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="font-semibold text-foreground">Prime</p>
+                  <p className="font-semibold text-foreground">{property.address}</p>
                   <p className="text-sm text-muted-foreground">Location</p>
                 </div>
               </div>
@@ -162,7 +262,7 @@ export const PropertyDetails = () => {
                   <p className="text-3xl font-bold text-primary mb-2">{formatPrice(property.price)}</p>
                   <div className="flex items-center text-muted-foreground text-sm">
                     <MapPin className="w-4 h-4 mr-1" />
-                    {property.location}
+                    {property.address}
                   </div>
                 </div>
 
@@ -182,8 +282,8 @@ export const PropertyDetails = () => {
                         </DialogDescription>
                       </DialogHeader>
                       <ChatInterface
-                        propertyId={property.id.toString()}
-                        propertyOwnerId={property.seller.id.toString()}
+                        propertyId={property.id}
+                        propertyOwnerId={property.user_id}
                         propertyTitle={property.title}
                       />
                     </DialogContent>
@@ -213,11 +313,11 @@ export const PropertyDetails = () => {
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-light rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold">
-                      {property.seller.name.charAt(0)}
+                      {sellerName.charAt(0)}
                     </span>
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{property.seller.name}</p>
+                    <p className="font-semibold text-foreground">{sellerName}</p>
                     <p className="text-sm text-muted-foreground">Verified Seller</p>
                   </div>
                 </div>

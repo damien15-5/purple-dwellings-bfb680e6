@@ -1,167 +1,228 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/PropertyCard';
-import { mockProperties } from '@/data/mockData';
-import { Search, Shield, MessageSquare, CheckCircle, TrendingUp, Users } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Search, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import heroImage from '@/assets/hero-house.jpg';
 
+type Property = {
+  id: string;
+  title: string;
+  description: string;
+  property_type: string;
+  address: string;
+  price: number;
+  bedrooms: number;
+  bathrooms: number;
+  area: number;
+  images: string[];
+  status: string;
+  is_verified: boolean;
+};
+
 export const Home = () => {
-  const featuredProperties = mockProperties.slice(0, 3);
+  const [searchLocation, setSearchLocation] = useState('');
+  const [houses, setHouses] = useState<Property[]>([]);
+  const [lands, setLands] = useState<Property[]>([]);
+  const [shops, setShops] = useState<Property[]>([]);
+  const [apartments, setApartments] = useState<Property[]>([]);
+  const [rentals, setRentals] = useState<Property[]>([]);
+  const [heroScrolled, setHeroScrolled] = useState(false);
 
-  const features = [
-    {
-      icon: Shield,
-      title: 'Secure Transactions',
-      description: 'Experience complete peace of mind with our advanced escrow protection system. Every transaction is safeguarded, ensuring safe and secure property deals for all parties involved.',
-    },
-    {
-      icon: MessageSquare,
-      title: 'Direct Communication',
-      description: 'Connect instantly with sellers and buyers through our seamless messaging platform. Build relationships, ask questions, and negotiate deals all in one place.',
-    },
-    {
-      icon: CheckCircle,
-      title: 'Verified Listings',
-      description: 'Trust in authenticity—every property listing undergoes rigorous verification with comprehensive document checks to protect your investment.',
-    },
-  ];
+  useEffect(() => {
+    fetchProperties();
 
-  const stats = [
-    { icon: Users, value: '10,000+', label: 'Happy Customers' },
-    { icon: TrendingUp, value: '₦50B+', label: 'Properties Sold' },
-    { icon: CheckCircle, value: '5,000+', label: 'Verified Listings' },
-  ];
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setHeroScrolled(true);
+      } else {
+        setHeroScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const fetchProperties = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      if (error) throw error;
+
+      const categorized = {
+        houses: data?.filter(p => p.property_type?.toLowerCase() === 'house').slice(0, 5) || [],
+        lands: data?.filter(p => p.property_type?.toLowerCase() === 'land').slice(0, 5) || [],
+        shops: data?.filter(p => p.property_type?.toLowerCase() === 'shop').slice(0, 5) || [],
+        apartments: data?.filter(p => p.property_type?.toLowerCase() === 'apartment').slice(0, 5) || [],
+        rentals: data?.filter(p => p.property_type?.toLowerCase() === 'rental').slice(0, 5) || [],
+      };
+
+      setHouses(categorized.houses);
+      setLands(categorized.lands);
+      setShops(categorized.shops);
+      setApartments(categorized.apartments);
+      setRentals(categorized.rentals);
+    } catch (error: any) {
+      console.error('Error fetching properties:', error);
+    }
+  };
+
+  const scrollCategory = (containerId: string, direction: 'left' | 'right') => {
+    const container = document.getElementById(containerId);
+    if (container) {
+      const scrollAmount = direction === 'left' ? -400 : 400;
+      container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const handleSearch = () => {
+    if (searchLocation.trim()) {
+      window.location.href = `/browse?search=${encodeURIComponent(searchLocation)}`;
+    } else {
+      window.location.href = '/browse';
+    }
+  };
+
+  const CategorySection = ({ title, properties, categoryId }: { title: string; properties: Property[]; categoryId: string }) => {
+    if (properties.length === 0) return null;
+
+    return (
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-foreground">{title}</h2>
+            <Link to={`/browse?type=${title.toLowerCase()}`}>
+              <Button variant="ghost" className="text-primary hover:text-primary-dark">
+                View all {title} →
+              </Button>
+            </Link>
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => scrollCategory(categoryId, 'left')}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <div
+              id={categoryId}
+              className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar scroll-smooth"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {properties.map((property) => (
+                <div key={property.id} className="flex-none w-[320px]">
+                  <PropertyCard
+                    property={{
+                      id: parseInt(property.id) || 1,
+                      title: property.title,
+                      location: property.address,
+                      price: property.price,
+                      bedrooms: property.bedrooms || 0,
+                      bathrooms: property.bathrooms || 0,
+                      sqft: property.area || 0,
+                      propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
+                      images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
+                      description: property.description,
+                      seller: { id: 1, name: 'Seller' },
+                      status: 'published',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => scrollCategory(categoryId, 'right')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
+      <section
+        className={`relative flex items-center justify-center overflow-hidden transition-all duration-500 ${
+          heroScrolled ? 'h-[300px]' : 'h-[50vh]'
+        }`}
+      >
         <div className="absolute inset-0 z-0">
           <img
             src={heroImage}
-            alt="Beautiful luxury house"
-            className="w-full h-full object-cover"
+            alt="Beautiful houses"
+            className="w-full h-full object-cover blur-sm"
           />
-          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 bg-black/40" />
         </div>
-        
-        <div className="relative z-10 container mx-auto px-4 text-center text-white">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 animate-fade-in leading-tight">
-            Find Your Dream
-            <span className="block text-gradient-purple">
-              Property Today
-            </span>
+
+        <div className="relative z-10 container mx-auto px-4 text-center">
+          {/* Logo/Brand Name */}
+          <h1 className={`font-bold text-white mb-8 transition-all duration-500 ${
+            heroScrolled ? 'text-4xl' : 'text-6xl md:text-7xl'
+          }`}>
+            Xavorian
           </h1>
-          <p className="text-xl md:text-2xl mb-8 text-white/95 max-w-2xl mx-auto leading-relaxed font-medium">
-            Secure, verified property transactions with <span className="text-purple-300">escrow protection</span>
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/browse">
-              <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                <Search className="w-5 h-5 mr-2" />
-                Browse Properties
-              </Button>
-            </Link>
-            <Link to="/how-it-works">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white/10 text-white border-white/30 hover:bg-white hover:text-foreground backdrop-blur-sm">
-                Learn More
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
 
-      {/* Featured Properties - MOVED UP */}
-      <section className="py-20 bg-gradient-to-b from-background to-secondary">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-4">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-2 leading-tight">
-                Featured <span className="text-gradient-purple">Properties</span>
-              </h2>
-              <p className="text-muted-foreground text-lg leading-relaxed">Discover our <span className="text-primary font-semibold">handpicked selection</span> of premium properties</p>
+          {/* Search Bar */}
+          <div className="max-w-4xl mx-auto bg-white rounded-full shadow-2xl p-2 flex items-center gap-2">
+            <div className="flex-1 flex items-center px-6">
+              <Search className="w-5 h-5 text-muted-foreground mr-3" />
+              <Input
+                type="text"
+                placeholder="Search destinations..."
+                value={searchLocation}
+                onChange={(e) => setSearchLocation(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="border-0 focus-visible:ring-0 text-base"
+              />
             </div>
-            <Link to="/browse">
-              <Button variant="outline" className="hover:bg-primary/10">View All Properties</Button>
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredProperties.map((property, index) => (
-              <div 
-                key={property.id}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <PropertyCard property={property} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Why Choose Xavorian Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
-              Why Choose <span className="text-gradient-purple">Xavorian</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Experience a <span className="text-primary font-semibold">secure and seamless</span> property transaction platform
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className="p-8 rounded-xl bg-white border-2 border-border hover:border-primary hover:shadow-xl transition-all duration-300 hover:-translate-y-1 card-glow"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-gradient-to-br from-primary to-accent-purple rounded-xl">
-                  <feature.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-foreground mb-4 leading-snug">{feature.title}</h3>
-                <p className="text-muted-foreground leading-relaxed text-base">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Statistics Section - MOVED DOWN */}
-      <section className="py-16 bg-gradient-to-b from-secondary to-background">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center p-8 rounded-xl bg-white/50 backdrop-blur-sm border border-border hover:shadow-lg transition-all duration-300">
-                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-gradient-to-br from-primary to-accent-purple rounded-2xl">
-                  <stat.icon className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-4xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">{stat.value}</p>
-                <p className="text-muted-foreground text-lg font-medium">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-background relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
-            Ready to Get Started?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join <span className="text-primary font-semibold">thousands of satisfied</span> buyers and sellers on our platform
-          </p>
-          <Link to="/signup">
-            <Button variant="hero" size="lg" className="hover-lift">
-              Create Free Account
+            <Button
+              onClick={handleSearch}
+              size="lg"
+              className="rounded-full bg-gradient-to-r from-primary to-accent-purple hover:from-primary-dark hover:to-accent-purple-dark px-8"
+            >
+              <Search className="w-5 h-5" />
             </Button>
-          </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full border-2"
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </section>
+
+      {/* Categories */}
+      <div className="bg-background">
+        <CategorySection title="Houses" properties={houses} categoryId="houses-scroll" />
+        <CategorySection title="Lands" properties={lands} categoryId="lands-scroll" />
+        <CategorySection title="Shops" properties={shops} categoryId="shops-scroll" />
+        <CategorySection title="Apartments" properties={apartments} categoryId="apartments-scroll" />
+        <CategorySection title="Rentals" properties={rentals} categoryId="rentals-scroll" />
+      </div>
+
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 };

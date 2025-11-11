@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, X, CheckCircle2, Loader2, FileText, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ export const UploadListing = () => {
     title: '',
     description: '',
     price: '',
+    propertyType: '',
     bedrooms: '',
     bathrooms: '',
     kitchen: '',
@@ -60,7 +62,7 @@ export const UploadListing = () => {
 
   const handleNext = () => {
     if (step === 1) {
-      if (!formData.title || !formData.price || !formData.description) {
+      if (!formData.title || !formData.price || !formData.description || !formData.propertyType) {
         toast.error('Please fill in all required fields');
         return;
       }
@@ -213,7 +215,7 @@ export const UploadListing = () => {
             user_id: userId,
             title: formData.title,
             description: formData.description,
-            property_type: 'House',
+            property_type: formData.propertyType,
             address: 'To be updated',
             price: parseFloat(formData.price),
             bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
@@ -376,6 +378,25 @@ export const UploadListing = () => {
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g., Modern 3-Bedroom House"
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="propertyType">Property Type *</Label>
+                  <Select value={formData.propertyType} onValueChange={(value) => setFormData({ ...formData, propertyType: value })}>
+                    <SelectTrigger id="propertyType">
+                      <SelectValue placeholder="Select property type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="House">House</SelectItem>
+                      <SelectItem value="Apartment">Apartment</SelectItem>
+                      <SelectItem value="Land">Land</SelectItem>
+                      <SelectItem value="Shop">Shop</SelectItem>
+                      <SelectItem value="Rental">Rental</SelectItem>
+                      <SelectItem value="Villa">Villa</SelectItem>
+                      <SelectItem value="Office">Office Space</SelectItem>
+                      <SelectItem value="Warehouse">Warehouse</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
