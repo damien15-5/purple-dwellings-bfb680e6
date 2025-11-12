@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Property } from '@/types/property';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Bed, Bath, Square, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
+import { MapPin, Heart } from 'lucide-react';
+import { useState } from 'react';
 
 interface PropertyCardProps {
   property: Property;
 }
 
 export const PropertyCard = ({ property }: PropertyCardProps) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -17,44 +18,46 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
     }).format(price);
   };
 
+  const imageUrl = Array.isArray(property.images) && property.images.length > 0 
+    ? property.images[0] 
+    : '/placeholder.svg';
+
   return (
-    <Link to={`/property/${property.id}`} className="block">
-      <Card className="overflow-hidden bg-card hover:shadow-xl cursor-pointer group transition-all duration-300 hover:-translate-y-1 h-full border border-border">
-        <div className="relative aspect-[4/3] overflow-hidden">
+    <div className="group cursor-pointer">
+      <Link to={`/property/${property.id}`} className="block">
+        <div className="relative aspect-square rounded-xl overflow-hidden mb-3">
           <img
-            src={property.images[0]}
+            src={imageUrl}
             alt={property.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
           />
-          {property.isVerified !== undefined && (
-            <Badge className={`absolute top-2 right-2 ${property.isVerified ? "bg-green-500" : "bg-yellow-500"} text-white border-0 text-xs`}>
-              {property.isVerified ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Verified
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Not Verified
-                </>
-              )}
-            </Badge>
-          )}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setIsFavorite(!isFavorite);
+            }}
+            className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors z-10"
+          >
+            <Heart
+              className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-700'}`}
+            />
+          </button>
         </div>
-        <div className="p-3 space-y-1">
-          <h3 className="font-semibold text-sm text-foreground line-clamp-1">
-            {property.title}
-          </h3>
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {property.location}
-          </p>
-          <p className="text-base font-bold text-foreground pt-1">
-            {formatPrice(property.price)}
-          </p>
+        <div className="space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-base line-clamp-1">{property.title}</h3>
+          </div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
+            <span className="line-clamp-1">{property.location}</span>
+          </div>
+          <div className="flex items-baseline gap-1 pt-1">
+            <span className="font-semibold text-base">{formatPrice(property.price)}</span>
+            <span className="text-sm text-muted-foreground">total</span>
+          </div>
         </div>
-      </Card>
-    </Link>
+      </Link>
+    </div>
   );
 };

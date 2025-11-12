@@ -25,6 +25,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -33,26 +34,67 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
-        loadMessages();
+        await initializeConversation(user.id);
       }
     };
 
     getCurrentUser();
   }, [propertyId]);
 
+  const initializeConversation = async (userId: string) => {
+    try {
+      // Check if conversation exists
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('buyer_id', userId)
+        .maybeSingle();
+
+      if (existingConv) {
+        setConversationId(existingConv.id);
+        loadMessages(existingConv.id);
+      } else {
+        // Create new conversation
+        const { data: newConv, error } = await supabase
+          .from('conversations')
+          .insert({
+            property_id: propertyId,
+            buyer_id: userId,
+            seller_id: propertyOwnerId,
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        if (newConv) {
+          setConversationId(newConv.id);
+          loadMessages(newConv.id);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error initializing conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to initialize chat',
+        variant: 'destructive',
+      });
+    }
+  };
+
   useEffect(() => {
-    if (!currentUserId) return;
+    if (!currentUserId || !conversationId) return;
 
     // Set up real-time subscription for new messages
     const channel = supabase
-      .channel(`messages_${propertyId}`)
+      .channel(`messages_${conversationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${propertyId}`,
+          filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
@@ -64,14 +106,14 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, propertyId]);
+  }, [currentUserId, conversationId]);
 
-  const loadMessages = async () => {
+  const loadMessages = async (convId: string) => {
     try {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', propertyId)
+        .eq('conversation_id', convId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -88,7 +130,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUserId) return;
+    if (!newMessage.trim() || !currentUserId || !conversationId) return;
 
     // Filter contact information
     const { filtered, blocked } = filterContactInfo(newMessage);
@@ -104,39 +146,20 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
 
     setLoading(true);
     try {
-      // First, ensure conversation exists
-      const { data: existingConv } = await supabase
+      // Update last message in conversation
+      await supabase
         .from('conversations')
-        .select('id')
-        .eq('property_id', propertyId)
-        .eq('buyer_id', currentUserId)
-        .single();
-
-      if (!existingConv) {
-        // Create conversation
-        await supabase.from('conversations').insert({
-          property_id: propertyId,
-          buyer_id: currentUserId,
-          seller_id: propertyOwnerId,
+        .update({
           last_message: filtered,
           last_message_time: new Date().toISOString(),
-        });
-      } else {
-        // Update last message
-        await supabase
-          .from('conversations')
-          .update({
-            last_message: filtered,
-            last_message_time: new Date().toISOString(),
-          })
-          .eq('id', existingConv.id);
-      }
+        })
+        .eq('id', conversationId);
 
       // Send message
       const { error } = await supabase.from('messages').insert({
         content: filtered,
         sender_id: currentUserId,
-        conversation_id: propertyId,
+        conversation_id: conversationId,
       });
 
       if (error) throw error;
@@ -156,18 +179,18 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
   };
 
   return (
-    <Card className="flex flex-col h-[600px]">
+    <Card className="flex flex-col h-[500px] max-h-[80vh] w-full">
       {/* Chat Header */}
-      <div className="p-4 border-b bg-gradient-to-r from-primary to-accent-purple text-white rounded-t-lg">
-        <h3 className="font-semibold text-lg">Chat about: {propertyTitle}</h3>
-        <p className="text-sm text-white/80">Connect with the property owner</p>
+      <div className="p-3 border-b bg-gradient-to-r from-primary to-primary/80 text-white rounded-t-lg">
+        <h3 className="font-semibold text-base">{propertyTitle}</h3>
+        <p className="text-xs text-white/80">Connect with the property owner</p>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-secondary/20">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-muted/30">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>No messages yet. Start the conversation!</p>
+            <p className="text-sm">No messages yet. Start the conversation!</p>
           </div>
         ) : (
           messages.map((message) => (
@@ -178,21 +201,15 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
               }`}
             >
               <div
-                className={`max-w-[70%] rounded-lg p-3 ${
+                className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   message.sender_id === currentUserId
-                    ? 'bg-gradient-to-r from-primary to-accent-purple text-white'
-                    : 'bg-white border border-border'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background border border-border'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <UserIcon className="w-4 h-4" />
-                  <span className="text-xs font-medium">
-                    {message.sender_id === currentUserId ? 'You' : 'Owner'}
-                  </span>
-                </div>
                 <p className="text-sm">{message.content}</p>
-                <span className="text-xs opacity-70 mt-1 block">
-                  {new Date(message.created_at).toLocaleTimeString()}
+                <span className="text-xs opacity-60 mt-1 block">
+                  {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             </div>
@@ -202,16 +219,16 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t bg-white rounded-b-lg">
+      <form onSubmit={handleSendMessage} className="p-3 border-t bg-background">
         <div className="flex gap-2">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            disabled={loading}
+            disabled={loading || !conversationId}
             className="flex-1"
           />
-          <Button type="submit" disabled={loading || !newMessage.trim()} variant="hero">
+          <Button type="submit" disabled={loading || !newMessage.trim() || !conversationId} size="icon">
             <Send className="w-4 h-4" />
           </Button>
         </div>
