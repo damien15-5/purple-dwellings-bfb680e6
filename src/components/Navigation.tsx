@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Home, Search, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import xavorianLogo from '@/assets/xavorian-logo.png';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,8 +57,12 @@ export const Navigation = () => {
     { to: '/browse?type=shop', label: 'Shops', icon: null },
     { to: '/browse?type=apartment', label: 'Apartments', icon: null },
     { to: '/browse?type=rental', label: 'Rentals', icon: null },
+    { to: '/browse?type=villa', label: 'Villas', icon: null },
+    { to: '/browse?type=office', label: 'Offices', icon: null },
+    { to: '/browse?type=warehouse', label: 'Warehouses', icon: null },
     { to: '/about', label: 'About Us', icon: null },
     { to: '/contact', label: 'Contact', icon: null },
+    { to: '/faq', label: 'FAQ', icon: HelpCircle },
   ];
 
   return (
@@ -70,99 +81,61 @@ export const Navigation = () => {
             </span>
           </Link>
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-2 shrink-0">
-            {isLoggedIn ? (
-              <>
-                <Link to="/dashboard">
-                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </Button>
+          {/* Hamburger Dropdown Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {/* Navigation Links */}
+              {navLinks.map((link) => (
+                <Link key={link.to} to={link.to}>
+                  <DropdownMenuItem className="cursor-pointer">
+                    {link.icon && <link.icon className="w-4 h-4 mr-2" />}
+                    {link.label}
+                  </DropdownMenuItem>
                 </Link>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  {userName}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link to="/login">
-                  <Button variant="ghost" size="sm">Login</Button>
-                </Link>
-                <Link to="/signup">
-                  <Button variant="hero" size="sm">Get Started</Button>
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Hamburger Menu Button */}
-          <button
-            className="p-2 rounded-lg hover:bg-accent transition-colors shrink-0"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Sidebar Menu */}
-        {isOpen && (
-          <div className="py-4 space-y-2 border-t border-border">
-            {navLinks.map((link) => (
-              <Link key={link.to} to={link.to} onClick={() => setIsOpen(false)}>
-                <Button
-                  variant={location.pathname === link.to ? 'default' : 'ghost'}
-                  className="w-full justify-start flex items-center gap-2"
-                >
-                  {link.icon && <link.icon className="w-4 h-4" />}
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
-            <div className="pt-2 space-y-2 border-t border-border md:hidden">
+              ))}
+              
+              <DropdownMenuSeparator />
+              
+              {/* User Section */}
               {isLoggedIn ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start">
+                  <Link to="/dashboard">
+                    <DropdownMenuItem className="cursor-pointer">
                       <LayoutDashboard className="w-4 h-4 mr-2" />
                       Dashboard
-                    </Button>
+                    </DropdownMenuItem>
                   </Link>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      handleLogout();
-                      setIsOpen(false);
-                    }}
-                    className="w-full justify-start"
-                  >
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="w-4 h-4 mr-2" />
+                    {userName}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
-                  </Button>
+                  </DropdownMenuItem>
                 </>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start">
+                  <Link to="/login">
+                    <DropdownMenuItem className="cursor-pointer">
                       Login
-                    </Button>
+                    </DropdownMenuItem>
                   </Link>
-                  <Link to="/signup" onClick={() => setIsOpen(false)}>
-                    <Button variant="hero" className="w-full">
+                  <Link to="/signup">
+                    <DropdownMenuItem className="cursor-pointer font-semibold">
                       Get Started
-                    </Button>
+                    </DropdownMenuItem>
                   </Link>
                 </>
               )}
-            </div>
-          </div>
-        )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </nav>
   );

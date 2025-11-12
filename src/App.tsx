@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Home } from "./pages/Home";
+import { BlogRedirect } from "./components/BlogRedirect";
 import { Browse } from "./pages/Browse";
 import { PropertyDetails } from "./pages/PropertyDetails";
 import { Login } from "./pages/Login";
@@ -28,7 +29,6 @@ import { AboutUs } from "./pages/AboutUs";
 import { OurVision } from "./pages/OurVision";
 import { TermsAndConditions } from "./pages/TermsAndConditions";
 import { FAQ } from "./pages/FAQ";
-import { Blog } from "./pages/Blog";
 import { MyChats } from "./pages/MyChats";
 import { AccountSettings } from "./pages/AccountSettings";
 import { Support } from "./pages/Support";
@@ -77,7 +77,7 @@ const App = () => (
               <Route path="/vision" element={<OurVision />} />
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/faq" element={<FAQ />} />
-              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog" element={<BlogRedirect />} />
               <Route path="/support" element={<Support />} />
               <Route path="/customer-service" element={<CustomerServiceDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

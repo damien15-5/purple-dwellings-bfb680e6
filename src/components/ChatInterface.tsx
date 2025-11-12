@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Send, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { filterContactInfo } from '@/utils/contentFilter';
 
 interface Message {
   id: string;
@@ -89,10 +90,51 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
     e.preventDefault();
     if (!newMessage.trim() || !currentUserId) return;
 
+    // Filter contact information
+    const { filtered, blocked } = filterContactInfo(newMessage);
+    
+    if (blocked) {
+      toast({
+        title: 'Message Blocked',
+        description: 'Sharing external contact details is not allowed. Please chat safely within Xavorian.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // First, ensure conversation exists
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('buyer_id', currentUserId)
+        .single();
+
+      if (!existingConv) {
+        // Create conversation
+        await supabase.from('conversations').insert({
+          property_id: propertyId,
+          buyer_id: currentUserId,
+          seller_id: propertyOwnerId,
+          last_message: filtered,
+          last_message_time: new Date().toISOString(),
+        });
+      } else {
+        // Update last message
+        await supabase
+          .from('conversations')
+          .update({
+            last_message: filtered,
+            last_message_time: new Date().toISOString(),
+          })
+          .eq('id', existingConv.id);
+      }
+
+      // Send message
       const { error } = await supabase.from('messages').insert({
-        content: newMessage,
+        content: filtered,
         sender_id: currentUserId,
         conversation_id: propertyId,
       });
@@ -102,9 +144,10 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
       setNewMessage('');
       scrollToBottom();
     } catch (error: any) {
+      console.error('Chat error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send message. Please try again.',
+        description: error.message || 'Failed to send message. Please try again.',
         variant: 'destructive',
       });
     } finally {

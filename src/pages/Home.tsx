@@ -46,6 +46,17 @@ export const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const propertyCategories = [
+    { key: 'houses', title: 'Houses', type: 'house' },
+    { key: 'apartments', title: 'Apartments', type: 'apartment' },
+    { key: 'villas', title: 'Villas', type: 'villa' },
+    { key: 'lands', title: 'Lands', type: 'land' },
+    { key: 'shops', title: 'Shops', type: 'shop' },
+    { key: 'offices', title: 'Offices', type: 'office' },
+    { key: 'warehouses', title: 'Warehouses', type: 'warehouse' },
+    { key: 'rentals', title: 'Rentals', type: 'rental' },
+  ];
+
   const fetchProperties = async () => {
     try {
       const { data, error } = await supabase
@@ -53,16 +64,16 @@ export const Home = () => {
         .select('*')
         .eq('status', 'published')
         .order('created_at', { ascending: false })
-        .limit(25);
+        .limit(100);
 
       if (error) throw error;
 
       const categorized = {
-        houses: data?.filter(p => p.property_type?.toLowerCase() === 'house').slice(0, 5) || [],
-        lands: data?.filter(p => p.property_type?.toLowerCase() === 'land').slice(0, 5) || [],
-        shops: data?.filter(p => p.property_type?.toLowerCase() === 'shop').slice(0, 5) || [],
-        apartments: data?.filter(p => p.property_type?.toLowerCase() === 'apartment').slice(0, 5) || [],
-        rentals: data?.filter(p => p.property_type?.toLowerCase() === 'rental').slice(0, 5) || [],
+        houses: data?.filter(p => p.property_type?.toLowerCase() === 'house').slice(0, 10) || [],
+        lands: data?.filter(p => p.property_type?.toLowerCase() === 'land').slice(0, 10) || [],
+        shops: data?.filter(p => p.property_type?.toLowerCase() === 'shop').slice(0, 10) || [],
+        apartments: data?.filter(p => p.property_type?.toLowerCase() === 'apartment').slice(0, 10) || [],
+        rentals: data?.filter(p => p.property_type?.toLowerCase() === 'rental').slice(0, 10) || [],
       };
 
       setHouses(categorized.houses);
@@ -91,45 +102,49 @@ export const Home = () => {
     }
   };
 
-  const CategorySection = ({ title, properties, categoryId }: { title: string; properties: Property[]; categoryId: string }) => {
+  const CategorySection = ({ title, properties, categoryId, type }: { title: string; properties: Property[]; categoryId: string; type: string }) => {
     if (properties.length === 0) return null;
 
     return (
-      <section className="py-12">
+      <section className="py-8">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-bold text-foreground">{title}</h2>
-            <Link to={`/browse?type=${title.toLowerCase()}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+            <Link to={`/browse?type=${type}`}>
               <Button variant="ghost" className="text-primary hover:text-primary-dark text-sm">
                 View all →
               </Button>
             </Link>
           </div>
 
-          <div
-            id={categoryId}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-4"
-          >
-            {properties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                property={{
-                  id: property.id,
-                  title: property.title,
-                  location: property.address,
-                  price: property.price,
-                  bedrooms: property.bedrooms || 0,
-                  bathrooms: property.bathrooms || 0,
-                  sqft: property.area || 0,
-                  propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
-                  images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
-                  description: property.description,
-                  seller: { id: 1, name: 'Seller' },
-                  status: 'published',
-                  isVerified: property.is_verified,
-                }}
-              />
-            ))}
+          <div className="relative">
+            <div
+              id={categoryId}
+              className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+              style={{ scrollBehavior: 'smooth' }}
+            >
+              {properties.map((property) => (
+                <div key={property.id} className="flex-none w-[200px] snap-start">
+                  <PropertyCard
+                    property={{
+                      id: property.id,
+                      title: property.title,
+                      location: property.address,
+                      price: property.price,
+                      bedrooms: property.bedrooms || 0,
+                      bathrooms: property.bathrooms || 0,
+                      sqft: property.area || 0,
+                      propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
+                      images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
+                      description: property.description,
+                      seller: { id: 1, name: 'Seller' },
+                      status: 'published',
+                      isVerified: property.is_verified,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -194,16 +209,20 @@ export const Home = () => {
 
       {/* Categories */}
       <div className="bg-background">
-        <CategorySection title="Houses" properties={houses} categoryId="houses-scroll" />
-        <CategorySection title="Lands" properties={lands} categoryId="lands-scroll" />
-        <CategorySection title="Shops" properties={shops} categoryId="shops-scroll" />
-        <CategorySection title="Apartments" properties={apartments} categoryId="apartments-scroll" />
-        <CategorySection title="Rentals" properties={rentals} categoryId="rentals-scroll" />
+        <CategorySection title="Houses" properties={houses} categoryId="houses-scroll" type="house" />
+        <CategorySection title="Apartments" properties={apartments} categoryId="apartments-scroll" type="apartment" />
+        <CategorySection title="Lands" properties={lands} categoryId="lands-scroll" type="land" />
+        <CategorySection title="Shops" properties={shops} categoryId="shops-scroll" type="shop" />
+        <CategorySection title="Rentals" properties={rentals} categoryId="rentals-scroll" type="rental" />
       </div>
 
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar {
+        .scrollbar-hide::-webkit-scrollbar {
           display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>
