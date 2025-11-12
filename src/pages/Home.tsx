@@ -24,11 +24,7 @@ type Property = {
 
 export const Home = () => {
   const [searchLocation, setSearchLocation] = useState('');
-  const [houses, setHouses] = useState<Property[]>([]);
-  const [lands, setLands] = useState<Property[]>([]);
-  const [shops, setShops] = useState<Property[]>([]);
-  const [apartments, setApartments] = useState<Property[]>([]);
-  const [rentals, setRentals] = useState<Property[]>([]);
+  const [categorizedProperties, setCategorizedProperties] = useState<Record<string, Property[]>>({});
   const [heroScrolled, setHeroScrolled] = useState(false);
 
   useEffect(() => {
@@ -68,19 +64,20 @@ export const Home = () => {
 
       if (error) throw error;
 
-      const categorized = {
-        houses: data?.filter(p => p.property_type?.toLowerCase() === 'house').slice(0, 10) || [],
-        lands: data?.filter(p => p.property_type?.toLowerCase() === 'land').slice(0, 10) || [],
-        shops: data?.filter(p => p.property_type?.toLowerCase() === 'shop').slice(0, 10) || [],
-        apartments: data?.filter(p => p.property_type?.toLowerCase() === 'apartment').slice(0, 10) || [],
-        rentals: data?.filter(p => p.property_type?.toLowerCase() === 'rental').slice(0, 10) || [],
-      };
+      if (!data) {
+        console.log('No properties found');
+        return;
+      }
 
-      setHouses(categorized.houses);
-      setLands(categorized.lands);
-      setShops(categorized.shops);
-      setApartments(categorized.apartments);
-      setRentals(categorized.rentals);
+      const categorized: Record<string, Property[]> = {};
+      
+      propertyCategories.forEach(({ key, type }) => {
+        categorized[key] = data
+          ?.filter(p => p.property_type?.toLowerCase() === type.toLowerCase())
+          .slice(0, 10) || [];
+      });
+
+      setCategorizedProperties(categorized);
     } catch (error: any) {
       console.error('Error fetching properties:', error);
     }
@@ -120,29 +117,27 @@ export const Home = () => {
           <div className="relative">
             <div
               id={categoryId}
-              className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
-              style={{ scrollBehavior: 'smooth' }}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
             >
               {properties.map((property) => (
-                <div key={property.id} className="flex-none w-[200px] snap-start">
-                  <PropertyCard
-                    property={{
-                      id: property.id,
-                      title: property.title,
-                      location: property.address,
-                      price: property.price,
-                      bedrooms: property.bedrooms || 0,
-                      bathrooms: property.bathrooms || 0,
-                      sqft: property.area || 0,
-                      propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
-                      images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
-                      description: property.description,
-                      seller: { id: 1, name: 'Seller' },
-                      status: 'published',
-                      isVerified: property.is_verified,
-                    }}
-                  />
-                </div>
+                <PropertyCard
+                  key={property.id}
+                  property={{
+                    id: property.id,
+                    title: property.title,
+                    location: property.address,
+                    price: property.price,
+                    bedrooms: property.bedrooms || 0,
+                    bathrooms: property.bathrooms || 0,
+                    sqft: property.area || 0,
+                    propertyType: 'House',
+                    images: property.images && property.images.length > 0 ? property.images : ['/placeholder.svg'],
+                    description: property.description,
+                    seller: { id: 1, name: 'Seller' },
+                    status: 'published',
+                    isVerified: property.is_verified,
+                  }}
+                />
               ))}
             </div>
           </div>
@@ -209,11 +204,15 @@ export const Home = () => {
 
       {/* Categories */}
       <div className="bg-background">
-        <CategorySection title="Houses" properties={houses} categoryId="houses-scroll" type="house" />
-        <CategorySection title="Apartments" properties={apartments} categoryId="apartments-scroll" type="apartment" />
-        <CategorySection title="Lands" properties={lands} categoryId="lands-scroll" type="land" />
-        <CategorySection title="Shops" properties={shops} categoryId="shops-scroll" type="shop" />
-        <CategorySection title="Rentals" properties={rentals} categoryId="rentals-scroll" type="rental" />
+        {propertyCategories.map(({ key, title, type }) => (
+          <CategorySection
+            key={key}
+            title={title}
+            properties={categorizedProperties[key] || []}
+            categoryId={`${key}-scroll`}
+            type={type}
+          />
+        ))}
       </div>
 
       <style>{`
