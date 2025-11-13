@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Send, User as UserIcon } from 'lucide-react';
+import { Send, Paperclip, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { filterContactInfo } from '@/utils/contentFilter';
 
@@ -12,6 +12,8 @@ interface Message {
   content: string;
   sender_id: string;
   created_at: string;
+  file_url: string | null;
+  file_type: string | null;
 }
 
 interface ChatInterfaceProps {
@@ -26,7 +28,11 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -128,43 +134,109 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !currentUserId || !conversationId) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // Filter contact information
-    const { filtered, blocked } = filterContactInfo(newMessage);
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type === 'video/mp4';
     
-    if (blocked) {
+    if (!isImage && !isVideo) {
       toast({
-        title: 'Message Blocked',
-        description: 'Sharing external contact details is not allowed. Please chat safely within Xavorian.',
+        title: 'Invalid file type',
+        description: 'Only images (JPG, PNG) and videos (MP4) are allowed',
         variant: 'destructive',
       });
       return;
     }
 
+    const maxSize = isImage ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: 'File too large',
+        description: `Max size: ${isImage ? '2MB' : '5MB'}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('chat-media')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    return fileName;
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !selectedFile) || !currentUserId || !conversationId) return;
+
+    let fileUrl: string | null = null;
+    let fileType: string | null = null;
+
     setLoading(true);
+    setUploading(true);
+
     try {
+      // Upload file if selected
+      if (selectedFile) {
+        fileUrl = await uploadFile(selectedFile);
+        fileType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
+      }
+
+      // Filter contact information
+      const { filtered, blocked } = filterContactInfo(newMessage);
+      
+      if (blocked && newMessage.trim()) {
+        toast({
+          title: 'Message Blocked',
+          description: 'Contact details are removed for your security.',
+          variant: 'destructive',
+        });
+      }
+
+      const messageContent = filtered || (fileType === 'image' ? '📷 Image' : '🎥 Video');
+
       // Update last message in conversation
       await supabase
         .from('conversations')
         .update({
-          last_message: filtered,
+          last_message: messageContent,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', conversationId);
 
       // Send message
       const { error } = await supabase.from('messages').insert({
-        content: filtered,
+        content: messageContent,
         sender_id: currentUserId,
         conversation_id: conversationId,
+        file_url: fileUrl,
+        file_type: fileType,
       });
 
       if (error) throw error;
 
       setNewMessage('');
+      clearSelectedFile();
       scrollToBottom();
     } catch (error: any) {
       console.error('Chat error:', error);
@@ -175,6 +247,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
       });
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -207,6 +280,24 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
                     : 'bg-black text-white'
                 }`}
               >
+                {message.file_url && (
+                  <div className="mb-2">
+                    {message.file_type === 'image' ? (
+                      <img
+                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
+                        alt="Shared image"
+                        className="rounded-lg max-w-full h-auto cursor-pointer"
+                        onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`, '_blank')}
+                      />
+                    ) : (
+                      <video
+                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
+                        controls
+                        className="rounded-lg max-w-full h-auto"
+                      />
+                    )}
+                  </div>
+                )}
                 <p className="text-sm">{message.content}</p>
                 <span className="text-xs text-white/70 mt-1 block">
                   {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -220,7 +311,41 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
 
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-3 border-t bg-background">
+        {previewUrl && (
+          <div className="mb-2 relative inline-block">
+            <div className="relative">
+              {selectedFile?.type.startsWith('image/') ? (
+                <img src={previewUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
+              ) : (
+                <video src={previewUrl} className="h-16 w-16 object-cover rounded-lg" />
+              )}
+              <button
+                type="button"
+                onClick={clearSelectedFile}
+                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/jpg,video/mp4"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -228,8 +353,12 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
             disabled={loading || !conversationId}
             className="flex-1"
           />
-          <Button type="submit" disabled={loading || !newMessage.trim() || !conversationId} size="icon">
-            <Send className="w-4 h-4" />
+          <Button 
+            type="submit" 
+            disabled={loading || uploading || (!newMessage.trim() && !selectedFile) || !conversationId} 
+            size="icon"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </form>
