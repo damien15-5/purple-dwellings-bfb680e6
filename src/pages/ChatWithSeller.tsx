@@ -239,7 +239,7 @@ export const ChatWithSeller = () => {
           <div className="lg:col-span-2">
             <Card className="h-[600px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -249,15 +249,11 @@ export const ChatWithSeller = () => {
                       className={`max-w-[70%] rounded-lg p-4 ${
                         msg.sender_id === currentUserId
                           ? 'bg-light-purple-accent text-white'
-                          : 'bg-accent/50 text-foreground border border-light-purple-border'
+                          : 'bg-black text-white'
                       }`}
                     >
                       <p className="text-sm">{msg.content}</p>
-                      <p
-                        className={`text-xs mt-2 ${
-                          msg.sender_id === currentUserId ? 'text-white/70' : 'text-muted-foreground'
-                        }`}
-                      >
+                      <p className="text-xs mt-2 text-white/70">
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>

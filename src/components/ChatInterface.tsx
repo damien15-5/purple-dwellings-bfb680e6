@@ -187,7 +187,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-muted/30">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <p className="text-sm">No messages yet. Start the conversation!</p>
@@ -203,12 +203,12 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   message.sender_id === currentUserId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background border border-border'
+                    ? 'bg-light-purple-accent text-white'
+                    : 'bg-black text-white'
                 }`}
               >
                 <p className="text-sm">{message.content}</p>
-                <span className="text-xs opacity-60 mt-1 block">
+                <span className="text-xs text-white/70 mt-1 block">
                   {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>

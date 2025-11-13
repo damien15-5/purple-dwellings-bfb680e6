@@ -10,7 +10,7 @@ export interface Property {
   images: string[];
   seller: {
     name: string;
-    id: number;
+    id: number | string;
   };
   status: 'draft' | 'pending' | 'published';
   amenities?: string[];

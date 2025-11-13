@@ -221,7 +221,7 @@ export const Browse = () => {
               >
                 <PropertyCard
                   property={{
-                    id: parseInt(property.id) || 1,
+                    id: property.id,
                     title: property.title,
                     location: property.address,
                     price: property.price,
@@ -232,7 +232,7 @@ export const Browse = () => {
                     images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
                     description: property.description,
                     seller: {
-                      id: 1,
+                      id: property.id,
                       name: 'Seller',
                     },
                     status: 'published',
