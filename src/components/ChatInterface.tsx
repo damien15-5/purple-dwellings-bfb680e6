@@ -276,7 +276,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                   message.sender_id === currentUserId
-                    ? 'bg-light-purple-accent text-white'
+                    ? 'bg-light-purple-accent text-black'
                     : 'bg-black text-white'
                 }`}
               >
