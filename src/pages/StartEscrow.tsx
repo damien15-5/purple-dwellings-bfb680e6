@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -180,41 +180,6 @@ export const StartEscrow = () => {
             <h2 className="text-2xl font-bold mb-2">Property Not Found</h2>
             <p className="text-muted-foreground mb-6">The property you're looking for doesn't exist.</p>
             <Button onClick={() => navigate('/browse')}>Browse Properties</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (step === 4) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full animate-scale-in">
-          <CardContent className="text-center py-12">
-            <CheckCircle2 className="h-24 w-24 text-success mx-auto mb-6 animate-float" />
-            <h1 className="text-3xl font-bold mb-4">Escrow Created Successfully!</h1>
-            <p className="text-muted-foreground mb-8">
-              Your escrow transaction has been initiated and is now secure
-            </p>
-            
-            <Card className="bg-accent/50 p-6 mb-8">
-              <Label className="text-sm text-muted-foreground mb-2 block">Transaction Code</Label>
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-2xl font-mono font-bold">{escrowCode}</code>
-                <Button variant="ghost" size="icon" onClick={copyCode}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-
-            <div className="space-y-3">
-              <Button onClick={() => navigate('/my-escrow')} className="w-full hover-lift">
-                View Transaction
-              </Button>
-              <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">
-                Browse More Properties
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>
