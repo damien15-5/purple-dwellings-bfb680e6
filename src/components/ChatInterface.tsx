@@ -299,7 +299,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
                   </div>
                 )}
                 <p className="text-sm">{message.content}</p>
-                <span className="text-xs text-white/70 mt-1 block">
+                <span className={`text-xs mt-1 block ${message.sender_id === currentUserId ? 'text-black/70' : 'text-white/70'}`}>
                   {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>

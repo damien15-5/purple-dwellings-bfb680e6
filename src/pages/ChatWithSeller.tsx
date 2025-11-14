@@ -304,7 +304,13 @@ export const ChatWithSeller = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chat Area */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-4">
+            <Link to={`/start-escrow/${id}`} className="block">
+              <Button className="w-full" size="lg">
+                <ShieldCheck className="w-5 h-5 mr-2" />
+                Start Escrow Process
+              </Button>
+            </Link>
             <Card className="h-[600px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
@@ -344,7 +350,7 @@ export const ChatWithSeller = () => {
                           </div>
                         )}
                         <p className="text-sm">{msg.content}</p>
-                        <p className="text-xs mt-2 text-white/70">
+                        <p className={`text-xs mt-2 ${msg.sender_id === currentUserId ? 'text-black/70' : 'text-white/70'}`}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
