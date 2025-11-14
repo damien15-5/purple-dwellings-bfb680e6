@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,27 +7,96 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle2, ShieldCheck, Copy } from 'lucide-react';
-import { mockProperties } from '@/data/mockData';
+import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const StartEscrow = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const property = mockProperties.find(p => p.id === Number(id));
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [property, setProperty] = useState<any>(null);
+  const [seller, setSeller] = useState<any>(null);
+  const [escrowFees, setEscrowFees] = useState<any[]>([]);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    agreedPrice: property?.price || 0,
-    paymentMethod: 'bank-transfer',
+    agreedPrice: 0,
+    paymentMethod: 'card',
     escrowPeriod: '14',
     terms: '',
-    buyerTerms: false,
-    sellerTerms: false,
-    documentTerms: true,
     agreeToTerms: false,
     readyToProceed: false,
   });
-  const [escrowCode] = useState(`ESCROW-2025-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
+  const [calculatedFee, setCalculatedFee] = useState({ fee: 0, total: 0 });
+
+  useEffect(() => {
+    fetchPropertyAndFees();
+  }, [id]);
+
+  useEffect(() => {
+    if (formData.agreedPrice > 0 && escrowFees.length > 0) {
+      calculateFee();
+    }
+  }, [formData.agreedPrice, escrowFees]);
+
+  const fetchPropertyAndFees = async () => {
+    try {
+      // Get property details
+      const { data: propertyData, error: propertyError } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('id', id)
+        .eq('status', 'published')
+        .single();
+
+      if (propertyError) throw propertyError;
+
+      setProperty(propertyData);
+      
+      // Get seller profile
+      const { data: sellerData, error: sellerError } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', propertyData.user_id)
+        .single();
+
+      if (sellerError) {
+        console.error('Error fetching seller:', sellerError);
+        setSeller({ full_name: 'Property Owner', email: '' });
+      } else {
+        setSeller(sellerData);
+      }
+      
+      setFormData(prev => ({ ...prev, agreedPrice: propertyData.price }));
+
+      // Get escrow fees
+      const { data: feesData, error: feesError } = await supabase
+        .from('escrow_fees')
+        .select('*')
+        .order('min_amount', { ascending: true });
+
+      if (feesError) throw feesError;
+      setEscrowFees(feesData);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load property details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateFee = () => {
+    const amount = formData.agreedPrice;
+    const tier = escrowFees.find(
+      fee => amount >= fee.min_amount && (fee.max_amount === null || amount <= fee.max_amount)
+    );
+
+    if (tier) {
+      const fee = (amount * tier.fee_percentage / 100) + tier.fixed_fee;
+      setCalculatedFee({ fee, total: amount + fee });
+    }
+  };
 
   const handleNext = () => {
     if (step === 1 && formData.agreedPrice <= 0) {
@@ -43,19 +112,79 @@ export const StartEscrow = () => {
 
   const handleBack = () => setStep(step - 1);
 
-  const handleSubmit = () => {
-    toast.success('Escrow created successfully!');
-    setTimeout(() => {
-      navigate('/my-escrow');
-    }, 2000);
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please log in to continue');
+        navigate('/login');
+        return;
+      }
+
+      // Create escrow transaction
+      const { data: escrow, error: escrowError } = await supabase
+        .from('escrow_transactions')
+        .insert({
+          property_id: id,
+          buyer_id: user.id,
+          seller_id: property.user_id,
+          transaction_amount: formData.agreedPrice,
+          escrow_fee: calculatedFee.fee,
+          total_amount: calculatedFee.total,
+          terms: formData.terms,
+          status: 'pending_payment',
+        })
+        .select()
+        .single();
+
+      if (escrowError) throw escrowError;
+
+      // Initialize payment
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        'initialize-payment',
+        {
+          body: { escrowId: escrow.id },
+        }
+      );
+
+      if (paymentError) throw paymentError;
+
+      if (paymentData.success) {
+        // Redirect to Paystack payment page
+        window.location.href = paymentData.authorization_url;
+      } else {
+        throw new Error(paymentData.error || 'Failed to initialize payment');
+      }
+    } catch (error: any) {
+      console.error('Error creating escrow:', error);
+      toast.error(error.message || 'Failed to create escrow');
+      setSubmitting(false);
+    }
   };
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(escrowCode);
-    toast.success('Escrow code copied to clipboard');
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  if (!property) return <div>Property not found</div>;
+  if (!property) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="text-center py-12">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Property Not Found</h2>
+            <p className="text-muted-foreground mb-6">The property you're looking for doesn't exist.</p>
+            <Button onClick={() => navigate('/browse')}>Browse Properties</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (step === 4) {
     return (
