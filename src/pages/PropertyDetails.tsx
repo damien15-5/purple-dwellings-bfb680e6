@@ -46,6 +46,7 @@ export const PropertyDetails = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [sellerName, setSellerName] = useState('Seller');
+  const [mediaItems, setMediaItems] = useState<{ type: 'image' | 'video'; url: string }[]>([]);
 
   useEffect(() => {
     fetchProperty();
@@ -80,6 +81,16 @@ export const PropertyDetails = () => {
       if (sellerData) {
         setSellerName(sellerData.full_name);
       }
+
+      // Combine images and video into mediaItems
+      const items: { type: 'image' | 'video'; url: string }[] = [];
+      if (data.images) {
+        data.images.forEach((img: string) => items.push({ type: 'image', url: img }));
+      }
+      if (data.video_url) {
+        items.push({ type: 'video', url: data.video_url });
+      }
+      setMediaItems(items);
     } catch (error: any) {
       console.error('Error fetching property:', error);
       sonnerToast.error('Failed to load property');
@@ -147,56 +158,58 @@ export const PropertyDetails = () => {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Images */}
+          {/* Left Column - Images & Videos */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Main Image */}
-            <div className="relative h-[500px] rounded-xl overflow-hidden card-glow">
-              <img
-                src={property.images && property.images[selectedImage] || 'https://images.unsplash.com/photo-1568605114967-8130f3a36994'}
-                alt={property.title}
-                className="w-full h-full object-cover"
-              />
-              <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
-                {property.property_type}
-              </Badge>
-              {property.is_verified && (
-                <Badge className="absolute top-4 right-4 bg-green-500 text-white">
-                  Verified
-                </Badge>
-              )}
-            </div>
-
-            {/* Video Section */}
-            {property.video_url && (
-              <div className="bg-white rounded-xl p-6 card-glow">
-                <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <Play className="w-5 h-5 text-primary" />
-                  3D Virtual Tour
-                </h3>
-                <div className="aspect-video rounded-lg overflow-hidden">
+            {/* Main Media Display */}
+            {mediaItems.length > 0 && (
+              <div className="relative h-[500px] rounded-xl overflow-hidden card-glow">
+                {mediaItems[selectedImage]?.type === 'image' ? (
+                  <img
+                    src={mediaItems[selectedImage].url}
+                    alt={property.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
                   <video 
                     controls 
-                    className="w-full h-full"
-                    src={property.video_url}
+                    className="w-full h-full object-cover"
+                    src={mediaItems[selectedImage]?.url}
                   >
                     Your browser does not support the video tag.
                   </video>
-                </div>
+                )}
+                <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
+                  {property.property_type}
+                </Badge>
+                {property.is_verified && (
+                  <Badge className="absolute top-4 right-4 bg-green-500 text-white">
+                    Verified
+                  </Badge>
+                )}
               </div>
             )}
 
-            {/* Thumbnail Images */}
-            {property.images && property.images.length > 1 && (
+            {/* Thumbnail Gallery */}
+            {mediaItems.length > 1 && (
               <div className="grid grid-cols-4 gap-4">
-                {property.images.map((image, index) => (
+                {mediaItems.map((item, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`h-24 rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`h-24 rounded-lg overflow-hidden border-2 transition-all relative ${
                       selectedImage === index ? 'border-primary' : 'border-transparent'
                     }`}
                   >
-                    <img src={image} alt={`View ${index + 1}`} className="w-full h-full object-cover" />
+                    {item.type === 'image' ? (
+                      <img src={item.url} alt={`View ${index + 1}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <video src={item.url} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                          <Play className="w-6 h-6 text-white" />
+                        </div>
+                      </>
+                    )}
                   </button>
                 ))}
               </div>

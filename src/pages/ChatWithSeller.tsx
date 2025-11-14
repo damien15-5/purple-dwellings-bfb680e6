@@ -321,7 +321,7 @@ export const ChatWithSeller = () => {
                       <div
                         className={`max-w-[70%] rounded-lg p-4 ${
                           msg.sender_id === currentUserId
-                            ? 'bg-light-purple-accent text-white'
+                            ? 'bg-light-purple-accent text-black'
                             : 'bg-black text-white'
                         }`}
                       >
