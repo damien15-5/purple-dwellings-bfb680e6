@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertCircle, MapPin, Home, Bed, Bath, Maximize, FileText, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,31 +17,28 @@ export const StartEscrow = () => {
   const [submitting, setSubmitting] = useState(false);
   const [property, setProperty] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
-  const [escrowFees, setEscrowFees] = useState<any[]>([]);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    agreedPrice: 0,
     paymentMethod: 'card',
-    escrowPeriod: '14',
     terms: '',
     agreeToTerms: false,
     readyToProceed: false,
   });
-  const [calculatedFee, setCalculatedFee] = useState({ fee: 0, total: 0 });
+
+  const calculateEscrowFee = (price: number) => {
+    const feePercentage = price > 30000000 ? 0.01 : 0.015;
+    return price * feePercentage;
+  };
+
+  const escrowFee = property ? calculateEscrowFee(property.price) : 0;
+  const totalAmount = property ? property.price + escrowFee : 0;
 
   useEffect(() => {
-    fetchPropertyAndFees();
+    fetchPropertyDetails();
   }, [id]);
 
-  useEffect(() => {
-    if (formData.agreedPrice > 0 && escrowFees.length > 0) {
-      calculateFee();
-    }
-  }, [formData.agreedPrice, escrowFees]);
-
-  const fetchPropertyAndFees = async () => {
+  const fetchPropertyDetails = async () => {
     try {
-      // Get property details
       const { data: propertyData, error: propertyError } = await supabase
         .from('properties')
         .select('*')
@@ -54,7 +50,6 @@ export const StartEscrow = () => {
 
       setProperty(propertyData);
       
-      // Get seller profile
       const { data: sellerData, error: sellerError } = await supabase
         .from('profiles')
         .select('full_name, email')
@@ -67,17 +62,6 @@ export const StartEscrow = () => {
       } else {
         setSeller(sellerData);
       }
-      
-      setFormData(prev => ({ ...prev, agreedPrice: propertyData.price }));
-
-      // Get escrow fees
-      const { data: feesData, error: feesError } = await supabase
-        .from('escrow_fees' as any)
-        .select('*')
-        .order('min_amount', { ascending: true });
-
-      if (feesError) throw feesError;
-      setEscrowFees(feesData);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load property details');
@@ -86,23 +70,7 @@ export const StartEscrow = () => {
     }
   };
 
-  const calculateFee = () => {
-    const amount = formData.agreedPrice;
-    const tier = escrowFees.find(
-      fee => amount >= fee.min_amount && (fee.max_amount === null || amount <= fee.max_amount)
-    );
-
-    if (tier) {
-      const fee = (amount * tier.fee_percentage / 100) + tier.fixed_fee;
-      setCalculatedFee({ fee, total: amount + fee });
-    }
-  };
-
   const handleNext = () => {
-    if (step === 1 && formData.agreedPrice <= 0) {
-      toast.error('Please enter a valid price');
-      return;
-    }
     if (step === 2 && (!formData.agreeToTerms || !formData.readyToProceed)) {
       toast.error('Please accept all terms to proceed');
       return;
@@ -122,18 +90,19 @@ export const StartEscrow = () => {
         return;
       }
 
-      // Create escrow transaction
       const { data: escrow, error: escrowError } = await supabase
         .from('escrow_transactions' as any)
         .insert({
           property_id: id,
           buyer_id: user.id,
           seller_id: property.user_id,
-          transaction_amount: formData.agreedPrice,
-          escrow_fee: calculatedFee.fee,
-          total_amount: calculatedFee.total,
+          transaction_amount: property.price,
+          escrow_fee: escrowFee,
+          total_amount: totalAmount,
           terms: formData.terms,
           status: 'pending_payment',
+          inspection_start_date: new Date().toISOString(),
+          inspection_end_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
         })
         .select()
         .single();
@@ -165,7 +134,7 @@ export const StartEscrow = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -173,7 +142,7 @@ export const StartEscrow = () => {
 
   if (!property) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background">
         <Card className="max-w-md">
           <CardContent className="text-center py-12">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -188,245 +157,353 @@ export const StartEscrow = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                    s <= step ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
-                  }`}
-                >
-                  {s}
-                </div>
-                {s < 3 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 transition-all ${
-                      s < step ? 'bg-primary' : 'bg-accent'
-                    }`}
-                  />
-                )}
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            {/* Progress Steps */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                {[1, 2, 3].map((s) => (
+                  <div key={s} className="flex items-center flex-1">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all shadow-md ${
+                        s <= step 
+                          ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground shadow-primary' 
+                          : 'bg-secondary text-muted-foreground'
+                      }`}
+                    >
+                      {s}
+                    </div>
+                    {s < 3 && (
+                      <div
+                        className={`flex-1 h-1 mx-2 transition-all rounded-full ${
+                          s < step ? 'bg-gradient-to-r from-primary to-primary-light' : 'bg-secondary'
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className={step >= 1 ? 'text-primary font-medium' : 'text-muted-foreground'}>
-              Transaction Details
-            </span>
-            <span className={step >= 2 ? 'text-primary font-medium' : 'text-muted-foreground'}>
-              Terms & Conditions
-            </span>
-            <span className={step >= 3 ? 'text-primary font-medium' : 'text-muted-foreground'}>
-              Review & Confirm
-            </span>
-          </div>
-        </div>
-
-        <Card className="card-glow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              Start Secure Escrow
-            </CardTitle>
-            <CardDescription>
-              Create a secure escrow transaction for: <strong>{property.title}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Step 1: Transaction Details */}
-            {step === 1 && (
-              <div className="space-y-6 animate-fade-in">
-                <div>
-                  <Label>Property Price (Read-only)</Label>
-                  <Input
-                    value={`₦${property.price.toLocaleString()}`}
-                    disabled
-                    className="bg-accent"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="agreedPrice">Agreed Price *</Label>
-                  <Input
-                    id="agreedPrice"
-                    type="number"
-                    value={formData.agreedPrice}
-                    onChange={(e) => setFormData({ ...formData, agreedPrice: Number(e.target.value) })}
-                    placeholder="Enter agreed price"
-                  />
-                </div>
-
-                <div>
-                  <Label>Payment Method *</Label>
-                  <RadioGroup
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                  >
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="bank-transfer" id="bank" />
-                      <Label htmlFor="bank" className="cursor-pointer flex-1">Bank Transfer</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="card" id="card" />
-                      <Label htmlFor="card" className="cursor-pointer flex-1">Debit/Credit Card</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="crypto" id="crypto" />
-                      <Label htmlFor="crypto" className="cursor-pointer flex-1">Cryptocurrency</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div>
-                  <Label>Escrow Period *</Label>
-                  <RadioGroup
-                    value={formData.escrowPeriod}
-                    onValueChange={(value) => setFormData({ ...formData, escrowPeriod: value })}
-                  >
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="7" id="7days" />
-                      <Label htmlFor="7days" className="cursor-pointer flex-1">7 Days</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="14" id="14days" />
-                      <Label htmlFor="14days" className="cursor-pointer flex-1">14 Days (Recommended)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <RadioGroupItem value="30" id="30days" />
-                      <Label htmlFor="30days" className="cursor-pointer flex-1">30 Days</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+              <div className="flex justify-between text-sm font-medium">
+                <span className={step >= 1 ? 'text-primary' : 'text-muted-foreground'}>
+                  Payment Method
+                </span>
+                <span className={step >= 2 ? 'text-primary' : 'text-muted-foreground'}>
+                  Terms & Documents
+                </span>
+                <span className={step >= 3 ? 'text-primary' : 'text-muted-foreground'}>
+                  Review & Confirm
+                </span>
               </div>
-            )}
+            </div>
 
-            {/* Step 2: Terms */}
-            {step === 2 && (
-              <div className="space-y-6 animate-fade-in">
-                <div>
-                  <Label htmlFor="terms">Terms of Transaction</Label>
-                  <Textarea
-                    id="terms"
-                    placeholder="Describe any special terms or conditions..."
-                    value={formData.terms}
-                    onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
-                    rows={4}
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <Label>Document Requirements</Label>
-                  <div className="space-y-3 bg-accent/50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <span className="text-sm">Property Deed ✓</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <span className="text-sm">Certificate of Ownership ✓</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <span className="text-sm">ID Verified ✓</span>
-                    </div>
+            <Card className="card-glow border-primary/10">
+              <CardHeader className="border-b border-border/50 bg-gradient-to-br from-accent/30 to-transparent">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary-light">
+                    <ShieldCheck className="h-6 w-6 text-primary-foreground" />
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="agreeTerms"
-                      checked={formData.agreeToTerms}
-                      onCheckedChange={(checked) => 
-                        setFormData({ ...formData, agreeToTerms: checked as boolean })
-                      }
-                    />
-                    <Label htmlFor="agreeTerms" className="cursor-pointer">
-                      I agree to the escrow terms and conditions *
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="readyProceed"
-                      checked={formData.readyToProceed}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, readyToProceed: checked as boolean })
-                      }
-                    />
-                    <Label htmlFor="readyProceed" className="cursor-pointer">
-                      I am ready to proceed with this transaction *
-                    </Label>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Review */}
-            {step === 3 && (
-              <div className="space-y-6 animate-fade-in">
-                <div className="bg-accent/50 p-6 rounded-lg space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Property</span>
-                    <span className="font-semibold">{property.title}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Agreed Price</span>
-                    <span className="font-semibold">₦{formData.agreedPrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payment Method</span>
-                    <span className="font-semibold capitalize">{formData.paymentMethod.replace('-', ' ')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Escrow Period</span>
-                    <span className="font-semibold">{formData.escrowPeriod} Days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Seller</span>
-                    <span className="font-semibold">{seller?.full_name || 'Property Owner'}</span>
-                  </div>
-                </div>
-
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <h4 className="font-semibold mb-2">Escrow Protection</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Your funds will be held securely by our escrow service until both parties confirm completion of the transaction.
+                  Secure Escrow Transaction
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Complete the form below to initiate a secure escrow for <strong className="text-foreground">{property.title}</strong>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {/* Step 1: Payment Method */}
+                {step === 1 && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="bg-gradient-to-br from-accent/50 to-accent/20 p-6 rounded-xl border border-border/50">
+                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Transaction Summary
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Property Price</span>
+                          <span className="font-bold text-lg">₦{property.price.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">
+                            Escrow Fee ({property.price > 30000000 ? '1%' : '1.5%'})
+                          </span>
+                          <span className="font-bold text-lg text-primary">₦{escrowFee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
+                          <span className="font-semibold text-lg">Total Amount</span>
+                          <span className="font-bold text-2xl text-primary">₦{totalAmount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm text-foreground">
+                          <strong>Escrow Period:</strong> 21 Days - All transactions must be completed within this timeframe.
                         </p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
 
-            {/* Navigation */}
-            <div className="flex justify-between mt-8">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={step === 1}
-                className="hover-lift"
-              >
-                Back
-              </Button>
-              {step < 3 ? (
-                <Button onClick={handleNext} className="hover-lift">
-                  Next Step
-                </Button>
-              ) : (
-                <Button onClick={handleSubmit} className="hover-lift animate-glow">
-                  Confirm & Create Escrow
-                </Button>
-              )}
+                    <div>
+                      <Label className="text-base font-semibold mb-3 block">Select Payment Method</Label>
+                      <RadioGroup
+                        value={formData.paymentMethod}
+                        onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                        className="space-y-3"
+                      >
+                        <div className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
+                          formData.paymentMethod === 'bank-transfer' ? 'border-primary bg-primary/5' : 'border-border'
+                        }`}>
+                          <RadioGroupItem value="bank-transfer" id="bank" />
+                          <Label htmlFor="bank" className="cursor-pointer flex-1 font-medium">
+                            Bank Transfer
+                          </Label>
+                        </div>
+                        <div className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
+                          formData.paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border'
+                        }`}>
+                          <RadioGroupItem value="card" id="card" />
+                          <Label htmlFor="card" className="cursor-pointer flex-1 font-medium">
+                            Debit/Credit Card
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Terms & Documents */}
+                {step === 2 && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div>
+                      <Label htmlFor="terms" className="text-base font-semibold mb-2 block">
+                        Additional Terms (Optional)
+                      </Label>
+                      <Textarea
+                        id="terms"
+                        placeholder="Add any special terms or conditions for this transaction..."
+                        value={formData.terms}
+                        onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
+                        rows={4}
+                        className="resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-base font-semibold mb-3 block flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Documents Uploaded
+                      </Label>
+                      <div className="space-y-2 bg-gradient-to-br from-accent/50 to-accent/20 p-5 rounded-xl border border-border/50">
+                        {property.documents && Array.isArray(property.documents) && property.documents.length > 0 ? (
+                          property.documents.map((doc: any, index: number) => (
+                            <div key={index} className="flex items-center gap-3 p-3 bg-background/80 rounded-lg">
+                              <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{doc.name || `Document ${index + 1}`}</p>
+                                <p className="text-xs text-muted-foreground">{doc.type || 'Document'}</p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex items-center gap-3 p-3 bg-background/80 rounded-lg">
+                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                            <span className="text-sm">Property documentation verified by seller</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 bg-primary/5 p-5 rounded-xl border border-primary/20">
+                      <div className="flex items-start space-x-3">
+                        <Checkbox
+                          id="agreeTerms"
+                          checked={formData.agreeToTerms}
+                          onCheckedChange={(checked) => 
+                            setFormData({ ...formData, agreeToTerms: checked as boolean })
+                          }
+                          className="mt-1"
+                        />
+                        <Label htmlFor="agreeTerms" className="cursor-pointer leading-relaxed">
+                          I agree to the escrow terms and conditions, including the 21-day transaction period
+                        </Label>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <Checkbox
+                          id="readyProceed"
+                          checked={formData.readyToProceed}
+                          onCheckedChange={(checked) =>
+                            setFormData({ ...formData, readyToProceed: checked as boolean })
+                          }
+                          className="mt-1"
+                        />
+                        <Label htmlFor="readyProceed" className="cursor-pointer leading-relaxed">
+                          I am ready to proceed with this transaction and understand that funds will be held in escrow
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Review */}
+                {step === 3 && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="bg-gradient-to-br from-accent/50 to-accent/20 p-6 rounded-xl space-y-4 border border-border/50">
+                      <h3 className="font-semibold text-lg mb-4">Transaction Details</h3>
+                      <div className="flex justify-between items-center py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Property</span>
+                        <span className="font-semibold text-right">{property.title}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Property Price</span>
+                        <span className="font-semibold">₦{property.price.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Escrow Fee</span>
+                        <span className="font-semibold text-primary">₦{escrowFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
+                        <span className="font-semibold text-lg">Total to Pay</span>
+                        <span className="font-bold text-2xl text-primary">₦{totalAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Payment Method</span>
+                        <span className="font-semibold capitalize">{formData.paymentMethod.replace('-', ' ')}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Escrow Period</span>
+                        <span className="font-semibold">21 Days</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-muted-foreground">Seller</span>
+                        <span className="font-semibold">{seller?.full_name || 'Property Owner'}</span>
+                      </div>
+                    </div>
+
+                    <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 rounded-xl bg-primary/20">
+                            <ShieldCheck className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-lg mb-2">Escrow Protection Active</h4>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              Your total payment of ₦{totalAmount.toLocaleString()} will be held securely by our escrow service. 
+                              Funds will only be released to the seller after you confirm receipt and satisfaction with the property. 
+                              You have 21 days to complete all inspections and confirmations.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex justify-between mt-8 pt-6 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    disabled={step === 1 || submitting}
+                    className="hover-lift"
+                    size="lg"
+                  >
+                    Back
+                  </Button>
+                  {step < 3 ? (
+                    <Button onClick={handleNext} className="hover-lift" size="lg">
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={handleSubmit} 
+                      disabled={submitting}
+                      className="hover-lift bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary"
+                      size="lg"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Proceed to Payment'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Property Details Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8">
+              <Card className="card-glow overflow-hidden">
+                <div className="relative h-56 overflow-hidden">
+                  <img
+                    src={property.images?.[0] || '/placeholder.svg'}
+                    alt={property.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 right-3 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
+                    {property.property_type}
+                  </div>
+                </div>
+                <CardContent className="p-6">
+                  <h3 className="font-bold text-xl mb-2 line-clamp-2">{property.title}</h3>
+                  <p className="text-muted-foreground text-sm mb-4 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="line-clamp-1">{property.address}</span>
+                  </p>
+
+                  <div className="space-y-3 mb-4">
+                    {property.bedrooms && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Bed className="h-4 w-4 text-muted-foreground" />
+                        <span>{property.bedrooms} Bedrooms</span>
+                      </div>
+                    )}
+                    {property.bathrooms && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Bath className="h-4 w-4 text-muted-foreground" />
+                        <span>{property.bathrooms} Bathrooms</span>
+                      </div>
+                    )}
+                    {property.area && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Maximize className="h-4 w-4 text-muted-foreground" />
+                        <span>{property.area} sqm</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Property Price</span>
+                      <span className="text-2xl font-bold text-primary">
+                        ₦{property.price.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-semibold mb-1">100% Secure</p>
+                      <p className="text-muted-foreground text-xs">
+                        Your payment is protected by our escrow service until transaction completion.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
