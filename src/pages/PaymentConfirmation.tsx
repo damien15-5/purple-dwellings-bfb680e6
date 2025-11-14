@@ -31,7 +31,7 @@ export const PaymentConfirmation = () => {
     try {
       // Check escrow status
       const { data: escrowData, error } = await supabase
-        .from('escrow_transactions')
+        .from('escrow_transactions' as any)
         .select('status, paystack_reference')
         .eq('id', escrow)
         .single();
@@ -39,19 +39,19 @@ export const PaymentConfirmation = () => {
       if (error) throw error;
 
       // Check if payment was successful
-      if (escrowData.status === 'funded') {
+      if ((escrowData as any).status === 'funded') {
         setStatus('success');
         toast.success('Payment confirmed successfully');
-      } else if (escrowData.status === 'pending_payment') {
+      } else if ((escrowData as any).status === 'pending_payment') {
         // Wait a bit and check again (webhook might be processing)
         setTimeout(async () => {
           const { data: updatedData } = await supabase
-            .from('escrow_transactions')
+            .from('escrow_transactions' as any)
             .select('status')
             .eq('id', escrow)
             .single();
 
-          if (updatedData?.status === 'funded') {
+          if ((updatedData as any)?.status === 'funded') {
             setStatus('success');
             toast.success('Payment confirmed successfully');
           } else {

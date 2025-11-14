@@ -48,7 +48,7 @@ export const MyEscrows = () => {
       }
 
       const { data, error } = await supabase
-        .from('escrow_transactions')
+        .from('escrow_transactions' as any)
         .select(`
           *,
           properties(title, address, images),

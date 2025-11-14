@@ -72,7 +72,7 @@ export const StartEscrow = () => {
 
       // Get escrow fees
       const { data: feesData, error: feesError } = await supabase
-        .from('escrow_fees')
+        .from('escrow_fees' as any)
         .select('*')
         .order('min_amount', { ascending: true });
 
@@ -124,7 +124,7 @@ export const StartEscrow = () => {
 
       // Create escrow transaction
       const { data: escrow, error: escrowError } = await supabase
-        .from('escrow_transactions')
+        .from('escrow_transactions' as any)
         .insert({
           property_id: id,
           buyer_id: user.id,
@@ -144,7 +144,7 @@ export const StartEscrow = () => {
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
         'initialize-payment',
         {
-          body: { escrowId: escrow.id },
+          body: { escrowId: (escrow as any).id },
         }
       );
 
