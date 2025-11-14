@@ -385,7 +385,7 @@ export const StartEscrow = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Seller</span>
-                    <span className="font-semibold">{property.seller.name}</span>
+                    <span className="font-semibold">{seller?.full_name || 'Property Owner'}</span>
                   </div>
                 </div>
 
