@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle } from 'lucide-react';
+import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import xavorianLogo from '@/assets/xavorian-logo.png';
 import {
@@ -60,6 +60,7 @@ export const Navigation = () => {
     { to: '/browse?type=villa', label: 'Villas', icon: null },
     { to: '/browse?type=office', label: 'Offices', icon: null },
     { to: '/browse?type=warehouse', label: 'Warehouses', icon: null },
+    { to: '/dashboard/chats', label: 'Messages', icon: MessageSquare },
     { to: '/about', label: 'About Us', icon: null },
     { to: '/contact', label: 'Contact', icon: null },
     { to: '/faq', label: 'FAQ', icon: HelpCircle },
