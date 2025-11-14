@@ -16,7 +16,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { HowItWorks } from "./pages/HowItWorks";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { VerifiedUser } from "./pages/VerifiedUser";
-import { ThreeDTour } from "./pages/ThreeDTour";
+
 import { ChatWithSeller } from "./pages/ChatWithSeller";
 import { StartEscrow } from "./pages/StartEscrow";
 import { UploadDocuments } from "./pages/UploadDocuments";
@@ -63,7 +63,6 @@ const App = () => (
               <Route path="/dashboard/listings" element={<MyListings />} />
               <Route path="/dashboard/settings" element={<AccountSettings />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/3d-tour/:id" element={<ThreeDTour />} />
               <Route path="/chat/:id" element={<ChatWithSeller />} />
               <Route path="/start-escrow/:id" element={<StartEscrow />} />
               <Route path="/upload-documents/:id" element={<UploadDocuments />} />

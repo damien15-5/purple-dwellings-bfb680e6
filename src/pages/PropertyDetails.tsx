@@ -181,11 +181,6 @@ export const PropertyDetails = () => {
                 <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
                   {property.property_type}
                 </Badge>
-                {property.is_verified && (
-                  <Badge className="absolute top-4 right-4 bg-green-500 text-white">
-                    Verified
-                  </Badge>
-                )}
               </div>
             )}
 
@@ -282,7 +277,7 @@ export const PropertyDetails = () => {
                 <div className="space-y-3">
                   <Dialog open={showChat} onOpenChange={setShowChat}>
                     <DialogTrigger asChild>
-                      <Button variant="hero" className="w-full" size="lg">
+                      <Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70" size="lg">
                         <MessageSquare className="w-5 h-5 mr-2" />
                         Contact Seller
                       </Button>
@@ -302,7 +297,7 @@ export const PropertyDetails = () => {
                     </DialogContent>
                   </Dialog>
                   <Link to={`/start-escrow/${property.id}`}>
-                    <Button variant="default" className="w-full" size="lg">
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white" size="lg">
                       <Shield className="w-5 h-5 mr-2" />
                       Start Escrow
                     </Button>
@@ -331,7 +326,6 @@ export const PropertyDetails = () => {
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{sellerName}</p>
-                    <p className="text-sm text-muted-foreground">Verified Seller</p>
                   </div>
                 </div>
               </div>
