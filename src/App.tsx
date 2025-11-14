@@ -24,6 +24,8 @@ import { UploadListing } from "./pages/UploadListing";
 import { Contact } from "./pages/Contact";
 import { MyListings } from "./pages/MyListings";
 import { MyEscrow } from "./pages/MyEscrow";
+import { PaymentConfirmation } from "./pages/PaymentConfirmation";
+import { MyEscrows } from "./pages/MyEscrows";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { Disclaimer } from "./pages/Disclaimer";
 import { AboutUs } from "./pages/AboutUs";
@@ -70,6 +72,8 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/my-escrow" element={<MyEscrow />} />
+              <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
+              <Route path="/dashboard/escrows" element={<MyEscrows />} />
               <Route path="/my-chats" element={<MyChats />} />
               <Route path="/account-settings" element={<AccountSettings />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
