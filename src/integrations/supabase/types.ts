@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          escrow_id: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          escrow_id: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          escrow_id?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_escrow_id_fkey"
+            columns: ["escrow_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           buyer_id: string
@@ -97,6 +138,222 @@ export type Database = {
         }
         Relationships: []
       }
+      escrow_disputes: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          description: string
+          escrow_id: string | null
+          id: string
+          raised_by: string
+          reason: string
+          resolution_action: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["dispute_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          description: string
+          escrow_id?: string | null
+          id?: string
+          raised_by: string
+          reason: string
+          resolution_action?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          description?: string
+          escrow_id?: string | null
+          id?: string
+          raised_by?: string
+          reason?: string
+          resolution_action?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_disputes_escrow_id_fkey"
+            columns: ["escrow_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          escrow_id: string | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          escrow_id?: string | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          escrow_id?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_documents_escrow_id_fkey"
+            columns: ["escrow_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_fees: {
+        Row: {
+          created_at: string
+          fee_percentage: number
+          fixed_fee: number | null
+          id: string
+          max_amount: number | null
+          min_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fee_percentage: number
+          fixed_fee?: number | null
+          id?: string
+          max_amount?: number | null
+          min_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fee_percentage?: number
+          fixed_fee?: number | null
+          id?: string
+          max_amount?: number | null
+          min_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      escrow_transactions: {
+        Row: {
+          buyer_confirmed: boolean | null
+          buyer_id: string
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          escrow_fee: number
+          id: string
+          inspection_end_date: string | null
+          inspection_start_date: string | null
+          payment_verified_at: string | null
+          paystack_access_code: string | null
+          paystack_reference: string | null
+          paystack_verified_at: string | null
+          property_id: string | null
+          release_reason: string | null
+          release_requested_at: string | null
+          release_requested_by: string | null
+          seller_confirmed: boolean | null
+          seller_id: string
+          status: Database["public"]["Enums"]["escrow_status"]
+          terms: string | null
+          total_amount: number
+          transaction_amount: number
+          tx_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_confirmed?: boolean | null
+          buyer_id: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          escrow_fee: number
+          id?: string
+          inspection_end_date?: string | null
+          inspection_start_date?: string | null
+          payment_verified_at?: string | null
+          paystack_access_code?: string | null
+          paystack_reference?: string | null
+          paystack_verified_at?: string | null
+          property_id?: string | null
+          release_reason?: string | null
+          release_requested_at?: string | null
+          release_requested_by?: string | null
+          seller_confirmed?: boolean | null
+          seller_id: string
+          status?: Database["public"]["Enums"]["escrow_status"]
+          terms?: string | null
+          total_amount: number
+          transaction_amount: number
+          tx_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_confirmed?: boolean | null
+          buyer_id?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          escrow_fee?: number
+          id?: string
+          inspection_end_date?: string | null
+          inspection_start_date?: string | null
+          payment_verified_at?: string | null
+          paystack_access_code?: string | null
+          paystack_reference?: string | null
+          paystack_verified_at?: string | null
+          property_id?: string | null
+          release_reason?: string | null
+          release_requested_at?: string | null
+          release_requested_by?: string | null
+          seller_confirmed?: boolean | null
+          seller_id?: string
+          status?: Database["public"]["Enums"]["escrow_status"]
+          terms?: string | null
+          total_amount?: number
+          transaction_amount?: number
+          tx_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_transactions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_documents: {
         Row: {
           created_at: string | null
@@ -170,6 +427,56 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_records: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string | null
+          escrow_id: string | null
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          paystack_reference: string
+          status: string
+          tx_hash: string | null
+          webhook_data: Json | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string | null
+          escrow_id?: string | null
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          paystack_reference: string
+          status: string
+          tx_hash?: string | null
+          webhook_data?: Json | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          escrow_id?: string | null
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          paystack_reference?: string
+          status?: string
+          tx_hash?: string | null
+          webhook_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_records_escrow_id_fkey"
+            columns: ["escrow_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -273,6 +580,30 @@ export type Database = {
         }
         Relationships: []
       }
+      transactions: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          tx_hash: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload: Json
+          tx_hash: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          tx_hash?: string
+        }
+        Relationships: []
+      }
       user_analytics: {
         Row: {
           id: string
@@ -340,6 +671,20 @@ export type Database = {
     Enums: {
       account_type: "buyer" | "seller" | "agent"
       app_role: "buyer" | "seller" | "agent" | "admin" | "customer_service"
+      dispute_status:
+        | "pending"
+        | "under_review"
+        | "resolved_buyer"
+        | "resolved_seller"
+        | "resolved_partial"
+      escrow_status:
+        | "pending_payment"
+        | "funded"
+        | "inspection_period"
+        | "completed"
+        | "disputed"
+        | "cancelled"
+        | "refunded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -469,6 +814,22 @@ export const Constants = {
     Enums: {
       account_type: ["buyer", "seller", "agent"],
       app_role: ["buyer", "seller", "agent", "admin", "customer_service"],
+      dispute_status: [
+        "pending",
+        "under_review",
+        "resolved_buyer",
+        "resolved_seller",
+        "resolved_partial",
+      ],
+      escrow_status: [
+        "pending_payment",
+        "funded",
+        "inspection_period",
+        "completed",
+        "disputed",
+        "cancelled",
+        "refunded",
+      ],
     },
   },
 } as const
