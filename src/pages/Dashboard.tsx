@@ -28,6 +28,14 @@ export const Dashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
+    // Realtime subscription for analytics updates
+    const channel = supabase
+      .channel('user_analytics_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_analytics' }, (payload) => {
+        setAnalytics((prev: any) => ({ ...prev, ...payload.new }));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [navigate]);
 
   const loadDashboardData = async () => {
@@ -157,25 +165,7 @@ export const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Revenue Chart */}
-          <Card className="lg:col-span-2 border-border/50 bg-card/80 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                Revenue Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+          {/* Revenue Overview removed per request */}
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip 
                     contentStyle={{ 
