@@ -273,6 +273,11 @@ export type Database = {
           id: string
           inspection_end_date: string | null
           inspection_start_date: string | null
+          offer_amount: number | null
+          offer_message: string | null
+          offer_status: string | null
+          pay_later: boolean | null
+          pay_later_reminder_sent: boolean | null
           payment_verified_at: string | null
           paystack_access_code: string | null
           paystack_reference: string | null
@@ -283,6 +288,8 @@ export type Database = {
           release_requested_by: string | null
           seller_confirmed: boolean | null
           seller_id: string
+          seller_responded_at: string | null
+          seller_response: string | null
           status: Database["public"]["Enums"]["escrow_status"]
           terms: string | null
           total_amount: number
@@ -300,6 +307,11 @@ export type Database = {
           id?: string
           inspection_end_date?: string | null
           inspection_start_date?: string | null
+          offer_amount?: number | null
+          offer_message?: string | null
+          offer_status?: string | null
+          pay_later?: boolean | null
+          pay_later_reminder_sent?: boolean | null
           payment_verified_at?: string | null
           paystack_access_code?: string | null
           paystack_reference?: string | null
@@ -310,6 +322,8 @@ export type Database = {
           release_requested_by?: string | null
           seller_confirmed?: boolean | null
           seller_id: string
+          seller_responded_at?: string | null
+          seller_response?: string | null
           status?: Database["public"]["Enums"]["escrow_status"]
           terms?: string | null
           total_amount: number
@@ -327,6 +341,11 @@ export type Database = {
           id?: string
           inspection_end_date?: string | null
           inspection_start_date?: string | null
+          offer_amount?: number | null
+          offer_message?: string | null
+          offer_status?: string | null
+          pay_later?: boolean | null
+          pay_later_reminder_sent?: boolean | null
           payment_verified_at?: string | null
           paystack_access_code?: string | null
           paystack_reference?: string | null
@@ -337,6 +356,8 @@ export type Database = {
           release_requested_by?: string | null
           seller_confirmed?: boolean | null
           seller_id?: string
+          seller_responded_at?: string | null
+          seller_response?: string | null
           status?: Database["public"]["Enums"]["escrow_status"]
           terms?: string | null
           total_amount?: number
