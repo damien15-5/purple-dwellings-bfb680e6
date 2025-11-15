@@ -18,6 +18,7 @@ export const StartEscrow = () => {
   const [property, setProperty] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
   const [step, setStep] = useState(1);
+  const [payment, setPayment] = useState<{ authorization_url: string; access_code: string; reference: string; tx_hash: string } | null>(null);
   const [formData, setFormData] = useState({
     paymentMethod: 'card',
     terms: '',
@@ -81,6 +82,12 @@ export const StartEscrow = () => {
   const handleBack = () => setStep(step - 1);
 
   const handleSubmit = async () => {
+    // If payment already prepared, just redirect
+    if (payment?.authorization_url) {
+      window.location.href = payment.authorization_url;
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -109,7 +116,7 @@ export const StartEscrow = () => {
 
       if (escrowError) throw escrowError;
 
-      // Initialize payment
+      // Initialize payment but DO NOT redirect automatically
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
         'initialize-payment',
         {
@@ -120,14 +127,20 @@ export const StartEscrow = () => {
       if (paymentError) throw paymentError;
 
       if (paymentData.success) {
-        // Redirect to Paystack payment page
-        window.location.href = paymentData.authorization_url;
+        setPayment({
+          authorization_url: paymentData.authorization_url,
+          access_code: paymentData.access_code,
+          reference: paymentData.reference,
+          tx_hash: paymentData.tx_hash,
+        });
+        toast.success('Payment generated. Review details below and click Pay Now');
       } else {
         throw new Error(paymentData.error || 'Failed to initialize payment');
       }
     } catch (error: any) {
       console.error('Error creating escrow:', error);
       toast.error(error.message || 'Failed to create escrow');
+    } finally {
       setSubmitting(false);
     }
   };

@@ -32,36 +32,49 @@ export const PaymentConfirmation = () => {
       // Check escrow status
       const { data: escrowData, error } = await supabase
         .from('escrow_transactions' as any)
-        .select('status, paystack_reference')
+        .select('status, paystack_reference, tx_hash')
         .eq('id', escrow)
         .single();
 
       if (error) throw error;
 
-      // Check if payment was successful
+      // If already funded
       if ((escrowData as any).status === 'funded') {
         setStatus('success');
         toast.success('Payment confirmed successfully');
-      } else if ((escrowData as any).status === 'pending_payment') {
-        // Wait a bit and check again (webhook might be processing)
-        setTimeout(async () => {
-          const { data: updatedData } = await supabase
-            .from('escrow_transactions' as any)
-            .select('status')
-            .eq('id', escrow)
-            .single();
-
-          if ((updatedData as any)?.status === 'funded') {
-            setStatus('success');
-            toast.success('Payment confirmed successfully');
-          } else {
-            setStatus('failed');
-            toast.error('Payment verification failed');
-          }
-        }, 3000);
-      } else {
-        setStatus('failed');
+        return;
       }
+
+      // Try manual verification if we have a reference
+      if (reference) {
+        const { data: verifyResp, error: verifyErr } = await supabase.functions.invoke('verify-payment', {
+          body: { escrowId: escrow, reference, tx_hash: searchParams.get('tx_hash') }
+        });
+        if (verifyErr) {
+          console.error('Manual verify error:', verifyErr);
+        } else if ((verifyResp as any)?.success) {
+          setStatus('success');
+          toast.success('Payment confirmed');
+          return;
+        }
+      }
+
+      // Fallback: short poll once more in case webhook lands late
+      setTimeout(async () => {
+        const { data: updatedData } = await supabase
+          .from('escrow_transactions' as any)
+          .select('status')
+          .eq('id', escrow)
+          .single();
+
+        if ((updatedData as any)?.status === 'funded') {
+          setStatus('success');
+          toast.success('Payment confirmed successfully');
+        } else {
+          setStatus('failed');
+          toast.error('Payment verification failed');
+        }
+      }, 2000);
     } catch (error: any) {
       console.error('Payment verification error:', error);
       setStatus('failed');
