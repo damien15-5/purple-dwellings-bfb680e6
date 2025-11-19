@@ -67,22 +67,22 @@ export const PropertyCard = ({
 
   const sizes = {
     large: {
-      card: 'w-[420px]',
-      image: 'h-[300px]',
-      title: 'text-xl',
-      price: 'text-2xl'
-    },
-    medium: {
-      card: 'w-[340px]',
-      image: 'h-[240px]',
-      title: 'text-lg',
-      price: 'text-xl'
-    },
-    small: {
-      card: 'w-full',
+      card: 'w-[280px]',
       image: 'h-[200px]',
       title: 'text-base',
       price: 'text-lg'
+    },
+    medium: {
+      card: 'w-[260px]',
+      image: 'h-[180px]',
+      title: 'text-sm',
+      price: 'text-base'
+    },
+    small: {
+      card: 'w-full',
+      image: 'h-[160px]',
+      title: 'text-sm',
+      price: 'text-base'
     }
   };
 
