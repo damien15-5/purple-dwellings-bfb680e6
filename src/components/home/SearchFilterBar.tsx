@@ -86,12 +86,12 @@ export const SearchFilterBar = ({
           {/* Property Type */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Property Type</label>
-            <Select value={propertyType} onValueChange={setPropertyType}>
+            <Select value={propertyType || "all"} onValueChange={(value) => setPropertyType(value === "all" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="House">House</SelectItem>
                 <SelectItem value="Apartment">Apartment</SelectItem>
                 <SelectItem value="Villa">Villa</SelectItem>
@@ -104,12 +104,12 @@ export const SearchFilterBar = ({
           {/* Bedrooms */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Bedrooms</label>
-            <Select value={bedrooms} onValueChange={setBedrooms}>
+            <Select value={bedrooms || "all"} onValueChange={(value) => setBedrooms(value === "all" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Any" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any</SelectItem>
+                <SelectItem value="all">Any</SelectItem>
                 <SelectItem value="1">1 Bedroom</SelectItem>
                 <SelectItem value="2">2 Bedrooms</SelectItem>
                 <SelectItem value="3">3 Bedrooms</SelectItem>
@@ -122,12 +122,12 @@ export const SearchFilterBar = ({
           {/* Status */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Listing Status</label>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Published">Published</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="Sold">Sold/Rented</SelectItem>
