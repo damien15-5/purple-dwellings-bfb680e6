@@ -193,24 +193,24 @@ export const Home = () => {
               XAVORIAN
             </h1>
 
-            <div className="flex gap-2 bg-white rounded-full p-1.5 shadow-2xl max-w-3xl mx-auto">
+            <div className="flex gap-2 bg-white rounded-full p-1.5 shadow-2xl max-w-5xl mx-auto">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   placeholder="Search destinations..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-0 h-12 pl-12 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="border-0 h-11 pl-12 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
               
-              <Button className="rounded-full h-12 w-12 p-0 bg-primary hover:bg-primary/90">
+              <Button className="rounded-full h-11 w-11 p-0 bg-primary hover:bg-primary/90">
                 <Search className="h-5 w-5" />
               </Button>
 
               <Popover open={filterOpen} onOpenChange={setFilterOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="rounded-full h-12 w-12 p-0 border-0 hover:bg-muted">
+                  <Button variant="outline" className="rounded-full h-11 w-11 p-0 border-0 hover:bg-muted">
                     <SlidersHorizontal className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
