@@ -60,6 +60,16 @@ const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminListings = lazy(() => import("./pages/admin/AdminListings"));
+const AdminVerification = lazy(() => import("./pages/admin/AdminVerification"));
+const AdminEscrow = lazy(() => import("./pages/admin/AdminEscrow"));
+const AdminOffers = lazy(() => import("./pages/admin/AdminOffers"));
+const AdminMessages = lazy(() => import("./pages/admin/AdminMessages"));
+const AdminAILogs = lazy(() => import("./pages/admin/AdminAILogs"));
+const AdminTickets = lazy(() => import("./pages/admin/AdminTickets"));
+const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminManagement = lazy(() => import("./pages/admin/AdminManagement"));
 
 const queryClient = new QueryClient();
 
