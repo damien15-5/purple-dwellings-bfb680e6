@@ -188,12 +188,12 @@ export const Home = () => {
         </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center justify-center">
-          <div className="text-center space-y-6 animate-fade-in max-w-3xl">
+          <div className="text-center space-y-6 animate-fade-in max-w-4xl">
             <h1 className="text-5xl md:text-6xl font-bold text-white">
-              Xavorian
+              XAVORIAN
             </h1>
 
-            <div className="flex gap-2 bg-white rounded-full p-1 shadow-2xl max-w-xl mx-auto">
+            <div className="flex gap-2 bg-white rounded-full p-1 shadow-2xl max-w-2xl mx-auto">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input

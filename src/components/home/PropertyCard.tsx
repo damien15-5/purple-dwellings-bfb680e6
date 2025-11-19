@@ -67,20 +67,20 @@ export const PropertyCard = ({
 
   const sizes = {
     large: {
-      card: 'w-[280px]',
-      image: 'h-[200px]',
+      card: 'w-[240px]',
+      image: 'h-[240px]',
       title: 'text-base',
       price: 'text-lg'
     },
     medium: {
-      card: 'w-[260px]',
-      image: 'h-[180px]',
+      card: 'w-[220px]',
+      image: 'h-[220px]',
       title: 'text-sm',
       price: 'text-base'
     },
     small: {
       card: 'w-full',
-      image: 'h-[160px]',
+      image: 'h-[200px]',
       title: 'text-sm',
       price: 'text-base'
     }
@@ -96,7 +96,7 @@ export const PropertyCard = ({
       className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden hover-scale cursor-pointer group relative`}
       onClick={handleCardClick}
     >
-      <div className={`relative ${sizes[variant].image} overflow-hidden bg-muted`}>
+      <div className={`relative ${sizes[variant].image} overflow-hidden bg-muted rounded-3xl`}>
         {isIntersecting && (
           <img
             src={image}
