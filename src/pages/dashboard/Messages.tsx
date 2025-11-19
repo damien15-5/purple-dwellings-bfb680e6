@@ -136,11 +136,17 @@ export const Messages = () => {
     if (!conversationToDelete) return;
 
     try {
-      // Mark all messages in this conversation as deleted
+      // Delete all messages in the conversation
       await supabase
         .from('messages')
-        .update({ is_deleted: true })
+        .delete()
         .eq('conversation_id', conversationToDelete);
+
+      // Delete the conversation itself
+      await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationToDelete);
 
       // If this was the selected conversation, clear it
       if (selectedConversation?.id === conversationToDelete) {
