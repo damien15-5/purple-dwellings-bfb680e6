@@ -192,11 +192,10 @@ export const UploadListing = () => {
     setUploading(true);
 
     try {
-      // Upload images
-      const imageUrls: string[] = [];
-      for (const image of images) {
-        const fileName = `${userId}/${Date.now()}_${image.name}`;
-        const { error: uploadError, data } = await supabase.storage
+      // Upload images in parallel
+      const imageUploads = images.map(async (image) => {
+        const fileName = `${userId}/${Date.now()}_${Math.random()}_${image.name}`;
+        const { error: uploadError } = await supabase.storage
           .from('property-images')
           .upload(fileName, image);
 
@@ -206,13 +205,14 @@ export const UploadListing = () => {
           .from('property-images')
           .getPublicUrl(fileName);
 
-        imageUrls.push(publicUrl);
-      }
+        return publicUrl;
+      });
 
-      // Upload documents
-      const documentData: any[] = [];
-      for (const doc of documents) {
-        const fileName = `${userId}/docs/${Date.now()}_${doc.file.name}`;
+      const imageUrls = await Promise.all(imageUploads);
+
+      // Upload documents in parallel
+      const documentUploads = documents.map(async (doc) => {
+        const fileName = `${userId}/docs/${Date.now()}_${Math.random()}_${doc.file.name}`;
         const { error: uploadError } = await supabase.storage
           .from('property-images')
           .upload(fileName, doc.file);
@@ -223,12 +223,14 @@ export const UploadListing = () => {
           .from('property-images')
           .getPublicUrl(fileName);
 
-        documentData.push({
+        return {
           type: doc.type,
           url: publicUrl,
           name: doc.file.name,
-        });
-      }
+        };
+      });
+
+      const documentData = await Promise.all(documentUploads);
 
       // Insert property
       const { error: insertError } = await supabase
