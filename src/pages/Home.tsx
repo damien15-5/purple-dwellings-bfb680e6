@@ -188,35 +188,33 @@ export const Home = () => {
         </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center justify-center">
-          <div className="text-center space-y-6 animate-fade-in max-w-4xl">
+          <div className="text-center space-y-6 animate-fade-in max-w-5xl">
             <h1 className="text-5xl md:text-6xl font-bold text-white">
               XAVORIAN
             </h1>
 
-            <div className="flex gap-2 bg-white rounded-full p-1 shadow-2xl max-w-2xl mx-auto">
+            <div className="flex gap-2 bg-white rounded-full p-1.5 shadow-2xl max-w-3xl mx-auto">
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   placeholder="Search destinations..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-0 h-10 pl-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="border-0 h-12 pl-12 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
               
-              <Link to="/browse">
-                <Button className="rounded-full h-10 w-10 p-0">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </Link>
+              <Button className="rounded-full h-12 w-12 p-0 bg-primary hover:bg-primary/90">
+                <Search className="h-5 w-5" />
+              </Button>
 
               <Popover open={filterOpen} onOpenChange={setFilterOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="rounded-full h-10 w-10 p-0 border-0">
-                    <SlidersHorizontal className="h-4 w-4" />
+                  <Button variant="outline" className="rounded-full h-12 w-12 p-0 border-0 hover:bg-muted">
+                    <SlidersHorizontal className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-4" align="end">
+                <PopoverContent className="w-[380px] p-4 bg-background" align="end">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold">Filters</h3>
