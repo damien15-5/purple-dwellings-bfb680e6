@@ -49,34 +49,40 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
 
   const initializeConversation = async (userId: string) => {
     try {
-      // Check if conversation exists
+      // Check if conversation exists for this user (buyer or seller) on this property
       const { data: existingConv } = await supabase
         .from('conversations')
-        .select('id')
+        .select('id, buyer_id, seller_id')
         .eq('property_id', propertyId)
-        .eq('buyer_id', userId)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .maybeSingle();
 
       if (existingConv) {
         setConversationId(existingConv.id);
         loadMessages(existingConv.id);
-      } else {
-        // Create new conversation
-        const { data: newConv, error } = await supabase
-          .from('conversations')
-          .insert({
-            property_id: propertyId,
-            buyer_id: userId,
-            seller_id: propertyOwnerId,
-          })
-          .select('id')
-          .single();
+        return;
+      }
 
-        if (error) throw error;
-        if (newConv) {
-          setConversationId(newConv.id);
-          loadMessages(newConv.id);
-        }
+      // If no conversation exists and the current user is not the property owner, create one
+      if (userId === propertyOwnerId) {
+        // Owners can still view existing conversations via other entry points
+        return;
+      }
+
+      const { data: newConv, error } = await supabase
+        .from('conversations')
+        .insert({
+          property_id: propertyId,
+          buyer_id: userId,
+          seller_id: propertyOwnerId,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      if (newConv) {
+        setConversationId(newConv.id);
+        loadMessages(newConv.id);
       }
     } catch (error: any) {
       console.error('Error initializing conversation:', error);
