@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Input } from '@/components/ui/input';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PropertyCard } from '@/components/PropertyCard';
-import { Search, SlidersHorizontal, MapPin, Home as HomeIcon, Loader2 } from 'lucide-react';
+import { Grid3x3, List, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { PropertyCard } from '@/components/PropertyCard';
+import { PropertyListView } from '@/components/browse/PropertyListView';
+import { FilterBar } from '@/components/browse/FilterBar';
+import { SuggestedProperties } from '@/components/browse/SuggestedProperties';
 
 type Property = {
   id: string;
@@ -21,16 +21,34 @@ type Property = {
   area: number;
   images: string[];
   status: string;
+  is_verified: boolean;
+  city?: string;
+  state?: string;
+  country?: string;
 };
 
 export const Browse = () => {
   const [searchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Filter states
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [propertyType, setPropertyType] = useState(searchParams.get('type') || 'all');
-  const [priceRange, setPriceRange] = useState('all');
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [propertyType, setPropertyType] = useState('all');
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000000]);
+  const [bedrooms, setBedrooms] = useState('any');
+  const [bathrooms, setBathrooms] = useState('any');
+  const [country, setCountry] = useState('');
+  const [state, setState] = useState('');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  
+  // Data states
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [displayedProperties, setDisplayedProperties] = useState<Property[]>([]);
+  const [suggestedProperties, setSuggestedProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const propertiesPerPage = 12;
 
   useEffect(() => {
     fetchProperties();
@@ -38,7 +56,11 @@ export const Browse = () => {
 
   useEffect(() => {
     filterProperties();
-  }, [searchTerm, propertyType, priceRange, properties]);
+  }, [searchTerm, propertyType, priceRange, bedrooms, bathrooms, country, state, verifiedOnly, allProperties]);
+
+  useEffect(() => {
+    paginateProperties();
+  }, [filteredProperties, page]);
 
   const fetchProperties = async () => {
     try {
@@ -50,7 +72,10 @@ export const Browse = () => {
 
       if (error) throw error;
 
-      setProperties(data || []);
+      setAllProperties(data || []);
+      
+      // Set suggested properties (first 5 for demo)
+      setSuggestedProperties((data || []).slice(0, 5));
     } catch (error: any) {
       console.error('Error fetching properties:', error);
       toast.error('Failed to load properties');
@@ -60,7 +85,7 @@ export const Browse = () => {
   };
 
   const filterProperties = () => {
-    let filtered = properties;
+    let filtered = allProperties;
 
     // Search filter
     if (searchTerm) {
@@ -68,7 +93,9 @@ export const Browse = () => {
         (p) =>
           p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           p.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
+          p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.state?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -78,169 +105,228 @@ export const Browse = () => {
     }
 
     // Price range filter
-    if (priceRange !== 'all') {
-      filtered = filtered.filter((p) => {
-        switch (priceRange) {
-          case 'under10m':
-            return p.price < 10000000;
-          case '10m-50m':
-            return p.price >= 10000000 && p.price < 50000000;
-          case '50m-100m':
-            return p.price >= 50000000 && p.price < 100000000;
-          case 'over100m':
-            return p.price >= 100000000;
-          default:
-            return true;
-        }
-      });
+    filtered = filtered.filter(
+      (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
+    );
+
+    // Bedrooms filter
+    if (bedrooms !== 'any') {
+      filtered = filtered.filter((p) => p.bedrooms >= parseInt(bedrooms));
+    }
+
+    // Bathrooms filter
+    if (bathrooms !== 'any') {
+      filtered = filtered.filter((p) => p.bathrooms >= parseInt(bathrooms));
+    }
+
+    // Country filter
+    if (country) {
+      filtered = filtered.filter((p) =>
+        p.country?.toLowerCase().includes(country.toLowerCase())
+      );
+    }
+
+    // State filter
+    if (state) {
+      filtered = filtered.filter((p) =>
+        p.state?.toLowerCase().includes(state.toLowerCase())
+      );
+    }
+
+    // Verified filter
+    if (verifiedOnly) {
+      filtered = filtered.filter((p) => p.is_verified);
     }
 
     setFilteredProperties(filtered);
+    setPage(1); // Reset to first page when filters change
   };
 
+  const paginateProperties = () => {
+    const startIndex = 0;
+    const endIndex = page * propertiesPerPage;
+    setDisplayedProperties(filteredProperties.slice(startIndex, endIndex));
+  };
+
+  const handleLoadMore = () => {
+    setPage(page + 1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setPropertyType('all');
+    setPriceRange([0, 500000000]);
+    setBedrooms('any');
+    setBathrooms('any');
+    setCountry('');
+    setState('');
+    setVerifiedOnly(false);
+  };
+
+  const hasMoreProperties = displayedProperties.length < filteredProperties.length;
+
   return (
-    <div className="min-h-screen py-16 bg-gradient-to-b from-secondary/30 to-background">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="mb-12 text-center animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground leading-tight">
-            Browse <span className="text-gradient-purple">Properties</span>
+    <div className="min-h-screen bg-gradient-to-b from-secondary/30 to-background">
+      {/* Header */}
+      <div className="pt-16 pb-8 bg-gradient-to-r from-primary/10 to-primary/5">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-foreground">
+            Browse <span className="text-primary">Properties</span>
           </h1>
-          <p className="text-muted-foreground text-xl max-w-3xl mx-auto leading-relaxed">
-            Discover <span className="text-accent-purple font-semibold">verified properties</span> from trusted sellers across Nigeria
+          <p className="text-muted-foreground text-xl max-w-3xl mx-auto">
+            Discover verified properties from trusted sellers across Nigeria
           </p>
         </div>
+      </div>
 
-        {/* Search & Filters */}
-        <Card className="p-8 mb-10 card-glow border-2 border-border animate-fade-in">
-          <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-            <SlidersHorizontal className="w-6 h-6 text-accent-purple" />
-            Filter Properties
+      {/* Filter Bar */}
+      <FilterBar
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        propertyType={propertyType}
+        setPropertyType={setPropertyType}
+        priceRange={priceRange}
+        setPriceRange={setPriceRange}
+        bedrooms={bedrooms}
+        setBedrooms={setBedrooms}
+        bathrooms={bathrooms}
+        setBathrooms={setBathrooms}
+        country={country}
+        setCountry={setCountry}
+        state={state}
+        setState={setState}
+        verifiedOnly={verifiedOnly}
+        setVerifiedOnly={setVerifiedOnly}
+        onClearFilters={handleClearFilters}
+        totalResults={filteredProperties.length}
+      />
+
+      <div className="container mx-auto px-4 pb-16">
+        {/* Suggested Properties */}
+        {!searchTerm && !loading && (
+          <SuggestedProperties
+            properties={suggestedProperties.map(p => ({
+              id: p.id,
+              image: p.images?.[0] || '/placeholder.svg',
+              title: p.title,
+              price: p.price,
+              location: p.address,
+              bedrooms: p.bedrooms
+            }))}
+          />
+        )}
+
+        {/* View Toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-foreground">
+            All Properties
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 relative">
-              <label className="text-sm font-semibold text-foreground mb-2 block">Search Location</label>
-              <Search className="absolute left-3 bottom-4 text-muted-foreground w-5 h-5" />
-              <Input
-                placeholder="Enter location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-12 border-2 focus:border-accent-purple"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground mb-2 block">Property Type</label>
-              <Select value={propertyType} onValueChange={setPropertyType}>
-                <SelectTrigger className="h-12 border-2">
-                  <HomeIcon className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="House">House</SelectItem>
-                  <SelectItem value="Apartment">Apartment</SelectItem>
-                  <SelectItem value="Villa">Villa</SelectItem>
-                  <SelectItem value="Land">Land</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground mb-2 block">Price Range</label>
-              <Select value={priceRange} onValueChange={setPriceRange}>
-                <SelectTrigger className="h-12 border-2">
-                  <SelectValue placeholder="All Prices" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Prices</SelectItem>
-                  <SelectItem value="under10m">Under ₦10M</SelectItem>
-                  <SelectItem value="10m-50m">₦10M - ₦50M</SelectItem>
-                  <SelectItem value="50m-100m">₦50M - ₦100M</SelectItem>
-                  <SelectItem value="over100m">Over ₦100M</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex gap-2 bg-white rounded-lg p-1 border border-border">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className="gap-2"
+            >
+              <Grid3x3 className="w-4 h-4" />
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="gap-2"
+            >
+              <List className="w-4 h-4" />
+              List
+            </Button>
           </div>
-        </Card>
-
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-8">
-          <p className="text-lg">
-            {loading ? (
-              <span className="text-muted-foreground">Loading properties...</span>
-            ) : (
-              <>
-                <span className="font-bold text-accent-purple text-2xl">{filteredProperties.length}</span> 
-                <span className="text-foreground font-semibold ml-2">{filteredProperties.length === 1 ? 'property' : 'properties'} found</span>
-              </>
-            )}
-          </p>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSearchTerm('');
-              setPropertyType('all');
-              setPriceRange('all');
-            }}
-            className="border-2 hover:border-accent-purple hover:bg-accent-purple/5"
-          >
-            Clear Filters
-          </Button>
         </div>
 
-        {/* Properties Grid */}
+        {/* Properties Display */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="w-16 h-16 animate-spin text-accent-purple mb-6" />
-            <p className="text-muted-foreground text-lg">Loading amazing properties...</p>
+            <Loader2 className="w-16 h-16 animate-spin text-primary mb-6" />
+            <p className="text-muted-foreground text-lg">Loading properties...</p>
           </div>
-        ) : filteredProperties.length === 0 ? (
-          <Card className="text-center py-24 card-glow">
-            <HomeIcon className="w-24 h-24 mx-auto mb-6 text-accent-purple/40 animate-float" />
+        ) : displayedProperties.length === 0 ? (
+          <div className="text-center py-24 bg-white rounded-xl border border-border">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+              <Grid3x3 className="w-12 h-12 text-muted-foreground" />
+            </div>
             <h3 className="text-3xl font-bold text-foreground mb-4">No properties found</h3>
             <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
               Try adjusting your filters to see more results
             </p>
-            <Button
-              variant="hero"
-              onClick={() => {
-                setSearchTerm('');
-                setPropertyType('all');
-                setPriceRange('all');
-              }}
-            >
+            <Button onClick={handleClearFilters} variant="default">
               Clear All Filters
             </Button>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProperties.map((property, index) => (
-              <div
-                key={property.id}
-                className="stagger-animation"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <PropertyCard
-                  property={{
-                    id: property.id,
-                    title: property.title,
-                    location: property.address,
-                    price: property.price,
-                    bedrooms: property.bedrooms || 0,
-                    bathrooms: property.bathrooms || 0,
-                    sqft: property.area || 0,
-                    propertyType: (property.property_type as 'House' | 'Apartment' | 'Villa' | 'Land') || 'House',
-                    images: property.images && property.images.length > 0 ? property.images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
-                    description: property.description,
-                    seller: {
-                      id: property.id,
-                      name: 'Seller',
-                    },
-                    status: 'published',
-                  }}
-                />
-              </div>
-            ))}
           </div>
+        ) : (
+          <>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {displayedProperties.map((property) => (
+                  <PropertyCard
+                    key={property.id}
+                    property={{
+                      id: property.id,
+                      title: property.title,
+                      location: property.address,
+                      price: property.price,
+                      bedrooms: property.bedrooms || 0,
+                      bathrooms: property.bathrooms || 0,
+                      sqft: property.area || 0,
+                      propertyType: (property.property_type as 'Apartment' | 'House' | 'Land' | 'Villa') || 'House',
+                      images: property.images || ['/placeholder.svg'],
+                      description: property.description,
+                      seller: { id: 1, name: 'Seller' },
+                      status: (property.status as 'draft' | 'pending' | 'published') || 'published',
+                      isVerified: property.is_verified,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {displayedProperties.map((property) => (
+                  <PropertyListView
+                    key={property.id}
+                    id={property.id}
+                    title={property.title}
+                    description={property.description}
+                    price={property.price}
+                    location={property.address}
+                    bedrooms={property.bedrooms || 0}
+                    bathrooms={property.bathrooms || 0}
+                    area={property.area || 0}
+                    image={property.images?.[0] || '/placeholder.svg'}
+                    isVerified={property.is_verified}
+                    propertyType={property.property_type}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Load More / Pagination */}
+            {hasMoreProperties && (
+              <div className="flex justify-center mt-12">
+                <Button
+                  onClick={handleLoadMore}
+                  size="lg"
+                  variant="outline"
+                  className="min-w-[200px]"
+                >
+                  Load More Properties
+                </Button>
+              </div>
+            )}
+
+            {/* Results Summary */}
+            <div className="text-center mt-8 text-muted-foreground">
+              Showing {displayedProperties.length} of {filteredProperties.length} properties
+            </div>
+          </>
         )}
       </div>
     </div>
