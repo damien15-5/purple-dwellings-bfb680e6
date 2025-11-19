@@ -418,6 +418,9 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           is_read: boolean | null
+          message_type: string | null
+          offer_amount: number | null
+          offer_status: string | null
           sender_id: string
         }
         Insert: {
@@ -429,6 +432,9 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_read?: boolean | null
+          message_type?: string | null
+          offer_amount?: number | null
+          offer_status?: string | null
           sender_id: string
         }
         Update: {
@@ -440,6 +446,9 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_read?: boolean | null
+          message_type?: string | null
+          offer_amount?: number | null
+          offer_status?: string | null
           sender_id?: string
         }
         Relationships: [

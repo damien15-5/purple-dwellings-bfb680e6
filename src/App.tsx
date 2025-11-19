@@ -46,6 +46,7 @@ const OurVision = lazy(() => import("./pages/OurVision").then(m => ({ default: m
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions").then(m => ({ default: m.TermsAndConditions })));
 const FAQ = lazy(() => import("./pages/FAQ").then(m => ({ default: m.FAQ })));
 const MyChats = lazy(() => import("./pages/MyChats").then(m => ({ default: m.MyChats })));
+const Chat = lazy(() => import("./pages/Chat").then(m => ({ default: m.Chat })));
 const AccountSettings = lazy(() => import("./pages/AccountSettings").then(m => ({ default: m.AccountSettings })));
 const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })));
 const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
@@ -91,7 +92,7 @@ const App = () => (
               <Route path="/dashboard/listings" element={<MyListings />} />
               <Route path="/dashboard/settings" element={<AccountSettings />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/chat/:id" element={<ChatWithSeller />} />
+              <Route path="/chat/:propertyId" element={<Chat />} />
               <Route path="/start-escrow/:id" element={<StartEscrow />} />
               <Route path="/upload-documents/:id" element={<UploadDocuments />} />
               <Route path="/upload-listing" element={<UploadListing />} />
