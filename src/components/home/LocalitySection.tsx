@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from './PropertyCard';
+import { Link } from 'react-router-dom';
 
 type Property = {
   id: string;
@@ -39,14 +40,12 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
             <h2 className="text-3xl font-bold text-foreground">Around Your Locality</h2>
             <p className="text-sm text-muted-foreground mt-1">Properties near {userLocation}</p>
           </div>
-          <Button 
-            variant="ghost" 
-            className="gap-2 hover:gap-3 transition-all" 
-            onClick={() => scroll('right')}
-          >
-            Explore More
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <Link to="/browse">
+            <Button variant="outline" className="gap-2 hover:gap-3 transition-all">
+              View More
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
 
         <div className="relative group">
