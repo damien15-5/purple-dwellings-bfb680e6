@@ -283,12 +283,12 @@ export const UploadListing = () => {
           has_receipt: hasReceipt,
           images: imageUrls,
           documents: documentData,
-          status: 'pending',
+          status: 'published',
         });
 
       if (insertError) throw insertError;
 
-      toast.success('Property listed successfully! Pending verification.');
+      toast.success('Property published successfully!');
       navigate('/dashboard/listings');
     } catch (error: any) {
       console.error('Error uploading property:', error);
