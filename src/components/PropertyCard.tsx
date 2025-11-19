@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Property } from '@/types/property';
 import { MapPin, Heart } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 interface PropertyCardProps {
   property: Property;
 }
 
-export const PropertyCard = ({ property }: PropertyCardProps) => {
+export const PropertyCard = memo(({ property }: PropertyCardProps) => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -60,4 +60,4 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
       </Link>
     </div>
   );
-};
+});

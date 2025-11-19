@@ -3,50 +3,53 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { FloatingAIButton } from "@/components/FloatingAIButton";
-import { Home } from "./pages/Home";
-import { BlogRedirect } from "./components/BlogRedirect";
-import { Browse } from "./pages/Browse";
-import { PropertyDetails } from "./pages/PropertyDetails";
-import { Login } from "./pages/Login";
-import { Signup } from "./pages/Signup";
-import { DashboardLayout } from "./components/dashboard/DashboardLayout";
-import { DashboardHome } from "./pages/dashboard/DashboardHome";
-import { Settings } from "./pages/dashboard/Settings";
-import { Verification } from "./pages/dashboard/Verification";
-import { MyListings } from "./pages/MyListings";
-import { SavedProperties } from "./pages/dashboard/SavedProperties";
-import { OffersNegotiations } from "./pages/dashboard/OffersNegotiations";
-import { EscrowTransactions } from "./pages/dashboard/EscrowTransactions";
-import { DocumentVerification } from "./pages/dashboard/DocumentVerification";
-import { Notifications } from "./pages/dashboard/Notifications";
-import { Messages } from "./pages/dashboard/Messages";
-import { HelpSupport } from "./pages/dashboard/HelpSupport";
-import { HowItWorks } from "./pages/HowItWorks";
-import { ForgotPassword } from "./pages/ForgotPassword";
-import { VerifiedUser } from "./pages/VerifiedUser";
+import { LoadingFallback } from "@/components/LoadingFallback";
 
-import { ChatWithSeller } from "./pages/ChatWithSeller";
-import { StartEscrow } from "./pages/StartEscrow";
-import { UploadDocuments } from "./pages/UploadDocuments";
-import { UploadListing } from "./pages/UploadListing";
-import { Contact } from "./pages/Contact";
-import { MyEscrow } from "./pages/MyEscrow";
-import { PaymentConfirmation } from "./pages/PaymentConfirmation";
-import { MyEscrows } from "./pages/MyEscrows";
-import { PrivacyPolicy } from "./pages/PrivacyPolicy";
-import { Disclaimer } from "./pages/Disclaimer";
-import { AboutUs } from "./pages/AboutUs";
-import { OurVision } from "./pages/OurVision";
-import { TermsAndConditions } from "./pages/TermsAndConditions";
-import { FAQ } from "./pages/FAQ";
-import { MyChats } from "./pages/MyChats";
-import { AccountSettings } from "./pages/AccountSettings";
-import { Support } from "./pages/Support";
-import { CustomerServiceDashboard } from "./pages/CustomerServiceDashboard";
-import NotFound from "./pages/NotFound";
+// Lazy load all pages
+const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
+const BlogRedirect = lazy(() => import("./components/BlogRedirect").then(m => ({ default: m.BlogRedirect })));
+const Browse = lazy(() => import("./pages/Browse").then(m => ({ default: m.Browse })));
+const PropertyDetails = lazy(() => import("./pages/PropertyDetails").then(m => ({ default: m.PropertyDetails })));
+const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
+const Signup = lazy(() => import("./pages/Signup").then(m => ({ default: m.Signup })));
+const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout").then(m => ({ default: m.DashboardLayout })));
+const DashboardHome = lazy(() => import("./pages/dashboard/DashboardHome").then(m => ({ default: m.DashboardHome })));
+const Settings = lazy(() => import("./pages/dashboard/Settings").then(m => ({ default: m.Settings })));
+const Verification = lazy(() => import("./pages/dashboard/Verification").then(m => ({ default: m.Verification })));
+const MyListings = lazy(() => import("./pages/MyListings").then(m => ({ default: m.MyListings })));
+const SavedProperties = lazy(() => import("./pages/dashboard/SavedProperties").then(m => ({ default: m.SavedProperties })));
+const OffersNegotiations = lazy(() => import("./pages/dashboard/OffersNegotiations").then(m => ({ default: m.OffersNegotiations })));
+const EscrowTransactions = lazy(() => import("./pages/dashboard/EscrowTransactions").then(m => ({ default: m.EscrowTransactions })));
+const DocumentVerification = lazy(() => import("./pages/dashboard/DocumentVerification").then(m => ({ default: m.DocumentVerification })));
+const Notifications = lazy(() => import("./pages/dashboard/Notifications").then(m => ({ default: m.Notifications })));
+const Messages = lazy(() => import("./pages/dashboard/Messages").then(m => ({ default: m.Messages })));
+const HelpSupport = lazy(() => import("./pages/dashboard/HelpSupport").then(m => ({ default: m.HelpSupport })));
+const HowItWorks = lazy(() => import("./pages/HowItWorks").then(m => ({ default: m.HowItWorks })));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword").then(m => ({ default: m.ForgotPassword })));
+const VerifiedUser = lazy(() => import("./pages/VerifiedUser").then(m => ({ default: m.VerifiedUser })));
+const ChatWithSeller = lazy(() => import("./pages/ChatWithSeller").then(m => ({ default: m.ChatWithSeller })));
+const StartEscrow = lazy(() => import("./pages/StartEscrow").then(m => ({ default: m.StartEscrow })));
+const UploadDocuments = lazy(() => import("./pages/UploadDocuments").then(m => ({ default: m.UploadDocuments })));
+const UploadListing = lazy(() => import("./pages/UploadListing").then(m => ({ default: m.UploadListing })));
+const Contact = lazy(() => import("./pages/Contact").then(m => ({ default: m.Contact })));
+const MyEscrow = lazy(() => import("./pages/MyEscrow").then(m => ({ default: m.MyEscrow })));
+const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation").then(m => ({ default: m.PaymentConfirmation })));
+const MyEscrows = lazy(() => import("./pages/MyEscrows").then(m => ({ default: m.MyEscrows })));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicy })));
+const Disclaimer = lazy(() => import("./pages/Disclaimer").then(m => ({ default: m.Disclaimer })));
+const AboutUs = lazy(() => import("./pages/AboutUs").then(m => ({ default: m.AboutUs })));
+const OurVision = lazy(() => import("./pages/OurVision").then(m => ({ default: m.OurVision })));
+const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions").then(m => ({ default: m.TermsAndConditions })));
+const FAQ = lazy(() => import("./pages/FAQ").then(m => ({ default: m.FAQ })));
+const MyChats = lazy(() => import("./pages/MyChats").then(m => ({ default: m.MyChats })));
+const AccountSettings = lazy(() => import("./pages/AccountSettings").then(m => ({ default: m.AccountSettings })));
+const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })));
+const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -60,7 +63,8 @@ const App = () => (
           <Navigation />
           <FloatingAIButton />
           <main className="flex-grow">
-            <Routes>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/property/:id" element={<PropertyDetails />} />
@@ -110,6 +114,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </main>
           <Footer />
         </div>
