@@ -30,7 +30,7 @@ export const RecommendationsSection = ({ properties, onPropertyView }: Recommend
   if (properties.length === 0) return null;
 
   return (
-    <section className="py-12 bg-gradient-to-b from-muted/20 to-background">
+    <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">

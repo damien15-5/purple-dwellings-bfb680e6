@@ -33,7 +33,7 @@ export const FeaturedPropertiesSection = ({ properties, onPropertyView }: Featur
   if (properties.length === 0) return null;
 
   return (
-    <section className="py-12 bg-gradient-to-b from-background to-muted/20">
+    <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
