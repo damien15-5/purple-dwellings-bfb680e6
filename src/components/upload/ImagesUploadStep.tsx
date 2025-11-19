@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, AlertCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -32,41 +32,30 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
   };
 
   const isLand = propertyType === 'Land';
-  const showReceiptWarning = !isLand && !hasReceipt && images.length >= 3;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Upload Property Images</h2>
-        <p className="text-muted-foreground">Upload at least 3 high-quality images of your property (max 15)</p>
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">
+          Upload Property Images
+        </h2>
+        <p className="text-muted-foreground text-lg">Upload at least 3 high-quality images of your property (max 15)</p>
       </div>
 
-      {/* Receipt Requirement Warning */}
-      {!isLand && (
-        <div className="bg-accent/50 border border-border rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground mb-2">Receipt Required</p>
-            <p className="text-sm text-muted-foreground mb-3">
-              For non-land properties, you must upload a House Rent/Sale Receipt. You can include it here as one of your images or upload it in the documents step.
-            </p>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="hasReceipt"
-                checked={hasReceipt}
-                onCheckedChange={(checked) => setHasReceipt(checked as boolean)}
-              />
-              <Label htmlFor="hasReceipt" className="cursor-pointer font-normal text-sm">
-                I have uploaded/will upload the receipt
-              </Label>
-            </div>
-          </div>
+      {/* Info Card */}
+      <div className="bg-gradient-to-br from-primary/5 to-accent-purple/5 border-2 border-primary/20 rounded-xl p-5 flex items-start gap-3">
+        <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground mb-1">Image Tips</p>
+          <p className="text-sm text-muted-foreground">
+            Upload clear, well-lit photos showing different angles of your property. The first image will be used as the thumbnail.
+          </p>
         </div>
-      )}
+      </div>
 
       {/* Upload Area */}
       <div
-        className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer bg-accent/20"
+        className="border-3 border-dashed border-primary/30 rounded-2xl p-12 text-center hover:border-primary hover:bg-gradient-to-br hover:from-primary/5 hover:to-accent-purple/5 transition-all duration-300 cursor-pointer bg-accent/10 group"
         onClick={() => fileInputRef.current?.click()}
       >
         <input
@@ -77,15 +66,17 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
           onChange={handleFileSelect}
           className="hidden"
         />
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Upload className="w-8 h-8 text-primary" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <Upload className="w-10 h-10 text-primary-foreground" />
           </div>
-          <p className="text-lg font-medium text-foreground">Click to upload images</p>
-          <p className="text-sm text-muted-foreground">Drag and drop or browse files</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {images.length}/15 images uploaded (minimum 3 required)
-          </p>
+          <p className="text-xl font-bold text-foreground">Click to upload images</p>
+          <p className="text-muted-foreground">Drag and drop or browse files</p>
+          <div className="mt-2 px-4 py-2 bg-primary/10 rounded-full">
+            <p className="text-sm font-semibold text-primary">
+              {images.length}/15 images uploaded (minimum 3 required)
+            </p>
+          </div>
         </div>
       </div>
 
@@ -122,17 +113,24 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
 
       {/* Status Message */}
       {images.length > 0 && images.length < 3 && (
-        <div className="text-center text-sm text-muted-foreground">
-          Upload {3 - images.length} more image{3 - images.length !== 1 ? 's' : ''} to continue
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+            <p className="text-sm font-medium text-primary">
+              Upload {3 - images.length} more image{3 - images.length !== 1 ? 's' : ''} to continue
+            </p>
+          </div>
         </div>
       )}
 
-      {showReceiptWarning && (
-        <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-destructive">
-            Please confirm that you have uploaded the receipt or will upload it in the documents step
-          </p>
+      {images.length >= 3 && (
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+            <Check className="w-4 h-4 text-primary" />
+            <p className="text-sm font-medium text-primary">
+              Ready to proceed! You can upload more images if needed
+            </p>
+          </div>
         </div>
       )}
     </div>

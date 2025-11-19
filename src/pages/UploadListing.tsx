@@ -160,10 +160,18 @@ export const UploadListing = () => {
         toast.error('Please upload at least 3 images');
         return;
       }
+    }
+    
+    if (currentStep === 4) {
+      // Require at least 3 documents total
+      if (documents.length < 3) {
+        toast.error('Please upload at least 3 documents');
+        return;
+      }
       
       // Check receipt for non-land properties
       if (formData.propertyType !== 'Land' && !hasReceipt) {
-        toast.error('Please upload a receipt (can be added as an image or document)');
+        toast.error('Please upload a receipt document');
         return;
       }
     }
@@ -291,39 +299,54 @@ export const UploadListing = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-secondary/20 to-background">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 -right-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 -left-40 w-96 h-96 bg-accent-purple/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+
+      <div className="container mx-auto px-4 py-12 max-w-5xl relative z-10">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">List Your Property</h1>
-          <p className="text-muted-foreground">Complete all steps to publish your listing</p>
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-accent-purple to-primary-light bg-clip-text text-transparent">
+            List Your Property
+          </h1>
+          <p className="text-lg text-muted-foreground">Complete all steps to publish your listing</p>
         </div>
 
         {/* Progress Steps */}
-        <Card className="mb-8 p-6 card-glow">
+        <Card className="mb-8 p-6 border-border/50 bg-card/80 backdrop-blur-sm shadow-lg">
           <div className="flex items-center justify-between">
             {STEPS.map((step, index) => (
               <div key={step.id} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all duration-300 ${
+                    className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-500 shadow-md ${
                       currentStep > step.id
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground scale-110'
                         : currentStep === step.id
-                        ? 'bg-primary text-primary-foreground animate-pulse'
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground scale-110 animate-pulse shadow-primary'
+                        : 'bg-muted/50 text-muted-foreground'
                     }`}
                   >
-                    {currentStep > step.id ? <Check className="w-6 h-6" /> : step.icon}
+                    {currentStep > step.id ? <Check className="w-7 h-7" /> : step.icon}
                   </div>
-                  <span className="text-xs mt-2 text-center font-medium">{step.name}</span>
+                  <span className={`text-xs mt-2 text-center font-medium transition-colors ${
+                    currentStep === step.id ? 'text-primary' : 'text-muted-foreground'
+                  }`}>
+                    {step.name}
+                  </span>
                 </div>
                 {index < STEPS.length - 1 && (
-                  <div
-                    className={`h-1 w-16 mx-2 transition-all duration-300 ${
-                      currentStep > step.id ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  />
+                  <div className="relative w-20 h-2 mx-3">
+                    <div className="absolute inset-0 bg-muted/50 rounded-full" />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-r from-primary to-primary-light rounded-full transition-all duration-500 ${
+                        currentStep > step.id ? 'w-full' : 'w-0'
+                      }`}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -331,7 +354,7 @@ export const UploadListing = () => {
         </Card>
 
         {/* Step Content */}
-        <Card className="p-8 card-glow mb-6">
+        <Card className="p-8 border-border/50 bg-card/80 backdrop-blur-sm shadow-xl mb-6 hover:shadow-2xl transition-shadow duration-300">
           {currentStep === 1 && (
             <BasicDetails formData={formData} updateFormData={updateFormData} />
           )}
@@ -376,22 +399,30 @@ export const UploadListing = () => {
             variant="outline"
             onClick={handleBack}
             disabled={currentStep === 1 || uploading}
-            className="px-8"
+            className="px-10 h-12 text-base font-semibold border-2 hover:border-primary hover:bg-primary/5"
           >
             Back
           </Button>
           
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
             Step {currentStep} of {STEPS.length}
           </div>
 
           {currentStep < 5 ? (
-            <Button onClick={handleNext} disabled={uploading} className="px-8">
-              Next
+            <Button 
+              onClick={handleNext} 
+              disabled={uploading} 
+              className="px-10 h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary-light hover:shadow-primary shadow-lg"
+            >
+              Next →
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={uploading} className="px-8">
-              {uploading ? 'Publishing...' : 'Publish Listing'}
+            <Button 
+              onClick={handleSubmit} 
+              disabled={uploading} 
+              className="px-10 h-12 text-base font-semibold bg-gradient-to-r from-primary via-accent-purple to-primary-light hover:shadow-primary shadow-lg"
+            >
+              {uploading ? 'Publishing...' : 'Publish Listing 🚀'}
             </Button>
           )}
         </div>
