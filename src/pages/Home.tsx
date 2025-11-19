@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import heroImage from '@/assets/hero-house.jpg';
-import { SearchFilterBar } from '@/components/home/SearchFilterBar';
+import { supabase } from '@/integrations/supabase/client';
 import { FeaturedPropertiesSection } from '@/components/home/FeaturedPropertiesSection';
 import { LocalitySection } from '@/components/home/LocalitySection';
 import { ExploreMoreSection } from '@/components/home/ExploreMoreSection';
 import { RecommendationsSection } from '@/components/home/RecommendationsSection';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Property = {
   id: string;
@@ -23,26 +26,10 @@ type Property = {
   clicks: number;
   distance?: string;
   matchScore?: number;
+  city?: string;
+  state?: string;
+  address?: string;
 };
-
-// Enhanced dummy data with engagement metrics
-const allProperties: Property[] = [
-  { id: '1', image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800', price: 45000000, location: 'Lekki, Lagos', title: 'Modern 3-Bedroom House', bedrooms: 3, type: 'House', status: 'Published', views: 1250, clicks: 89, matchScore: 95 },
-  { id: '2', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800', price: 120000000, location: 'Victoria Island, Lagos', title: 'Luxury 4-Bedroom Villa', bedrooms: 4, type: 'Villa', status: 'Published', views: 2150, clicks: 145, matchScore: 88 },
-  { id: '3', image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800', price: 28000000, location: 'Ikeja, Lagos', title: 'Cozy 2-Bedroom Apartment', bedrooms: 2, type: 'Apartment', status: 'Published', views: 980, clicks: 67, matchScore: 75 },
-  { id: '4', image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800', price: 85000000, location: 'Ikoyi, Lagos', title: 'Spacious 5-Bedroom Duplex', bedrooms: 5, type: 'Duplex', status: 'Published', views: 1890, clicks: 123, matchScore: 82 },
-  { id: '5', image: 'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=800', price: 32000000, location: 'Yaba, Lagos', title: 'Elegant 3-Bedroom Flat', bedrooms: 3, type: 'Apartment', status: 'Published', views: 1120, clicks: 78, matchScore: 91 },
-  { id: '6', image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800', price: 95000000, location: 'Banana Island, Lagos', title: 'Premium 4-Bedroom Mansion', bedrooms: 4, type: 'House', status: 'Published', views: 3200, clicks: 210, matchScore: 70 },
-  { id: '7', image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800', price: 52000000, location: 'Surulere, Lagos', title: 'Contemporary 3-Bedroom House', bedrooms: 3, type: 'House', status: 'Pending', views: 890, clicks: 54, matchScore: 85 },
-  { id: '8', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800', price: 38000000, location: 'Ajah, Lagos', title: 'Modern 2-Bedroom Apartment', bedrooms: 2, type: 'Apartment', status: 'Published', views: 1450, clicks: 95, matchScore: 78 },
-  { id: '9', image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800', price: 150000000, location: 'Ikoyi, Lagos', title: 'Luxury 5-Bedroom Villa', bedrooms: 5, type: 'Villa', status: 'Published', views: 2890, clicks: 167, matchScore: 65 },
-  { id: '10', image: 'https://images.unsplash.com/photo-1600573472550-8090b5e0745e?w=800', price: 42000000, location: 'Gbagada, Lagos', title: '3-Bedroom Detached House', bedrooms: 3, type: 'House', status: 'Published', views: 1340, clicks: 88, matchScore: 92 },
-  { id: '11', image: 'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800', price: 65000000, location: 'Lekki Phase 1, Lagos', title: '4-Bedroom Terrace Duplex', bedrooms: 4, type: 'Duplex', status: 'Sold', views: 2100, clicks: 134, matchScore: 73 },
-  { id: '12', image: 'https://images.unsplash.com/photo-1600607686527-6fb886090705?w=800', price: 29000000, location: 'Magodo, Lagos', title: 'Stylish 2-Bedroom Flat', bedrooms: 2, type: 'Apartment', status: 'Published', views: 1050, clicks: 71, matchScore: 89 },
-  { id: '13', image: 'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?w=800', price: 78000000, location: 'Lekki, Lagos', title: 'Executive 4-Bedroom House', bedrooms: 4, type: 'House', status: 'Published', views: 1680, clicks: 112, matchScore: 86 },
-  { id: '14', image: 'https://images.unsplash.com/photo-1600047509358-9dc75507daeb?w=800', price: 55000000, location: 'Victoria Island, Lagos', title: 'Modern 3-Bedroom Penthouse', bedrooms: 3, type: 'Apartment', status: 'Published', views: 1920, clicks: 128, matchScore: 81 },
-  { id: '15', image: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800', price: 110000000, location: 'Ikoyi, Lagos', title: 'Waterfront 5-Bedroom Villa', bedrooms: 5, type: 'Villa', status: 'Published', views: 2650, clicks: 178, matchScore: 68 },
-];
 
 export const Home = () => {
   const [priceRange, setPriceRange] = useState([0, 200000000]);
@@ -51,7 +38,68 @@ export const Home = () => {
   const [bedrooms, setBedrooms] = useState('');
   const [status, setStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [propertyViews, setPropertyViews] = useState<Record<string, number>>({});
+  const [country, setCountry] = useState('');
+  const [state, setState] = useState('');
+  const [town, setTown] = useState('');
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<string>('');
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+    fetchProperties();
+    detectUserLocation();
+  }, []);
+
+  const detectUserLocation = async () => {
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+      if (data.city) {
+        setUserLocation(data.city);
+      }
+    } catch (error) {
+      console.error('Error detecting location:', error);
+      setUserLocation('Lagos');
+    }
+  };
+
+  const fetchProperties = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const transformedProperties: Property[] = data.map(p => ({
+          id: p.id,
+          image: p.images?.[0] || '',
+          price: p.price,
+          location: `${p.city || ''}, ${p.state || ''}`.trim(),
+          title: p.title,
+          bedrooms: p.bedrooms || 0,
+          type: p.property_type,
+          status: p.status,
+          views: 0,
+          clicks: 0,
+          city: p.city || '',
+          state: p.state || '',
+          address: p.address || '',
+          matchScore: Math.floor(Math.random() * 40) + 60
+        }));
+
+        setAllProperties(transformedProperties);
+      }
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error fetching properties:', error);
+      setLoading(false);
+    }
+  };
 
   const handleReset = () => {
     setPriceRange([0, 200000000]);
@@ -60,16 +108,30 @@ export const Home = () => {
     setBedrooms('');
     setStatus('');
     setSearchTerm('');
+    setCountry('');
+    setState('');
+    setTown('');
   };
 
-  const handlePropertyView = (id: string) => {
-    setPropertyViews(prev => ({
-      ...prev,
-      [id]: (prev[id] || 0) + 1
-    }));
+  const handlePropertyView = async (id: string) => {
+    try {
+      setAllProperties(prev => 
+        prev.map(p => p.id === id ? { ...p, views: p.views + 1, clicks: p.clicks + 1 } : p)
+      );
+    } catch (error) {
+      console.error('Error tracking view:', error);
+    }
   };
 
-  // Apply filters
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
   const filteredProperties = allProperties.filter(property => {
     const matchesPrice = property.price >= priceRange[0] && property.price <= priceRange[1];
     const matchesLocation = !location || property.location.toLowerCase().includes(location.toLowerCase());
@@ -79,107 +141,243 @@ export const Home = () => {
     const matchesSearch = !searchTerm || 
       property.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
       property.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCountry = !country || property.address?.toLowerCase().includes(country.toLowerCase());
+    const matchesState = !state || property.state?.toLowerCase().includes(state.toLowerCase());
+    const matchesTown = !town || property.city?.toLowerCase().includes(town.toLowerCase());
     
-    return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch;
+    return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   });
 
-  // Featured: Sort by clicks (engagement)
   const featuredProperties = [...filteredProperties]
     .sort((a, b) => b.clicks - a.clicks)
     .slice(0, 6);
 
-  // Locality: Properties near user (dummy logic - filter by Lagos)
   const localityProperties = filteredProperties
-    .filter(p => p.location.includes('Lagos'))
+    .filter(p => {
+      if (!userLocation) return true;
+      return p.city?.toLowerCase().includes(userLocation.toLowerCase()) || 
+             p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
+             p.location.toLowerCase().includes(userLocation.toLowerCase());
+    })
     .slice(0, 8);
 
-  // Explore More: Random selection
-  const exploreMoreProperties = [...filteredProperties]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 9);
+  const exploreMoreProperties = filteredProperties.slice(0, 9);
 
-  // Recommendations: Sort by match score
   const recommendedProperties = [...filteredProperties]
     .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
     .slice(0, 8);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section 
-        className="relative h-[600px] bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70" />
-        <div className="relative container mx-auto px-4 h-full flex flex-col justify-center items-center text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 animate-fade-in">
-            Find Your Dream Property
-          </h1>
-          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl animate-fade-in">
-            Discover the perfect home, apartment, or investment property with our extensive listings
-          </p>
-          
-          {/* Quick Search */}
-          <div className="w-full max-w-2xl bg-white rounded-lg p-4 shadow-2xl animate-scale-in">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by location or property name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-12 text-base"
-                />
+      <section className="relative h-[70vh] overflow-hidden">
+        <div className="absolute inset-0">
+          <img 
+            src={heroImage} 
+            alt="Hero" 
+            className="w-full h-full object-cover blur-sm scale-110"
+          />
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+        
+        <div className="relative container mx-auto px-4 h-full">
+          <div className="grid lg:grid-cols-2 gap-8 h-full items-center">
+            <div className="text-white space-y-6 animate-fade-in">
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight">
+                Find Your Dream Property
+              </h1>
+              <p className="text-xl text-white/90 max-w-lg">
+                Discover the perfect home, apartment, or investment property with our extensive listings
+              </p>
+
+              <div className="flex gap-2 bg-white rounded-lg p-2 shadow-2xl max-w-2xl">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by location or property name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="border-0 h-12 text-base focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </div>
+                
+                <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2 h-12 border-0">
+                      <SlidersHorizontal className="h-5 w-5" />
+                      Filters
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[600px] p-6" align="end">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-lg">Filter Properties</h3>
+                        <Button variant="ghost" size="sm" onClick={handleReset}>
+                          Reset
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Price Range</label>
+                        <Slider
+                          value={priceRange}
+                          onValueChange={setPriceRange}
+                          max={200000000}
+                          step={5000000}
+                          className="w-full"
+                        />
+                        <div className="text-xs text-muted-foreground flex justify-between">
+                          <span>{formatPrice(priceRange[0])}</span>
+                          <span>{formatPrice(priceRange[1])}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Country</label>
+                          <Input
+                            placeholder="Enter country..."
+                            value={country}
+                            onChange={(e) => setCountry(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">State</label>
+                          <Input
+                            placeholder="Enter state..."
+                            value={state}
+                            onChange={(e) => setState(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Town/City</label>
+                          <Input
+                            placeholder="Enter town..."
+                            value={town}
+                            onChange={(e) => setTown(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Property Type</label>
+                          <Select value={propertyType || "all"} onValueChange={(value) => setPropertyType(value === "all" ? "" : value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Types" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Types</SelectItem>
+                              <SelectItem value="house">House</SelectItem>
+                              <SelectItem value="apartment">Apartment</SelectItem>
+                              <SelectItem value="villa">Villa</SelectItem>
+                              <SelectItem value="land">Land</SelectItem>
+                              <SelectItem value="duplex">Duplex</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Bedrooms</label>
+                          <Select value={bedrooms || "all"} onValueChange={(value) => setBedrooms(value === "all" ? "" : value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Any</SelectItem>
+                              <SelectItem value="1">1 Bedroom</SelectItem>
+                              <SelectItem value="2">2 Bedrooms</SelectItem>
+                              <SelectItem value="3">3 Bedrooms</SelectItem>
+                              <SelectItem value="4">4 Bedrooms</SelectItem>
+                              <SelectItem value="5">5+ Bedrooms</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Listing Status</label>
+                          <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="published">Published</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <Button className="w-full" onClick={() => setFilterOpen(false)}>
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Link to="/browse">
+                  <Button className="gap-2 h-12">
+                    <Search className="h-5 w-5" />
+                    Search
+                  </Button>
+                </Link>
               </div>
-              <Link to="/browse">
-                <Button className="gap-2 h-12 px-6">
-                  <Search className="h-5 w-5" />
-                  Search
-                </Button>
-              </Link>
             </div>
+
+            <div className="hidden lg:block" />
           </div>
         </div>
       </section>
 
-      {/* Search & Filter Bar */}
-      <SearchFilterBar
-        priceRange={priceRange}
-        setPriceRange={setPriceRange}
-        location={location}
-        setLocation={setLocation}
-        propertyType={propertyType}
-        setPropertyType={setPropertyType}
-        bedrooms={bedrooms}
-        setBedrooms={setBedrooms}
-        status={status}
-        setStatus={setStatus}
-        onReset={handleReset}
-      />
+      {featuredProperties.length > 0 && (
+        <FeaturedPropertiesSection 
+          properties={featuredProperties}
+          onPropertyView={handlePropertyView}
+        />
+      )}
 
-      {/* Featured Properties Section */}
-      <FeaturedPropertiesSection 
-        properties={featuredProperties}
-        onPropertyView={handlePropertyView}
-      />
+      {localityProperties.length > 0 && (
+        <LocalitySection 
+          properties={localityProperties}
+          userLocation={userLocation || 'your area'}
+          onPropertyView={handlePropertyView}
+        />
+      )}
 
-      {/* Around Your Locality Section */}
-      <LocalitySection 
-        properties={localityProperties}
-        userLocation="Lagos"
-        onPropertyView={handlePropertyView}
-      />
+      {recommendedProperties.length > 0 && (
+        <RecommendationsSection 
+          properties={recommendedProperties}
+          onPropertyView={handlePropertyView}
+        />
+      )}
 
-      {/* Personalized Recommendations Section */}
-      <RecommendationsSection 
-        properties={recommendedProperties}
-        onPropertyView={handlePropertyView}
-      />
+      {exploreMoreProperties.length > 0 && (
+        <ExploreMoreSection 
+          properties={exploreMoreProperties}
+          onPropertyView={handlePropertyView}
+        />
+      )}
 
-      {/* Explore More Section */}
-      <ExploreMoreSection 
-        properties={exploreMoreProperties}
-        onPropertyView={handlePropertyView}
-      />
+      {allProperties.length === 0 && (
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-4">
+            No Properties Available Yet
+          </h2>
+          <p className="text-muted-foreground mb-8">
+            Be the first to list a property on our platform
+          </p>
+          <Link to="/upload-listing">
+            <Button size="lg">List Your Property</Button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 };
