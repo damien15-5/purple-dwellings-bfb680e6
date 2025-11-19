@@ -181,9 +181,16 @@ export const MessageItem = ({
           )}
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
         </div>
-        <span className="text-xs text-muted-foreground mt-1">
-          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-        </span>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground">
+            {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+          </span>
+          {isOwnMessage && (
+            <span className="text-xs text-muted-foreground">
+              {message.is_read ? '✓✓' : '✓'}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
