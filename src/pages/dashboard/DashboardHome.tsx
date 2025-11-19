@@ -111,7 +111,7 @@ export const DashboardHome = () => {
   ];
 
   const quickActions = [
-    { label: 'Upload Property', icon: Upload, link: '/upload', variant: 'hero' as const },
+    { label: 'Upload Property', icon: Upload, link: '/upload-listing', variant: 'hero' as const },
     { label: 'View Listings', icon: Home, link: '/dashboard/my-listings', variant: 'outline' as const },
     { label: 'View Offers', icon: Handshake, link: '/dashboard/offers', variant: 'outline' as const },
     { label: 'Escrow Dashboard', icon: Lock, link: '/dashboard/escrow', variant: 'outline' as const },
