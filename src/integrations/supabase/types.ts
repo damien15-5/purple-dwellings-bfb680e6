@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      admin_credentials: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          last_login: string | null
+          password_hash: string
+          role: Database["public"]["Enums"]["app_role"]
+          second_password_hash: string
+          user_id: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          password_hash: string
+          role: Database["public"]["Enums"]["app_role"]
+          second_password_hash: string
+          user_id?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          password_hash?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          second_password_hash?: string
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -888,7 +960,14 @@ export type Database = {
     }
     Enums: {
       account_type: "buyer" | "seller" | "agent"
-      app_role: "buyer" | "seller" | "agent" | "admin" | "customer_service"
+      app_role:
+        | "buyer"
+        | "seller"
+        | "agent"
+        | "admin"
+        | "customer_service"
+        | "super_admin"
+        | "sub_admin"
       dispute_status:
         | "pending"
         | "under_review"
@@ -1031,7 +1110,15 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["buyer", "seller", "agent"],
-      app_role: ["buyer", "seller", "agent", "admin", "customer_service"],
+      app_role: [
+        "buyer",
+        "seller",
+        "agent",
+        "admin",
+        "customer_service",
+        "super_admin",
+        "sub_admin",
+      ],
       dispute_status: [
         "pending",
         "under_review",
