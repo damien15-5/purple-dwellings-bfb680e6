@@ -249,6 +249,47 @@ export const Chat = () => {
     }
   };
 
+  // Mark message as read
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('id', messageId);
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  // Mark all unread messages as read when viewing conversation
+  useEffect(() => {
+    if (!conversationId || !currentUserId) return;
+
+    const markAllAsRead = async () => {
+      try {
+        await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', conversationId)
+          .neq('sender_id', currentUserId)
+          .eq('is_read', false);
+
+        // Update conversation unread count
+        const isUserBuyer = property?.user_id !== currentUserId;
+        await supabase
+          .from('conversations')
+          .update({ 
+            [isUserBuyer ? 'buyer_unread' : 'seller_unread']: 0 
+          })
+          .eq('id', conversationId);
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+    };
+
+    markAllAsRead();
+  }, [conversationId, currentUserId, property]);
+
   const handleSendMessage = async (content: string, file?: File) => {
     if (!conversationId || !currentUserId || (!content.trim() && !file)) return;
 

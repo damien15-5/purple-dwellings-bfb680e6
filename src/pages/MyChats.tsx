@@ -29,6 +29,45 @@ export const MyChats = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const loadConversations = async (userId: string) => {
+    try {
+      // Fetch conversations
+      const { data: convData, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          property:properties(title, images)
+        `)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .order('last_message_time', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch other user details for each conversation
+      const conversationsWithUsers = await Promise.all(
+        (convData || []).map(async (conv) => {
+          const otherUserId = conv.buyer_id === userId ? conv.seller_id : conv.buyer_id;
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', otherUserId)
+            .single();
+
+          return {
+            ...conv,
+            other_user: userData || { full_name: 'User' },
+          };
+        })
+      );
+
+      setConversations(conversationsWithUsers);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const initChats = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -39,47 +78,59 @@ export const MyChats = () => {
 
       setIsLoggedIn(true);
       setCurrentUserId(session.user.id);
-
-      try {
-        // Fetch conversations
-        const { data: convData, error } = await supabase
-          .from('conversations')
-          .select(`
-            *,
-            property:properties(title, images)
-          `)
-          .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-          .order('last_message_time', { ascending: false });
-
-        if (error) throw error;
-
-        // Fetch other user details for each conversation
-        const conversationsWithUsers = await Promise.all(
-          (convData || []).map(async (conv) => {
-            const otherUserId = conv.buyer_id === session.user.id ? conv.seller_id : conv.buyer_id;
-            const { data: userData } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', otherUserId)
-              .single();
-
-            return {
-              ...conv,
-              other_user: userData || { full_name: 'User' },
-            };
-          })
-        );
-
-        setConversations(conversationsWithUsers);
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      } finally {
-        setLoading(false);
-      }
+      await loadConversations(session.user.id);
     };
 
     initChats();
   }, [navigate]);
+
+  // Real-time updates for conversations
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('conversations-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `buyer_id=eq.${currentUserId}`
+        },
+        () => {
+          loadConversations(currentUserId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `seller_id=eq.${currentUserId}`
+        },
+        () => {
+          loadConversations(currentUserId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          loadConversations(currentUserId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
 
   if (!isLoggedIn) return null;
 
