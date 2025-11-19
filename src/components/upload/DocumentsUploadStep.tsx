@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Upload, X, AlertCircle, Info } from 'lucide-react';
+import { FileText, Upload, X, AlertCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,9 @@ const DOCUMENT_TYPES = [
   "Governor's consent",
   'Receipt',
   'Utility bills',
+  'Tax clearance',
+  'Building plan',
+  'Other',
 ];
 
 type Props = {
@@ -60,58 +63,42 @@ export const DocumentsUploadStep = ({ documents, setDocuments, hasReceipt, setHa
   };
 
   const isLand = propertyType === 'Land';
-  const requiredDocs = isLand ? [] : ['Receipt'];
-  const hasAllRequired = requiredDocs.every(type => 
-    documents.some(doc => doc.type === type) || (type === 'Receipt' && hasReceipt)
-  );
+  const minDocuments = 3;
+  const hasMinimum = documents.length >= minDocuments;
+  const hasReceiptDoc = documents.some(doc => doc.type === 'Receipt') || hasReceipt;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Upload Property Documents</h2>
-        <p className="text-muted-foreground">Upload supporting documents for your property</p>
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">
+          Upload Property Documents
+        </h2>
+        <p className="text-muted-foreground text-lg">Upload at least 3 documents to verify your property</p>
       </div>
 
       {/* Info Message */}
-      <div className="bg-accent/50 border border-border rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+      <div className="bg-gradient-to-br from-primary/5 to-accent-purple/5 border-2 border-primary/20 rounded-xl p-5 flex items-start gap-3">
+        <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-foreground mb-1">Document Verification</p>
-          <p className="text-sm text-muted-foreground">
-            Documents will be verified after submission. You can skip this step for now if you don't have documents ready.
+          <p className="text-sm font-semibold text-foreground mb-1">Document Requirements</p>
+          <p className="text-sm text-muted-foreground mb-2">
+            Please upload at least 3 documents including:
           </p>
+          <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+            {!isLand && <li>Receipt of payment (required for non-land properties)</li>}
+            <li>Property ownership documents (deed, C of O, etc.)</li>
+            <li>Survey plan or building documents</li>
+            <li>Any other relevant documents</li>
+          </ul>
         </div>
       </div>
-
-      {/* Receipt Warning for non-land */}
-      {!isLand && !hasReceipt && (
-        <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-destructive mb-2">Receipt Required</p>
-            <p className="text-sm text-muted-foreground mb-3">
-              You must upload a House Rent/Sale Receipt before proceeding
-            </p>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="hasReceiptDoc"
-                checked={hasReceipt}
-                onCheckedChange={(checked) => setHasReceipt(checked as boolean)}
-              />
-              <Label htmlFor="hasReceiptDoc" className="cursor-pointer font-normal text-sm">
-                Receipt was uploaded in images step
-              </Label>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Upload Section */}
       <div className="space-y-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <Select onValueChange={(value) => (selectedTypeRef.current = value)}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 border-2 border-border hover:border-primary transition-colors">
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent className="bg-card">
@@ -123,9 +110,9 @@ export const DocumentsUploadStep = ({ documents, setDocuments, hasReceipt, setHa
           </div>
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="gap-2"
+            className="gap-2 h-12 px-8 bg-gradient-to-r from-primary to-primary-light hover:shadow-lg"
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-5 h-5" />
             Upload File
           </Button>
           <input
@@ -137,24 +124,55 @@ export const DocumentsUploadStep = ({ documents, setDocuments, hasReceipt, setHa
             className="hidden"
           />
         </div>
+
+        {/* Progress Indicator */}
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-accent-purple/5 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              hasMinimum ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}>
+              {hasMinimum ? <Check className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">
+                {documents.length}/{minDocuments} documents uploaded
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {hasMinimum ? 'Minimum requirement met!' : `Upload ${minDocuments - documents.length} more`}
+              </p>
+            </div>
+          </div>
+          {!isLand && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="hasReceiptDoc"
+                checked={hasReceiptDoc}
+                onCheckedChange={(checked) => setHasReceipt(checked as boolean)}
+              />
+              <Label htmlFor="hasReceiptDoc" className="cursor-pointer font-normal text-sm">
+                Receipt included
+              </Label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Uploaded Documents List */}
       {documents.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-foreground">Uploaded Documents ({documents.length})</h3>
-          <div className="space-y-2">
+        <div className="space-y-4">
+          <h3 className="font-semibold text-foreground text-lg">Uploaded Documents ({documents.length})</h3>
+          <div className="space-y-3">
             {documents.map((doc, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-4 bg-accent/50 rounded-lg border border-border"
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-accent/30 to-accent/10 rounded-xl border-2 border-border/50 hover:border-primary/50 transition-all duration-300 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <FileText className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground text-sm">{doc.type}</p>
+                    <p className="font-semibold text-foreground">{doc.type}</p>
                     <p className="text-xs text-muted-foreground">{doc.file.name}</p>
                   </div>
                 </div>
@@ -162,8 +180,9 @@ export const DocumentsUploadStep = ({ documents, setDocuments, hasReceipt, setHa
                   size="sm"
                   variant="ghost"
                   onClick={() => removeDocument(index)}
+                  className="hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
             ))}
@@ -172,9 +191,14 @@ export const DocumentsUploadStep = ({ documents, setDocuments, hasReceipt, setHa
       )}
 
       {/* Status Messages */}
-      {!hasAllRequired && documents.length === 0 && (
-        <div className="text-center text-sm text-muted-foreground">
-          No documents uploaded yet. {!isLand && 'Receipt is required before proceeding.'}
+      {documents.length === 0 && (
+        <div className="text-center py-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              No documents uploaded yet. Upload at least 3 documents to continue.
+            </p>
+          </div>
         </div>
       )}
     </div>
