@@ -1,0 +1,250 @@
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { Handshake, Check, X, MessageSquare, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+export const OffersNegotiations = () => {
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const [responseMessage, setResponseMessage] = useState('');
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
+
+  useEffect(() => {
+    loadOffers();
+  }, []);
+
+  const loadOffers = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('escrow_transactions')
+      .select(`
+        *,
+        property:properties(title, address, images, price),
+        buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
+        seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
+      `)
+      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+
+    setOffers(data || []);
+    setLoading(false);
+  };
+
+  const handleResponse = async (offerId: string, accept: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('escrow_transactions')
+        .update({
+          offer_status: accept ? 'accepted' : 'rejected',
+          seller_response: responseMessage,
+          seller_responded_at: new Date().toISOString(),
+        })
+        .eq('id', offerId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Offer ${accept ? 'accepted' : 'rejected'} successfully`,
+      });
+
+      loadOffers();
+      setSelectedOffer(null);
+      setResponseMessage('');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to respond to offer',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-500 gap-2"><Clock className="h-3 w-3" />Pending</Badge>;
+      case 'accepted':
+        return <Badge className="bg-green-500 gap-2"><CheckCircle className="h-3 w-3" />Accepted</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-500 gap-2"><XCircle className="h-3 w-3" />Rejected</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-purple" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Offers & Negotiations</h1>
+        <p className="text-muted-foreground">Manage your property offers and negotiations</p>
+      </div>
+
+      {offers.length === 0 ? (
+        <Card className="card-glow">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Handshake className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No Offers Yet</h3>
+            <p className="text-muted-foreground text-center max-w-md">
+              You don't have any offers or negotiations at the moment
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {offers.map((offer) => (
+            <Card key={offer.id} className="card-glow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg mb-2">{offer.property?.title}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{offer.property?.address}</p>
+                  </div>
+                  {getStatusBadge(offer.offer_status || 'none')}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Current Price</p>
+                    <p className="text-lg font-semibold">
+                      ₦{offer.property?.price?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Offered Price</p>
+                    <p className="text-lg font-semibold text-accent-purple">
+                      ₦{offer.offer_amount?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Initiated By</p>
+                    <p className="text-sm font-medium">{offer.buyer?.full_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Date</p>
+                    <p className="text-sm">
+                      {new Date(offer.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                {offer.offer_message && (
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Offer Message:</p>
+                    <p className="text-sm text-muted-foreground">{offer.offer_message}</p>
+                  </div>
+                )}
+
+                {offer.seller_response && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium mb-1 text-blue-900">Your Response:</p>
+                    <p className="text-sm text-blue-700">{offer.seller_response}</p>
+                  </div>
+                )}
+
+                {offer.offer_status === 'pending' && (
+                  <div className="flex gap-3">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="hero"
+                          className="flex-1 gap-2"
+                          onClick={() => setSelectedOffer(offer)}
+                        >
+                          <Check className="h-4 w-4" />
+                          Accept Offer
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Accept Offer</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <Textarea
+                            placeholder="Add a response message (optional)"
+                            value={responseMessage}
+                            onChange={(e) => setResponseMessage(e.target.value)}
+                            rows={4}
+                          />
+                          <Button
+                            onClick={() => handleResponse(offer.id, true)}
+                            className="w-full"
+                            variant="hero"
+                          >
+                            Confirm Accept
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="flex-1 gap-2"
+                          onClick={() => setSelectedOffer(offer)}
+                        >
+                          <X className="h-4 w-4" />
+                          Reject
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Reject Offer</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <Textarea
+                            placeholder="Add a reason for rejection (optional)"
+                            value={responseMessage}
+                            onChange={(e) => setResponseMessage(e.target.value)}
+                            rows={4}
+                          />
+                          <Button
+                            onClick={() => handleResponse(offer.id, false)}
+                            className="w-full"
+                            variant="destructive"
+                          >
+                            Confirm Reject
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Button variant="outline" className="gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Counter
+                    </Button>
+                  </div>
+                )}
+
+                <Button variant="outline" className="w-full gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  View Negotiation History
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

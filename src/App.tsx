@@ -12,7 +12,18 @@ import { Browse } from "./pages/Browse";
 import { PropertyDetails } from "./pages/PropertyDetails";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
-import { Dashboard } from "./pages/Dashboard";
+import { DashboardLayout } from "./components/dashboard/DashboardLayout";
+import { DashboardHome } from "./pages/dashboard/DashboardHome";
+import { Settings } from "./pages/dashboard/Settings";
+import { Verification } from "./pages/dashboard/Verification";
+import { MyListings } from "./pages/MyListings";
+import { SavedProperties } from "./pages/dashboard/SavedProperties";
+import { OffersNegotiations } from "./pages/dashboard/OffersNegotiations";
+import { EscrowTransactions } from "./pages/dashboard/EscrowTransactions";
+import { DocumentVerification } from "./pages/dashboard/DocumentVerification";
+import { Notifications } from "./pages/dashboard/Notifications";
+import { Messages } from "./pages/dashboard/Messages";
+import { HelpSupport } from "./pages/dashboard/HelpSupport";
 import { HowItWorks } from "./pages/HowItWorks";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { VerifiedUser } from "./pages/VerifiedUser";
@@ -22,7 +33,6 @@ import { StartEscrow } from "./pages/StartEscrow";
 import { UploadDocuments } from "./pages/UploadDocuments";
 import { UploadListing } from "./pages/UploadListing";
 import { Contact } from "./pages/Contact";
-import { MyListings } from "./pages/MyListings";
 import { MyEscrow } from "./pages/MyEscrow";
 import { PaymentConfirmation } from "./pages/PaymentConfirmation";
 import { MyEscrows } from "./pages/MyEscrows";
@@ -58,7 +68,19 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/verified" element={<VerifiedUser />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<DashboardHome />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="verification" element={<Verification />} />
+            <Route path="my-listings" element={<MyListings />} />
+            <Route path="saved" element={<SavedProperties />} />
+            <Route path="offers" element={<OffersNegotiations />} />
+            <Route path="escrow" element={<EscrowTransactions />} />
+            <Route path="documents" element={<DocumentVerification />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="help" element={<HelpSupport />} />
+          </Route>
               <Route path="/dashboard/favorites" element={<Browse />} />
               <Route path="/dashboard/chats" element={<MyChats />} />
               <Route path="/dashboard/escrow" element={<MyEscrow />} />
