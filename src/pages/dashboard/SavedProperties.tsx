@@ -17,8 +17,37 @@ export const SavedProperties = () => {
 
   const loadSavedProperties = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    
+    // Load from localStorage
+    const localSaved: any[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('saved_')) {
+        const propertyId = key.replace('saved_', '');
+        const { data: property } = await supabase
+          .from('properties')
+          .select('*')
+          .eq('id', propertyId)
+          .eq('status', 'published')
+          .maybeSingle();
+        
+        if (property) {
+          localSaved.push({
+            id: key,
+            property,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+    }
 
+    if (!user) {
+      setSavedProperties(localSaved);
+      setLoading(false);
+      return;
+    }
+
+    // Load from database if logged in
     const { data } = await supabase
       .from('saved_properties')
       .select(`
@@ -28,18 +57,39 @@ export const SavedProperties = () => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    setSavedProperties(data || []);
+    // Combine and deduplicate
+    const dbSaved = data || [];
+    const combined = [...dbSaved];
+    
+    localSaved.forEach(local => {
+      if (!combined.find(db => db.property?.id === local.property?.id)) {
+        combined.push(local);
+      }
+    });
+
+    setSavedProperties(combined);
     setLoading(false);
   };
 
-  const handleRemove = async (savedId: string) => {
+  const handleRemove = async (savedId: string, propertyId?: string) => {
     try {
-      const { error } = await supabase
-        .from('saved_properties')
-        .delete()
-        .eq('id', savedId);
+      // Remove from localStorage if it's a local save
+      if (savedId.startsWith('saved_')) {
+        localStorage.removeItem(savedId);
+      } else {
+        // Remove from database
+        const { error } = await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('id', savedId);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
+
+      // Also remove from localStorage by property ID
+      if (propertyId) {
+        localStorage.removeItem(`saved_${propertyId}`);
+      }
 
       toast({
         title: 'Success',
@@ -97,7 +147,7 @@ export const SavedProperties = () => {
   );
 };
 
-const PropertyCardMemo = memo(({ saved, onRemove }: { saved: any; onRemove: (id: string) => void }) => {
+const PropertyCardMemo = memo(({ saved, onRemove }: { saved: any; onRemove: (id: string, propertyId?: string) => void }) => {
   const property = saved.property;
   if (!property) return null;
 
@@ -114,7 +164,7 @@ const PropertyCardMemo = memo(({ saved, onRemove }: { saved: any; onRemove: (id:
           variant="ghost"
           size="icon"
           className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-          onClick={() => onRemove(saved.id)}
+          onClick={() => onRemove(saved.id, property.id)}
         >
           <X className="h-4 w-4" />
         </Button>
