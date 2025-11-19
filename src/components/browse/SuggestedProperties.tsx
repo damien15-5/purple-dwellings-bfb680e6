@@ -72,32 +72,28 @@ export const SuggestedProperties = ({ properties }: SuggestedPropertiesProps) =>
           <Link
             key={property.id}
             to={`/property/${property.id}`}
-            className="flex-shrink-0 w-64 group"
+            className="flex-shrink-0 w-[280px] group"
           >
-            <div className="bg-white rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all">
-              <div className="relative h-48">
+            <div className="bg-transparent rounded-xl overflow-hidden">
+              <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-3">
                 <img
                   src={property.image}
                   alt={property.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-foreground mb-1 line-clamp-1">
+              <div className="space-y-1">
+                <h3 className="font-semibold text-base line-clamp-1">
                   {property.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-2 flex items-center">
-                  <span className="line-clamp-1">{property.location}</span>
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {property.location}
                 </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-foreground">
+                <div className="flex items-baseline gap-1 pt-1">
+                  <span className="text-base font-semibold text-foreground">
                     {formatPrice(property.price)}
                   </span>
-                  {property.bedrooms > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      {property.bedrooms} beds
-                    </span>
-                  )}
+                  <span className="text-sm text-muted-foreground">total</span>
                 </div>
               </div>
             </div>

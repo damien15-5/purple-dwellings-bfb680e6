@@ -54,18 +54,12 @@ export const RecommendationsSection = ({ properties, onPropertyView }: Recommend
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {properties.map((property) => (
-              <div key={property.id} className="relative">
-                {property.matchScore && property.matchScore > 80 && (
-                  <div className="absolute -top-2 -right-2 z-10 bg-accent-purple text-white text-xs px-2 py-1 rounded-full font-semibold shadow-lg">
-                    {property.matchScore}% Match
-                  </div>
-                )}
-                <PropertyCard
-                  {...property}
-                  variant="medium"
-                  onView={() => onPropertyView(property.id)}
-                />
-              </div>
+              <PropertyCard
+                key={property.id}
+                {...property}
+                variant="medium"
+                onView={() => onPropertyView(property.id)}
+              />
             ))}
           </div>
 

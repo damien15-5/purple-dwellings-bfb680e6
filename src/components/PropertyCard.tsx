@@ -25,7 +25,7 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
   return (
     <div className="group cursor-pointer">
       <Link to={`/property/${property.id}`} className="block">
-        <div className="relative aspect-square rounded-xl overflow-hidden mb-3">
+        <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-3">
           <img
             src={imageUrl}
             alt={property.title}
@@ -37,7 +37,7 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
               e.preventDefault();
               setIsFavorite(!isFavorite);
             }}
-            className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors z-10"
+            className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors z-10 shadow-sm"
           >
             <Heart
               className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-700'}`}
