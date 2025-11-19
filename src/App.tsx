@@ -2,8 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { AdminProvider, useAdmin } from "@/contexts/AdminContext";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { FloatingAIButton } from "@/components/FloatingAIButton";
@@ -54,14 +55,27 @@ const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Sup
 const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Admin pages
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+
 const queryClient = new QueryClient();
+
+// Protected Route for Admin
+const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAdmin();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/damienxavorianezeani" replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+      <AdminProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <div className="flex flex-col min-h-screen">
           <Navigation />
           <FloatingAIButton />
@@ -116,6 +130,21 @@ const App = () => (
               <Route path="/blog" element={<BlogRedirect />} />
               <Route path="/support" element={<Support />} />
               <Route path="/customer-service" element={<CustomerServiceDashboard />} />
+              
+              {/* Hidden Admin Routes */}
+              <Route path="/damienxavorianezeani" element={<AdminLogin />} />
+              <Route
+                path="/damienxavorianezeani/*"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout />
+                  </ProtectedAdminRoute>
+                }
+              >
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+              </Route>
+              
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
@@ -124,6 +153,7 @@ const App = () => (
           <Footer />
         </div>
       </BrowserRouter>
+      </AdminProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
