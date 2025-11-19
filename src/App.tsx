@@ -14,6 +14,7 @@ const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })))
 const BlogRedirect = lazy(() => import("./components/BlogRedirect").then(m => ({ default: m.BlogRedirect })));
 const Browse = lazy(() => import("./pages/Browse").then(m => ({ default: m.Browse })));
 const PropertyDetails = lazy(() => import("./pages/PropertyDetails").then(m => ({ default: m.PropertyDetails })));
+const SellerProperties = lazy(() => import("./pages/SellerProperties").then(m => ({ default: m.SellerProperties })));
 const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
 const Signup = lazy(() => import("./pages/Signup").then(m => ({ default: m.Signup })));
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout").then(m => ({ default: m.DashboardLayout })));
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/" element={<Home />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/property/:id" element={<PropertyDetails />} />
+              <Route path="/seller/:sellerId" element={<SellerProperties />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

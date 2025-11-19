@@ -2,11 +2,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, X, Play } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ChatInterface } from '@/components/ChatInterface';
 import { supabase } from '@/integrations/supabase/client';
 import { toast as sonnerToast } from 'sonner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 type Property = {
   id: string;
@@ -46,6 +54,7 @@ export const PropertyDetails = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [sellerName, setSellerName] = useState('Seller');
+  const [sellerAvatar, setSellerAvatar] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<{ type: 'image' | 'video'; url: string }[]>([]);
 
   useEffect(() => {
@@ -71,15 +80,30 @@ export const PropertyDetails = () => {
 
       setProperty(data);
 
-      // Fetch seller name
+      // Fetch seller info
       const { data: sellerData } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', data.user_id)
         .single();
 
       if (sellerData) {
         setSellerName(sellerData.full_name);
+        setSellerAvatar(sellerData.avatar_url);
+      }
+
+      // Check if property is saved
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const savedInDb = await supabase
+          .from('saved_properties')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('property_id', data.id)
+          .maybeSingle();
+        
+        const savedInLocal = localStorage.getItem(`saved_${data.id}`) === 'true';
+        setIsFavorite(!!savedInDb.data || savedInLocal);
       }
 
       // Combine images and video into mediaItems
@@ -132,12 +156,49 @@ export const PropertyDetails = () => {
     }).format(price);
   };
 
-  const handleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    toast({
-      title: isFavorite ? 'Removed from favorites' : 'Added to favorites',
-      description: isFavorite ? 'Property removed from your favorites' : 'Property added to your favorites',
-    });
+  const handleFavorite = async () => {
+    if (!property) return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!isFavorite) {
+      // Save to localStorage
+      localStorage.setItem(`saved_${property.id}`, 'true');
+      
+      // Try to save to database if user is logged in
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .insert({
+            user_id: user.id,
+            property_id: property.id
+          });
+      }
+      
+      setIsFavorite(true);
+      toast({
+        title: 'Saved to favorites',
+        description: 'Property saved to your dashboard',
+      });
+    } else {
+      // Remove from localStorage
+      localStorage.removeItem(`saved_${property.id}`);
+      
+      // Remove from database if user is logged in
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('property_id', property.id);
+      }
+      
+      setIsFavorite(false);
+      toast({
+        title: 'Removed from favorites',
+        description: 'Property removed from your favorites',
+      });
+    }
   };
 
   const handleShare = () => {
@@ -184,29 +245,42 @@ export const PropertyDetails = () => {
               </div>
             )}
 
-            {/* Thumbnail Gallery */}
+            {/* Thumbnail Carousel */}
             {mediaItems.length > 1 && (
-              <div className="grid grid-cols-4 gap-4">
-                {mediaItems.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`h-24 rounded-lg overflow-hidden border-2 transition-all relative ${
-                      selectedImage === index ? 'border-primary' : 'border-transparent'
-                    }`}
-                  >
-                    {item.type === 'image' ? (
-                      <img src={item.url} alt={`View ${index + 1}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <video src={item.url} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <Play className="w-6 h-6 text-white" />
-                        </div>
-                      </>
-                    )}
-                  </button>
-                ))}
+              <div className="relative px-12">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: false,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent>
+                    {mediaItems.map((item, index) => (
+                      <CarouselItem key={index} className="basis-1/4">
+                        <button
+                          onClick={() => setSelectedImage(index)}
+                          className={`h-24 rounded-lg overflow-hidden border-2 transition-all relative w-full ${
+                            selectedImage === index ? 'border-primary' : 'border-transparent'
+                          }`}
+                        >
+                          {item.type === 'image' ? (
+                            <img src={item.url} alt={`View ${index + 1}`} className="w-full h-full object-cover" />
+                          ) : (
+                            <>
+                              <video src={item.url} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <Play className="w-6 h-6 text-white" />
+                              </div>
+                            </>
+                          )}
+                        </button>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="absolute -left-4" />
+                  <CarouselNext className="absolute -right-4" />
+                </Carousel>
               </div>
             )}
 
@@ -267,67 +341,80 @@ export const PropertyDetails = () => {
               {/* Price Card */}
               <div className="bg-white rounded-xl p-6 card-glow space-y-6">
                 <div>
-                  <p className="text-3xl font-bold text-primary mb-2">{formatPrice(property.price)}</p>
-                  <div className="flex items-center text-muted-foreground text-sm">
+                  <h1 className="text-2xl font-bold text-foreground mb-2">{property.title}</h1>
+                  <p className="text-3xl font-bold text-foreground mb-2">{formatPrice(property.price)}</p>
+                  <div className="flex items-center text-primary text-sm">
                     <MapPin className="w-4 h-4 mr-1" />
                     {property.address}
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Dialog open={showChat} onOpenChange={setShowChat}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70" size="lg">
-                        <MessageSquare className="w-5 h-5 mr-2" />
-                        Contact Seller
+                {/* Blurred Action Buttons */}
+                <div className="relative rounded-lg overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-md" />
+                  <div className="relative space-y-3 p-4">
+                    <Dialog open={showChat} onOpenChange={setShowChat}>
+                      <DialogTrigger asChild>
+                        <Button className="w-full" size="lg" variant="default">
+                          <MessageSquare className="w-5 h-5 mr-2" />
+                          Contact Seller
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogHeader>
+                          <DialogTitle>Chat with Seller</DialogTitle>
+                          <DialogDescription>
+                            Connect directly with the property owner
+                          </DialogDescription>
+                        </DialogHeader>
+                        <ChatInterface
+                          propertyId={property.id}
+                          propertyOwnerId={property.user_id}
+                          propertyTitle={property.title}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    <Link to={`/start-escrow/${property.id}`}>
+                      <Button className="w-full" size="lg" variant="default">
+                        <Shield className="w-5 h-5 mr-2" />
+                        Start Escrow
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh]">
-                      <DialogHeader>
-                        <DialogTitle>Chat with Seller</DialogTitle>
-                        <DialogDescription>
-                          Connect directly with the property owner
-                        </DialogDescription>
-                      </DialogHeader>
-                      <ChatInterface
-                        propertyId={property.id}
-                        propertyOwnerId={property.user_id}
-                        propertyTitle={property.title}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                  <Link to={`/start-escrow/${property.id}`}>
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white" size="lg">
-                      <Shield className="w-5 h-5 mr-2" />
-                      Start Escrow
-                    </Button>
-                  </Link>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={handleFavorite} className="w-full">
-                      <Heart className={`w-4 h-4 mr-2 ${isFavorite ? 'fill-primary text-primary' : ''}`} />
-                      {isFavorite ? 'Saved' : 'Save'}
-                    </Button>
-                    <Button variant="outline" onClick={handleShare} className="w-full">
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </Button>
+                    </Link>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button variant="outline" onClick={handleFavorite} className="w-full">
+                    <Heart className={`w-4 h-4 mr-2 ${isFavorite ? 'fill-primary text-primary' : ''}`} />
+                    {isFavorite ? 'Saved' : 'Save'}
+                  </Button>
+                  <Button variant="outline" onClick={handleShare} className="w-full">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
                 </div>
               </div>
 
               {/* Seller Info */}
               <div className="bg-white rounded-xl p-6 card-glow">
                 <h3 className="font-semibold text-foreground mb-4">Listed By</h3>
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-light rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold">
+                <Link 
+                  to={`/seller/${property.user_id}`}
+                  className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                >
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={sellerAvatar || undefined} alt={sellerName} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-white">
                       {sellerName.charAt(0)}
-                    </span>
-                  </div>
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <p className="font-semibold text-foreground">{sellerName}</p>
+                    <p className="font-semibold text-foreground hover:text-primary transition-colors">
+                      {sellerName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">View all properties</p>
                   </div>
-                </div>
+                </Link>
               </div>
             </div>
           </div>
