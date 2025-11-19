@@ -12,6 +12,7 @@ export const Messages = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -173,35 +174,37 @@ export const Messages = () => {
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender_id === selectedConversation.buyer_id
-                          ? 'justify-start'
-                          : 'justify-end'
-                      }`}
-                    >
+                  {messages.map((message) => {
+                    const isOwnMessage = message.sender_id === currentUserId;
+
+                    return (
                       <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          message.sender_id === selectedConversation.buyer_id
-                            ? 'bg-muted'
-                            : 'bg-gradient-to-r from-accent-purple to-accent-purple-light text-white'
+                        key={message.id}
+                        className={`flex ${
+                          isOwnMessage ? 'justify-end' : 'justify-start'
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            message.sender_id === selectedConversation.buyer_id
-                              ? 'text-muted-foreground'
-                              : 'text-white/70'
+                        <div
+                          className={`max-w-[70%] rounded-lg p-3 ${
+                            isOwnMessage
+                              ? 'bg-gradient-to-r from-accent-purple to-accent-purple-light text-white'
+                              : 'bg-muted'
                           }`}
                         >
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
+                          <p className="text-sm">{message.content}</p>
+                          <p
+                            className={`text-xs mt-1 ${
+                              isOwnMessage
+                                ? 'text-white/70'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {new Date(message.created_at).toLocaleTimeString()}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Message Input */}
