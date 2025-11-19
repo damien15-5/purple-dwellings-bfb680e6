@@ -177,161 +177,155 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="relative h-[70vh] overflow-hidden">
+      <section className="relative h-[60vh] overflow-hidden">
         <div className="absolute inset-0">
           <img 
             src={heroImage} 
             alt="Hero" 
             className="w-full h-full object-cover blur-sm scale-110"
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/50" />
         </div>
         
-        <div className="relative container mx-auto px-4 h-full">
-          <div className="grid lg:grid-cols-2 gap-8 h-full items-center">
-            <div className="text-white space-y-6 animate-fade-in">
-              <h1 className="text-5xl md:text-6xl font-bold leading-tight">
-                Find Your Dream Property
-              </h1>
-              <p className="text-xl text-white/90 max-w-lg">
-                Discover the perfect home, apartment, or investment property with our extensive listings
-              </p>
+        <div className="relative container mx-auto px-4 h-full flex items-center justify-center">
+          <div className="text-center space-y-6 animate-fade-in max-w-3xl">
+            <h1 className="text-5xl md:text-6xl font-bold text-white">
+              Xavorian
+            </h1>
 
-              <div className="flex gap-2 bg-white rounded-lg p-2 shadow-2xl max-w-2xl">
-                <div className="flex-1">
-                  <Input
-                    placeholder="Search by location or property name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="border-0 h-12 text-base focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
-                
-                <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-2 h-12 border-0">
-                      <SlidersHorizontal className="h-5 w-5" />
-                      Filters
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[600px] p-6" align="end">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-lg">Filter Properties</h3>
-                        <Button variant="ghost" size="sm" onClick={handleReset}>
-                          Reset
-                        </Button>
-                      </div>
+            <div className="flex gap-2 bg-white rounded-full p-1 shadow-2xl max-w-xl mx-auto">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search destinations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-0 h-10 pl-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
+              
+              <Link to="/browse">
+                <Button className="rounded-full h-10 w-10 p-0">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </Link>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Price Range</label>
-                        <Slider
-                          value={priceRange}
-                          onValueChange={setPriceRange}
-                          max={200000000}
-                          step={5000000}
-                          className="w-full"
-                        />
-                        <div className="text-xs text-muted-foreground flex justify-between">
-                          <span>{formatPrice(priceRange[0])}</span>
-                          <span>{formatPrice(priceRange[1])}</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Country</label>
-                          <Input
-                            placeholder="Enter country..."
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">State</label>
-                          <Input
-                            placeholder="Enter state..."
-                            value={state}
-                            onChange={(e) => setState(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Town/City</label>
-                          <Input
-                            placeholder="Enter town..."
-                            value={town}
-                            onChange={(e) => setTown(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Property Type</label>
-                          <Select value={propertyType || "all"} onValueChange={(value) => setPropertyType(value === "all" ? "" : value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Types</SelectItem>
-                              <SelectItem value="house">House</SelectItem>
-                              <SelectItem value="apartment">Apartment</SelectItem>
-                              <SelectItem value="villa">Villa</SelectItem>
-                              <SelectItem value="land">Land</SelectItem>
-                              <SelectItem value="duplex">Duplex</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Bedrooms</label>
-                          <Select value={bedrooms || "all"} onValueChange={(value) => setBedrooms(value === "all" ? "" : value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Any" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Any</SelectItem>
-                              <SelectItem value="1">1 Bedroom</SelectItem>
-                              <SelectItem value="2">2 Bedrooms</SelectItem>
-                              <SelectItem value="3">3 Bedrooms</SelectItem>
-                              <SelectItem value="4">4 Bedrooms</SelectItem>
-                              <SelectItem value="5">5+ Bedrooms</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Listing Status</label>
-                          <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Status</SelectItem>
-                              <SelectItem value="published">Published</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <Button className="w-full" onClick={() => setFilterOpen(false)}>
-                        Apply Filters
+              <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="rounded-full h-10 w-10 p-0 border-0">
+                    <SlidersHorizontal className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-4" align="end">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold">Filters</h3>
+                      <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs">
+                        Reset
                       </Button>
                     </div>
-                  </PopoverContent>
-                </Popover>
 
-                <Link to="/browse">
-                  <Button className="gap-2 h-12">
-                    <Search className="h-5 w-5" />
-                    Search
-                  </Button>
-                </Link>
-              </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Price Range</label>
+                      <Slider
+                        value={priceRange}
+                        onValueChange={setPriceRange}
+                        max={200000000}
+                        step={5000000}
+                        className="w-full"
+                      />
+                      <div className="text-xs text-muted-foreground flex justify-between">
+                        <span>{formatPrice(priceRange[0])}</span>
+                        <span>{formatPrice(priceRange[1])}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Country</label>
+                        <Input
+                          placeholder="Country..."
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">State</label>
+                        <Input
+                          placeholder="State..."
+                          value={state}
+                          onChange={(e) => setState(e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Town/City</label>
+                        <Input
+                          placeholder="Town..."
+                          value={town}
+                          onChange={(e) => setTown(e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Type</label>
+                        <Select value={propertyType || "all"} onValueChange={(value) => setPropertyType(value === "all" ? "" : value)}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="house">House</SelectItem>
+                            <SelectItem value="apartment">Apartment</SelectItem>
+                            <SelectItem value="villa">Villa</SelectItem>
+                            <SelectItem value="land">Land</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Bedrooms</label>
+                        <Select value={bedrooms || "all"} onValueChange={(value) => setBedrooms(value === "all" ? "" : value)}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Any" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Any</SelectItem>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4">4</SelectItem>
+                            <SelectItem value="5">5+</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Status</label>
+                        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value)}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button className="w-full h-9" onClick={() => setFilterOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-
-            <div className="hidden lg:block" />
           </div>
         </div>
       </section>
