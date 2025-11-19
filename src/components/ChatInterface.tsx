@@ -14,6 +14,7 @@ interface Message {
   created_at: string;
   file_url: string | null;
   file_type: string | null;
+  is_read: boolean;
 }
 
 interface ChatInterfaceProps {
@@ -95,7 +96,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
   };
 
   useEffect(() => {
-    if (!currentUserId || !conversationId) return;
+    if (!conversationId || !currentUserId) return;
 
     // Set up real-time subscription for new messages
     const channel = supabase
@@ -113,7 +114,33 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
           scrollToBottom();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          setMessages((prev) => 
+            prev.map((msg) => msg.id === payload.new.id ? payload.new as Message : msg)
+          );
+        }
+      )
       .subscribe();
+
+    // Mark all unread messages from other person as read
+    const markAsRead = async () => {
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
+        .neq('sender_id', currentUserId)
+        .eq('is_read', false);
+    };
+
+    markAsRead();
 
     return () => {
       supabase.removeChannel(channel);
@@ -272,45 +299,54 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
             <p className="text-sm">No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
-              }`}
-            >
+          messages.map((message) => {
+            const isOwnMessage = message.sender_id === currentUserId;
+            
+            return (
               <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                  message.sender_id === currentUserId
-                    ? 'bg-light-purple-accent text-black'
-                    : 'bg-black text-white'
-                }`}
+                key={message.id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
               >
-                {message.file_url && (
-                  <div className="mb-2">
-                    {message.file_type === 'image' ? (
-                      <img
-                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
-                        alt="Shared image"
-                        className="rounded-lg max-w-full h-auto cursor-pointer"
-                        onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`, '_blank')}
-                      />
-                    ) : (
-                      <video
-                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
-                        controls
-                        className="rounded-lg max-w-full h-auto"
-                      />
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                    isOwnMessage
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground'
+                  }`}
+                >
+                  {message.file_url && (
+                    <div className="mb-2">
+                      {message.file_type === 'image' ? (
+                        <img
+                          src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
+                          alt="Shared image"
+                          className="rounded-lg max-w-full h-auto cursor-pointer"
+                          onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`, '_blank')}
+                        />
+                      ) : (
+                        <video
+                          src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${message.file_url}`}
+                          controls
+                          className="rounded-lg max-w-full h-auto"
+                        />
+                      )}
+                    </div>
+                  )}
+                  <p className="text-sm">{message.content}</p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className={`text-xs ${isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {isOwnMessage && (
+                      <span className={`text-xs ${isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        {message.is_read ? '✓✓' : '✓'}
+                      </span>
                     )}
                   </div>
-                )}
-                <p className="text-sm">{message.content}</p>
-                <span className={`text-xs mt-1 block ${message.sender_id === currentUserId ? 'text-black/70' : 'text-white/70'}`}>
-                  {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

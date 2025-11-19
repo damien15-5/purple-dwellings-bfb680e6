@@ -18,9 +18,50 @@ export const Messages = () => {
     loadConversations();
   }, []);
 
+  useEffect(() => {
+    if (!selectedConversation || !currentUserId) return;
+
+    // Real-time subscription for messages in the selected conversation
+    const channel = supabase
+      .channel(`messages_dashboard_${selectedConversation.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation.id}`,
+        },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation.id}`,
+        },
+        (payload) => {
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedConversation, currentUserId]);
+
   const loadConversations = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    setCurrentUserId(user.id);
 
     const { data } = await supabase
       .from('conversations')
@@ -35,14 +76,30 @@ export const Messages = () => {
     setLoading(false);
   };
 
-  const loadMessages = async (conversationId: string) => {
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+  const loadMessages = async (convId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: true });
 
-    setMessages(data || []);
+      if (error) throw error;
+      if (data) setMessages(data);
+
+      // Mark messages from other person as read
+      if (currentUserId) {
+        await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', convId)
+          .neq('sender_id', currentUserId)
+          .eq('is_read', false);
+      }
+    } catch (error: any) {
+      console.error('Error loading messages:', error);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -188,19 +245,26 @@ export const Messages = () => {
                           className={`max-w-[70%] rounded-lg p-3 ${
                             isOwnMessage
                               ? 'bg-gradient-to-r from-accent-purple to-accent-purple-light text-white'
-                              : 'bg-muted'
+                              : 'bg-muted text-foreground'
                           }`}
                         >
                           <p className="text-sm">{message.content}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              isOwnMessage
-                                ? 'text-white/70'
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {new Date(message.created_at).toLocaleTimeString()}
-                          </p>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <p
+                              className={`text-xs ${
+                                isOwnMessage
+                                  ? 'text-white/70'
+                                  : 'text-muted-foreground'
+                              }`}
+                            >
+                              {new Date(message.created_at).toLocaleTimeString()}
+                            </p>
+                            {isOwnMessage && (
+                              <span className="text-xs text-white/70">
+                                {message.is_read ? '✓✓' : '✓'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
