@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PropertyCard } from '@/components/PropertyCard';
+import { MyListingCard } from '@/components/MyListingCard';
 import { PlusCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,21 +95,24 @@ export const MyListings = () => {
                     className="stagger-animation"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <PropertyCard property={{
-                      id: property.id,
-                      title: property.title,
-                      location: property.address,
-                      price: property.price,
-                      bedrooms: property.bedrooms || 0,
-                      bathrooms: property.bathrooms || 0,
-                      sqft: property.area || 0,
-                      propertyType: 'House',
-                      images: property.images || ['/placeholder.svg'],
-                      description: property.description,
-                      seller: { id: 1, name: 'Seller' },
-                      status: 'published',
-                      isVerified: property.is_verified,
-                    }} />
+                    <MyListingCard 
+                      property={{
+                        id: property.id,
+                        title: property.title,
+                        location: property.address,
+                        price: property.price,
+                        bedrooms: property.bedrooms || 0,
+                        bathrooms: property.bathrooms || 0,
+                        sqft: property.area || 0,
+                        propertyType: 'House',
+                        images: property.images || ['/placeholder.svg'],
+                        description: property.description,
+                        seller: { id: 1, name: 'Seller' },
+                        status: 'published',
+                        isVerified: property.is_verified,
+                      }}
+                      onDelete={fetchUserProperties}
+                    />
                   </div>
                 ))}
               </div>
@@ -129,21 +132,24 @@ export const MyListings = () => {
                     className="stagger-animation"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <PropertyCard property={{
-                      id: property.id,
-                      title: property.title,
-                      location: property.address,
-                      price: property.price,
-                      bedrooms: property.bedrooms || 0,
-                      bathrooms: property.bathrooms || 0,
-                      sqft: property.area || 0,
-                      propertyType: 'House',
-                      images: property.images || ['/placeholder.svg'],
-                      description: property.description,
-                      seller: { id: 1, name: 'Seller' },
-                      status: 'pending',
-                      isVerified: property.is_verified,
-                    }} />
+                    <MyListingCard 
+                      property={{
+                        id: property.id,
+                        title: property.title,
+                        location: property.address,
+                        price: property.price,
+                        bedrooms: property.bedrooms || 0,
+                        bathrooms: property.bathrooms || 0,
+                        sqft: property.area || 0,
+                        propertyType: 'House',
+                        images: property.images || ['/placeholder.svg'],
+                        description: property.description,
+                        seller: { id: 1, name: 'Seller' },
+                        status: 'pending',
+                        isVerified: property.is_verified,
+                      }}
+                      onDelete={fetchUserProperties}
+                    />
                   </div>
                 ))}
               </div>
@@ -163,21 +169,24 @@ export const MyListings = () => {
                     className="stagger-animation"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <PropertyCard property={{
-                      id: property.id,
-                      title: property.title,
-                      location: property.address,
-                      price: property.price,
-                      bedrooms: property.bedrooms || 0,
-                      bathrooms: property.bathrooms || 0,
-                      sqft: property.area || 0,
-                      propertyType: 'House',
-                      images: property.images || ['/placeholder.svg'],
-                      description: property.description,
-                      seller: { id: 1, name: 'Seller' },
-                      status: 'draft',
-                      isVerified: property.is_verified,
-                    }} />
+                    <MyListingCard 
+                      property={{
+                        id: property.id,
+                        title: property.title,
+                        location: property.address,
+                        price: property.price,
+                        bedrooms: property.bedrooms || 0,
+                        bathrooms: property.bathrooms || 0,
+                        sqft: property.area || 0,
+                        propertyType: 'House',
+                        images: property.images || ['/placeholder.svg'],
+                        description: property.description,
+                        seller: { id: 1, name: 'Seller' },
+                        status: 'draft',
+                        isVerified: property.is_verified,
+                      }}
+                      onDelete={fetchUserProperties}
+                    />
                   </div>
                 ))}
               </div>
