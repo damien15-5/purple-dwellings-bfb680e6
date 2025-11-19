@@ -10,6 +10,7 @@ import { AmenitiesStep } from '@/components/upload/AmenitiesStep';
 import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
 import { DocumentsUploadStep } from '@/components/upload/DocumentsUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
+import imageCompression from 'browser-image-compression';
 
 export type UploadFormData = {
   // Basic details
@@ -192,12 +193,23 @@ export const UploadListing = () => {
     setUploading(true);
 
     try {
-      // Upload images in parallel
+      // Compress and upload images in parallel
       const imageUploads = images.map(async (image) => {
-        const fileName = `${userId}/${Date.now()}_${Math.random()}_${image.name}`;
+        // Compress image
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1500,
+          useWebWorker: true,
+          fileType: 'image/webp',
+          initialQuality: 0.7,
+        };
+        
+        const compressedImage = await imageCompression(image, options);
+        const fileName = `${userId}/${Date.now()}_${Math.random()}_${image.name.replace(/\.[^/.]+$/, '')}.webp`;
+        
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(fileName, image);
+          .upload(fileName, compressedImage);
 
         if (uploadError) throw uploadError;
 

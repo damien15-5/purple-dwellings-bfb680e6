@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,40 +37,32 @@ export const DashboardHome = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Load profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Load only summary data first
+    const [profileData, listingsCount, offersCount] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).eq('buyer_id', user.id),
+    ]);
 
-    // Load analytics
-    const { data: analyticsData } = await supabase
-      .from('user_analytics')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    // Load properties count
-    const { count: listingsCount } = await supabase
-      .from('properties')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    // Load offers count
-    const { count: offersCount } = await supabase
-      .from('escrow_transactions')
-      .select('*', { count: 'exact', head: true })
-      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
-
-    setProfile(profileData);
-    setAnalytics(analyticsData);
+    setProfile(profileData.data);
     setStats({
-      savedProperties: 0, // TODO: Implement saved properties
-      myListings: listingsCount || 0,
-      offers: offersCount || 0,
-      escrow: offersCount || 0,
+      savedProperties: 0,
+      myListings: listingsCount.count || 0,
+      offers: offersCount.count || 0,
+      escrow: offersCount.count || 0,
     });
+
+    // Load analytics lazily
+    setTimeout(async () => {
+      const { data: analyticsData } = await supabase
+        .from('user_analytics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setAnalytics(analyticsData);
+    }, 100);
+
     setLoading(false);
   };
 
