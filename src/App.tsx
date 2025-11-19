@@ -153,6 +153,16 @@ const App = () => (
               >
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="listings" element={<AdminListings />} />
+                <Route path="verification" element={<AdminVerification />} />
+                <Route path="escrow" element={<AdminEscrow />} />
+                <Route path="offers" element={<AdminOffers />} />
+                <Route path="messages" element={<AdminMessages />} />
+                <Route path="ai-logs" element={<AdminAILogs />} />
+                <Route path="tickets" element={<AdminTickets />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="settings" element={<AdminSettings />} />
+                <Route path="admin-management" element={<AdminManagement />} />
               </Route>
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

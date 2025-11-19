@@ -67,20 +67,20 @@ export const PropertyCard = ({
 
   const sizes = {
     large: {
-      card: 'w-[200px]',
-      image: 'h-[200px]',
+      card: 'w-[280px]',
+      container: 'aspect-[4/3]',
       title: 'text-sm',
       price: 'text-base'
     },
     medium: {
-      card: 'w-[190px]',
-      image: 'h-[190px]',
+      card: 'w-[260px]',
+      container: 'aspect-[4/3]',
       title: 'text-sm',
       price: 'text-base'
     },
     small: {
       card: 'w-full',
-      image: 'h-[180px]',
+      container: 'aspect-[4/3]',
       title: 'text-sm',
       price: 'text-base'
     }
@@ -93,18 +93,18 @@ export const PropertyCard = ({
   return (
     <Card
       ref={cardRef}
-      className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden hover-scale cursor-pointer group relative`}
+      className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden cursor-pointer group relative border-0 shadow-none bg-transparent`}
       onClick={handleCardClick}
     >
-      <div className={`relative ${sizes[variant].image} overflow-hidden bg-muted rounded-3xl`}>
+      <div className={`relative ${sizes[variant].container} overflow-hidden bg-muted rounded-xl mb-3`}>
         {isIntersecting && (
           <img
             src={image}
             alt={title}
             loading="lazy"
-            className={`w-full h-full object-cover transition-all duration-500 ${
+            className={`w-full h-full object-cover transition-all duration-300 ${
               imageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
-            } group-hover:scale-110`}
+            } group-hover:scale-105`}
             onLoad={() => setImageLoaded(true)}
           />
         )}
@@ -113,21 +113,22 @@ export const PropertyCard = ({
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted" />
         )}
 
-        <div className="absolute top-3 right-3 flex gap-2">
-          {featured && (
-            <Badge className="bg-background/70 backdrop-blur-sm text-foreground border border-border/60 shadow-sm">Featured</Badge>
-          )}
-          <Badge className="bg-background/70 backdrop-blur-sm text-foreground border border-border/60 shadow-sm">{status}</Badge>
-        </div>
+        {featured && (
+          <div className="absolute top-3 left-3">
+            <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium">
+              Guest favorite
+            </Badge>
+          </div>
+        )}
 
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsSaved(!isSaved);
           }}
-          className="absolute top-3 left-3 bg-white/90 hover:bg-white p-2 rounded-full transition-all hover:scale-110"
+          className="absolute top-3 right-3 bg-white/90 hover:bg-white p-2 rounded-full transition-all hover:scale-110 shadow-sm z-10"
         >
-          <Heart className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+          <Heart className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
         </button>
 
         {views && (
@@ -137,42 +138,25 @@ export const PropertyCard = ({
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent h-24 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <Badge variant="secondary" className="text-xs">{type}</Badge>
-          {bedrooms && (
-            <div className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Bed className="h-3 w-3" />
-              <span>{bedrooms} Beds</span>
-            </div>
-          )}
+      <div className="space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className={`${sizes[variant].title} font-semibold text-foreground line-clamp-1`}>
+            {title}
+          </h3>
         </div>
 
-        <h3 className={`${sizes[variant].title} font-bold text-foreground mb-2 line-clamp-1 group-hover:text-foreground transition-colors`}>
-          {title}
-        </h3>
-
-        <div className="flex items-center gap-2 text-muted-foreground mb-3">
-          <MapPin className="h-4 w-4 flex-shrink-0" />
-          <span className="text-sm line-clamp-1">{location}</span>
+        <div className="flex items-center text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+          <span className="line-clamp-1">{location}</span>
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className={`${sizes[variant].price} font-bold text-foreground`}>
+        <div className="flex items-baseline gap-1 pt-1">
+          <span className={`${sizes[variant].price} font-semibold text-foreground`}>
             {formatPrice(price)}
-          </p>
-          <Link to={`/property/${id}`} onClick={(e) => e.stopPropagation()}>
-            <Button 
-              size="sm"
-              variant="outline"
-              className="gap-2 group-hover:shadow-lg transition-shadow bg-background/80 text-foreground border-border"
-            >
-              View Property
-            </Button>
-          </Link>
+          </span>
+          <span className="text-sm text-muted-foreground">total</span>
         </div>
       </div>
     </Card>
