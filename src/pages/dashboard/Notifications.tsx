@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Bell, 
   DollarSign, 
@@ -14,78 +15,72 @@ import {
   Megaphone
 } from 'lucide-react';
 
-const mockNotifications = [
-  {
-    id: 1,
-    type: 'offer_accepted',
-    title: 'Offer Accepted',
-    description: 'Your offer for Modern 3 Bedroom Apartment has been accepted',
-    timestamp: '2 hours ago',
-    read: false,
-    icon: CheckCircle,
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
-  },
-  {
-    id: 2,
-    type: 'counter_offer',
-    title: 'Counter Offer Received',
-    description: 'Seller has made a counter offer on Luxury Villa in Lekki',
-    timestamp: '5 hours ago',
-    read: false,
-    icon: MessageSquare,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-50',
-  },
-  {
-    id: 3,
-    type: 'payment_escrow',
-    title: 'Payment Entered Escrow',
-    description: 'Payment for Duplex in Ikoyi has been secured in escrow',
-    timestamp: '1 day ago',
-    read: true,
-    icon: Lock,
-    color: 'text-purple-500',
-    bgColor: 'bg-purple-50',
-  },
-  {
-    id: 4,
-    type: 'document_verification',
-    title: 'Documents Verified',
-    description: 'All documents for your property have been verified successfully',
-    timestamp: '2 days ago',
-    read: true,
-    icon: FileCheck,
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
-  },
-  {
-    id: 5,
-    type: 'funds_released',
-    title: 'Funds Released',
-    description: 'Escrow funds have been released. Check your account.',
-    timestamp: '3 days ago',
-    read: true,
-    icon: DollarSign,
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
-  },
-  {
-    id: 6,
-    type: 'price_change',
-    title: 'Price Change Request',
-    description: 'Buyer has requested a price change for your listing',
-    timestamp: '3 days ago',
-    read: true,
-    icon: TrendingUp,
-    color: 'text-orange-500',
-    bgColor: 'bg-orange-50',
-  },
-];
-
 export const Notifications = () => {
-  const [notifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    setNotifications(data || []);
+    setLoading(false);
+  };
+
+  const markAsRead = async (id: string) => {
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', id);
+
+    loadNotifications();
+  };
+
+  const markAllAsRead = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', user.id)
+      .eq('read', false);
+
+    loadNotifications();
+  };
+
+  const getIcon = (type: string) => {
+    const icons: Record<string, any> = {
+      offer_accepted: CheckCircle,
+      counter_offer: MessageSquare,
+      payment_escrow: Lock,
+      document_verification: FileCheck,
+      funds_released: DollarSign,
+      price_change: TrendingUp,
+      system: Megaphone,
+    };
+    return icons[type] || Bell;
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-purple" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -101,7 +96,7 @@ export const Notifications = () => {
             )}
           </p>
         </div>
-        <Button variant="outline">Mark all as read</Button>
+        <Button variant="outline" onClick={markAllAsRead}>Mark all as read</Button>
       </div>
 
       {notifications.length === 0 ? (
@@ -119,18 +114,19 @@ export const Notifications = () => {
       ) : (
         <div className="space-y-3">
           {notifications.map((notification) => {
-            const Icon = notification.icon;
+            const Icon = getIcon(notification.type);
             return (
               <Card 
                 key={notification.id} 
                 className={`card-glow cursor-pointer transition-all hover:shadow-lg ${
                   !notification.read ? 'border-l-4 border-l-accent-purple' : ''
                 }`}
+                onClick={() => !notification.read && markAsRead(notification.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
-                    <div className={`h-12 w-12 rounded-lg ${notification.bgColor} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`h-6 w-6 ${notification.color}`} />
+                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <Icon className="h-6 w-6 text-accent-purple" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
@@ -148,7 +144,12 @@ export const Notifications = () => {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">
-                          {notification.timestamp}
+                          {new Date(notification.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                         </span>
                         <Button variant="ghost" size="sm" className="text-accent-purple hover:text-accent-purple">
                           View Details
