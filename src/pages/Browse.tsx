@@ -166,17 +166,56 @@ export const Browse = () => {
   const hasMoreProperties = displayedProperties.length < filteredProperties.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary/30 to-background">
-      {/* Header */}
-      <div className="pt-16 pb-8 bg-gradient-to-r from-primary/10 to-primary/5">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-foreground">
-            Browse <span className="text-primary">Properties</span>
-          </h1>
-          <p className="text-muted-foreground text-xl max-w-3xl mx-auto">
-            Discover verified properties from trusted sellers across Nigeria
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Hero Header */}
+      <div className="relative pt-20 pb-16 overflow-hidden bg-gradient-to-br from-primary/5 via-accent-purple/5 to-background">
+        {/* Decorative Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-purple/10 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-primary/5 to-accent-purple/5 rounded-full blur-3xl" />
         </div>
+
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 animate-fade-in">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            <span className="text-sm font-medium text-primary">Live Properties Available</span>
+          </div>
+
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 text-foreground animate-fade-in leading-tight">
+            Discover Your
+            <span className="block mt-2 bg-gradient-to-r from-primary via-accent-purple to-primary bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
+              Dream Property
+            </span>
+          </h1>
+          
+          <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-8 animate-fade-in leading-relaxed">
+            Browse through thousands of verified properties from trusted sellers across Nigeria. 
+            <span className="block mt-2">Your perfect home is just a click away.</span>
+          </p>
+
+          {/* Stats */}
+          <div className="flex flex-wrap justify-center gap-8 animate-fade-in">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-foreground mb-1">5,000+</div>
+              <div className="text-sm text-muted-foreground">Properties</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-foreground mb-1">2,500+</div>
+              <div className="text-sm text-muted-foreground">Verified Sellers</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-foreground mb-1">10+</div>
+              <div className="text-sm text-muted-foreground">States Covered</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Wave */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* Filter Bar */}
