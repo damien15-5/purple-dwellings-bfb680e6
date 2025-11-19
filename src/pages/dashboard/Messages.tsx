@@ -84,6 +84,7 @@ export const Messages = () => {
         property:properties(title, images)
       `)
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+      .not('last_message', 'is', null)
       .order('last_message_time', { ascending: false });
 
     setConversations(data || []);
