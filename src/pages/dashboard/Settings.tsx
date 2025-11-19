@@ -7,16 +7,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { User, Building, Phone, Mail, Camera, Lock, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import imageCompression from 'browser-image-compression';
 
 export const Settings = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
     phone: '',
     whatsapp: '',
     company_name: '',
+    avatar_url: '',
   });
   const [notifications, setNotifications] = useState({
     email: true,
@@ -43,10 +46,70 @@ export const Settings = () => {
       setProfile({
         full_name: data.full_name || '',
         email: data.email || '',
-        phone: '',
-        whatsapp: '',
-        company_name: '',
+        phone: data.phone || '',
+        whatsapp: data.whatsapp || '',
+        company_name: data.company_name || '',
+        avatar_url: data.avatar_url || '',
       });
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      // Compress image
+      const options = {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 400,
+        useWebWorker: true,
+        fileType: 'image/webp' as const,
+        initialQuality: 0.8,
+      };
+
+      const compressedImage = await imageCompression(file, options);
+      const fileName = `${user.id}/avatar_${Date.now()}.webp`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, compressedImage, {
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, avatar_url: publicUrl });
+      toast({
+        title: 'Success',
+        description: 'Profile photo updated successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to upload photo',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -60,6 +123,9 @@ export const Settings = () => {
         .from('profiles')
         .update({
           full_name: profile.full_name,
+          phone: profile.phone,
+          whatsapp: profile.whatsapp,
+          company_name: profile.company_name,
         })
         .eq('id', user.id);
 
@@ -97,13 +163,35 @@ export const Settings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4 mb-6">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-r from-accent-purple to-accent-purple-light flex items-center justify-center text-white text-3xl font-bold">
-              {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="Profile"
+                className="h-24 w-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-gradient-to-r from-accent-purple to-accent-purple-light flex items-center justify-center text-white text-3xl font-bold">
+                {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+            )}
+            <div>
+              <input
+                type="file"
+                id="avatar-upload"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => document.getElementById('avatar-upload')?.click()}
+                disabled={uploading}
+              >
+                <Camera className="h-4 w-4" />
+                {uploading ? 'Uploading...' : 'Change Photo'}
+              </Button>
             </div>
-            <Button variant="outline" className="gap-2">
-              <Camera className="h-4 w-4" />
-              Change Photo
-            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

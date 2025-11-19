@@ -452,6 +452,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_records: {
         Row: {
           amount: number
@@ -506,29 +536,41 @@ export type Database = {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"] | null
           age: number | null
+          avatar_url: string | null
+          company_name: string | null
           created_at: string | null
           email: string
           full_name: string
           id: string
+          phone: string | null
           updated_at: string | null
+          whatsapp: string | null
         }
         Insert: {
           account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
+          avatar_url?: string | null
+          company_name?: string | null
           created_at?: string | null
           email: string
           full_name: string
           id: string
+          phone?: string | null
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Update: {
           account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
+          avatar_url?: string | null
+          company_name?: string | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
+          phone?: string | null
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
@@ -717,6 +759,35 @@ export type Database = {
           year_built?: number | null
         }
         Relationships: []
+      }
+      saved_properties: {
+        Row: {
+          created_at: string | null
+          id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {

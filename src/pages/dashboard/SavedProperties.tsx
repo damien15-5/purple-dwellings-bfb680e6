@@ -1,11 +1,68 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, useCallback, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Heart, MapPin, Eye, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const SavedProperties = () => {
-  const [savedProperties] = useState<any[]>([]);
+  const [savedProperties, setSavedProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadSavedProperties();
+  }, []);
+
+  const loadSavedProperties = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('saved_properties')
+      .select(`
+        *,
+        property:properties(*)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    setSavedProperties(data || []);
+    setLoading(false);
+  };
+
+  const handleRemove = async (savedId: string) => {
+    try {
+      const { error } = await supabase
+        .from('saved_properties')
+        .delete()
+        .eq('id', savedId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Property removed from saved list',
+      });
+
+      loadSavedProperties();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to remove property',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-purple" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -31,8 +88,8 @@ export const SavedProperties = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {savedProperties.map((property) => (
-            <PropertyCardMemo key={property.id} property={property} />
+          {savedProperties.map((saved) => (
+            <PropertyCardMemo key={saved.id} saved={saved} onRemove={handleRemove} />
           ))}
         </div>
       )}
@@ -40,40 +97,46 @@ export const SavedProperties = () => {
   );
 };
 
-const PropertyCardMemo = memo(({ property }: { property: any }) => (
-  <Card className="card-glow hover-lift overflow-hidden group">
-    <div className="relative h-48 overflow-hidden">
-      <img
-        src={property.images?.[0] || '/placeholder.svg'}
-        alt={property.title}
-        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-        loading="lazy"
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-      >
-        <X className="h-4 w-4" />
-      </Button>
-    </div>
-    <CardContent className="p-4">
-      <h3 className="font-semibold text-lg mb-2 line-clamp-1">{property.title}</h3>
-      <p className="text-muted-foreground text-sm flex items-center gap-1 mb-3">
-        <MapPin className="h-4 w-4" />
-        {property.address}
-      </p>
-      <div className="flex items-center justify-between">
-        <span className="text-2xl font-bold text-accent-purple">
-          ₦{property.price?.toLocaleString()}
-        </span>
-        <Link to={`/property/${property.id}`}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Eye className="h-4 w-4" />
-            View
-          </Button>
-        </Link>
+const PropertyCardMemo = memo(({ saved, onRemove }: { saved: any; onRemove: (id: string) => void }) => {
+  const property = saved.property;
+  if (!property) return null;
+
+  return (
+    <Card className="card-glow hover-lift overflow-hidden group">
+      <div className="relative h-48 overflow-hidden">
+        <img
+          src={property.images?.[0] || '/placeholder.svg'}
+          alt={property.title}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          loading="lazy"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+          onClick={() => onRemove(saved.id)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
-    </CardContent>
-  </Card>
-));
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-lg mb-2 line-clamp-1">{property.title}</h3>
+        <p className="text-muted-foreground text-sm flex items-center gap-1 mb-3">
+          <MapPin className="h-4 w-4" />
+          {property.address}
+        </p>
+        <div className="flex items-center justify-between">
+          <span className="text-2xl font-bold text-accent-purple">
+            ₦{property.price?.toLocaleString()}
+          </span>
+          <Link to={`/property/${property.id}`}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Eye className="h-4 w-4" />
+              View
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});

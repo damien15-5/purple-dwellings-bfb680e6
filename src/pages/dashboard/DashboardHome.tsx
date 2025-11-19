@@ -38,15 +38,16 @@ export const DashboardHome = () => {
     if (!user) return;
 
     // Load only summary data first
-    const [profileData, listingsCount, offersCount] = await Promise.all([
+    const [profileData, listingsCount, offersCount, savedCount] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).eq('buyer_id', user.id),
+      supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     ]);
 
     setProfile(profileData.data);
     setStats({
-      savedProperties: 0,
+      savedProperties: savedCount.count || 0,
       myListings: listingsCount.count || 0,
       offers: offersCount.count || 0,
       escrow: offersCount.count || 0,
