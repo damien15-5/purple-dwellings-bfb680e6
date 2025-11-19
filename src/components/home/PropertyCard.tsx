@@ -115,9 +115,9 @@ export const PropertyCard = ({
 
         <div className="absolute top-3 right-3 flex gap-2">
           {featured && (
-            <Badge className="bg-accent-purple text-white">Featured</Badge>
+            <Badge className="bg-background/70 backdrop-blur-sm text-foreground border border-border/60 shadow-sm">Featured</Badge>
           )}
-          <Badge className="bg-primary/90 text-primary-foreground">{status}</Badge>
+          <Badge className="bg-background/70 backdrop-blur-sm text-foreground border border-border/60 shadow-sm">{status}</Badge>
         </div>
 
         <button
@@ -166,8 +166,9 @@ export const PropertyCard = ({
           </p>
           <Link to={`/property/${id}`} onClick={(e) => e.stopPropagation()}>
             <Button 
-              size="sm" 
-              className="gap-2 group-hover:shadow-lg transition-shadow"
+              size="sm"
+              variant="outline"
+              className="gap-2 group-hover:shadow-lg transition-shadow bg-background/80 text-foreground border-border"
             >
               View Property
             </Button>
