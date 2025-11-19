@@ -42,10 +42,10 @@ export const PropertyListView = ({
   };
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all group">
+    <div className="bg-white rounded-lg overflow-hidden border border-border hover:shadow-md transition-all group">
       <div className="flex flex-col md:flex-row">
         {/* Image */}
-        <div className="md:w-1/3 h-64 md:h-auto relative">
+        <div className="md:w-1/4 h-32 md:h-28 relative flex-shrink-0">
           <img
             src={image}
             alt={title}
@@ -56,65 +56,65 @@ export const PropertyListView = ({
               e.preventDefault();
               setIsSaved(!isSaved);
             }}
-            className="absolute top-3 right-3 bg-white/90 hover:bg-white p-2 rounded-full transition-all"
+            className="absolute top-1.5 right-1.5 bg-white/90 hover:bg-white p-1 rounded-full transition-all"
           >
-            <Heart className={`h-5 w-5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+            <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
           </button>
           {isVerified && (
-            <Badge className="absolute top-3 left-3 bg-primary">Verified</Badge>
+            <Badge className="absolute top-1.5 left-1.5 bg-primary text-xs py-0 px-1.5">Verified</Badge>
           )}
         </div>
 
         {/* Content */}
-        <div className="md:w-2/3 p-6 flex flex-col justify-between">
+        <div className="md:w-3/4 p-3 flex flex-col justify-between">
           <div>
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="text-2xl font-bold text-foreground mb-1 line-clamp-1">
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-foreground line-clamp-1">
                   {title}
                 </h3>
-                <div className="flex items-center text-muted-foreground text-sm mb-3">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {location}
+                <div className="flex items-center text-muted-foreground text-xs mt-0.5">
+                  <MapPin className="w-3 h-3 mr-0.5 flex-shrink-0" />
+                  <span className="line-clamp-1">{location}</span>
                 </div>
               </div>
-              <Badge variant="secondary">{propertyType}</Badge>
+              <Badge variant="secondary" className="ml-2 text-xs py-0 px-2 flex-shrink-0">{propertyType}</Badge>
             </div>
 
-            <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+            <p className="text-muted-foreground text-xs mb-2 line-clamp-1">
               {description}
             </p>
 
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-3">
               {bedrooms > 0 && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Bed className="w-4 h-4" />
-                  <span>{bedrooms} Beds</span>
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Bed className="w-3 h-3" />
+                  <span>{bedrooms}</span>
                 </div>
               )}
               {bathrooms > 0 && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Bath className="w-4 h-4" />
-                  <span>{bathrooms} Baths</span>
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Bath className="w-3 h-3" />
+                  <span>{bathrooms}</span>
                 </div>
               )}
               {area > 0 && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Square className="w-4 h-4" />
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Square className="w-3 h-3" />
                   <span>{area} sqft</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-2">
             <div>
-              <p className="text-3xl font-bold text-foreground">
+              <p className="text-base font-bold text-foreground">
                 {formatPrice(price)}
               </p>
             </div>
             <Link to={`/property/${id}`}>
-              <Button variant="default">View Property</Button>
+              <Button variant="default" size="sm" className="text-xs h-7 px-3">View</Button>
             </Link>
           </div>
         </div>

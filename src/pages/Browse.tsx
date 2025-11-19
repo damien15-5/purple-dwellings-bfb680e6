@@ -288,7 +288,7 @@ export const Browse = () => {
                 ))}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {displayedProperties.map((property) => (
                   <PropertyListView
                     key={property.id}
