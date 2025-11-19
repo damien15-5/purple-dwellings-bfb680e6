@@ -67,20 +67,20 @@ export const PropertyCard = ({
 
   const sizes = {
     large: {
-      card: 'w-[240px]',
-      image: 'h-[240px]',
-      title: 'text-base',
-      price: 'text-lg'
+      card: 'w-[200px]',
+      image: 'h-[200px]',
+      title: 'text-sm',
+      price: 'text-base'
     },
     medium: {
-      card: 'w-[220px]',
-      image: 'h-[220px]',
+      card: 'w-[190px]',
+      image: 'h-[190px]',
       title: 'text-sm',
       price: 'text-base'
     },
     small: {
       card: 'w-full',
-      image: 'h-[200px]',
+      image: 'h-[180px]',
       title: 'text-sm',
       price: 'text-base'
     }
@@ -151,7 +151,7 @@ export const PropertyCard = ({
           )}
         </div>
 
-        <h3 className={`${sizes[variant].title} font-bold text-foreground mb-2 line-clamp-1 group-hover:text-primary transition-colors`}>
+        <h3 className={`${sizes[variant].title} font-bold text-foreground mb-2 line-clamp-1 group-hover:text-foreground transition-colors`}>
           {title}
         </h3>
 
@@ -161,7 +161,7 @@ export const PropertyCard = ({
         </div>
 
         <div className="flex items-center justify-between">
-          <p className={`${sizes[variant].price} font-bold text-primary`}>
+          <p className={`${sizes[variant].price} font-bold text-foreground`}>
             {formatPrice(price)}
           </p>
           <Link to={`/property/${id}`} onClick={(e) => e.stopPropagation()}>

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PropertyCard } from './PropertyCard';
 
 type Property = {
@@ -33,12 +33,9 @@ export const RecommendationsSection = ({ properties, onPropertyView }: Recommend
     <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-7 w-7 text-primary" />
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Recommended For You</h2>
-              <p className="text-sm text-muted-foreground mt-1">Properties matching your preferences</p>
-            </div>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Recommended For You</h2>
+            <p className="text-sm text-muted-foreground mt-1">Properties matching your preferences</p>
           </div>
         </div>
 
