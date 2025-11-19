@@ -67,22 +67,22 @@ export const PropertyCard = ({
 
   const sizes = {
     large: {
-      card: 'w-[280px]',
+      card: 'w-[220px]',
       container: 'aspect-[4/3]',
       title: 'text-sm',
-      price: 'text-base'
+      price: 'text-sm'
     },
     medium: {
-      card: 'w-[260px]',
+      card: 'w-[200px]',
       container: 'aspect-[4/3]',
       title: 'text-sm',
-      price: 'text-base'
+      price: 'text-sm'
     },
     small: {
       card: 'w-full',
       container: 'aspect-[4/3]',
-      title: 'text-sm',
-      price: 'text-base'
+      title: 'text-xs',
+      price: 'text-sm'
     }
   };
 
@@ -96,7 +96,7 @@ export const PropertyCard = ({
       className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden cursor-pointer group relative border-0 shadow-none bg-transparent`}
       onClick={handleCardClick}
     >
-      <div className={`relative ${sizes[variant].container} overflow-hidden bg-muted rounded-xl mb-3`}>
+      <div className={`relative ${sizes[variant].container} overflow-hidden bg-muted rounded-xl mb-2`}>
         {isIntersecting && (
           <img
             src={image}
@@ -114,8 +114,8 @@ export const PropertyCard = ({
         )}
 
         {featured && (
-          <div className="absolute top-3 left-3">
-            <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium">
+          <div className="absolute top-2 left-2">
+            <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5">
               Guest favorite
             </Badge>
           </div>
@@ -126,13 +126,13 @@ export const PropertyCard = ({
             e.stopPropagation();
             setIsSaved(!isSaved);
           }}
-          className="absolute top-3 right-3 bg-white/90 hover:bg-white p-2 rounded-full transition-all hover:scale-110 shadow-sm z-10"
+          className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-all hover:scale-110 shadow-sm z-10"
         >
-          <Heart className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
+          <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
         </button>
 
         {views && (
-          <div className="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+          <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
             <Eye className="h-3 w-3" />
             <span>{views} views</span>
           </div>
@@ -140,23 +140,23 @@ export const PropertyCard = ({
 
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <div className="flex items-start justify-between gap-2">
           <h3 className={`${sizes[variant].title} font-semibold text-foreground line-clamp-1`}>
             {title}
           </h3>
         </div>
 
-        <div className="flex items-center text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+        <div className="flex items-center text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
           <span className="line-clamp-1">{location}</span>
         </div>
 
-        <div className="flex items-baseline gap-1 pt-1">
+        <div className="flex items-baseline gap-1 pt-0.5">
           <span className={`${sizes[variant].price} font-semibold text-foreground`}>
             {formatPrice(price)}
           </span>
-          <span className="text-sm text-muted-foreground">total</span>
+          <span className="text-xs text-muted-foreground">total</span>
         </div>
       </div>
     </Card>
