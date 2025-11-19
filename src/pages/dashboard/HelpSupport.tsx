@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   HelpCircle, 
   MessageSquare, 
@@ -13,9 +15,12 @@ import {
   Book,
   ExternalLink,
   Send,
-  Search
+  Search,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 
 const faqs = [
   {
@@ -41,14 +46,98 @@ const faqs = [
 ];
 
 export const HelpSupport = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [contactForm, setContactForm] = useState({
     subject: '',
     message: '',
   });
 
-  const handleSubmit = () => {
-    console.log('Contact form submitted:', contactForm);
-    setContactForm({ subject: '', message: '' });
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const loadTickets = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('customer_service_tickets')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    setTickets(data || []);
+  };
+
+  const handleSubmit = async () => {
+    if (!contactForm.subject.trim() || !contactForm.message.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .single();
+
+      const { error } = await supabase
+        .from('customer_service_tickets')
+        .insert({
+          user_id: user.id,
+          user_email: profile?.email || user.email || '',
+          subject: contactForm.subject,
+          description: contactForm.message,
+          status: 'open',
+          priority: 'medium',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Your support ticket has been submitted',
+      });
+
+      setContactForm({ subject: '', message: '' });
+      loadTickets();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit ticket',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredFaqs = faqs.filter(faq =>
+    faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'open':
+        return <Badge className="bg-blue-500 gap-2"><Clock className="h-3 w-3" />Open</Badge>;
+      case 'resolved':
+        return <Badge className="bg-green-500 gap-2"><CheckCircle className="h-3 w-3" />Resolved</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
   };
 
   return (
@@ -114,7 +203,7 @@ export const HelpSupport = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-accent-purple" />
-            Send us a Message
+            Contact Support
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -132,19 +221,46 @@ export const HelpSupport = () => {
             <Label htmlFor="message">Message</Label>
             <Textarea
               id="message"
-              placeholder="Describe your issue or question in detail..."
+              placeholder="Describe your issue in detail..."
               rows={6}
               value={contactForm.message}
               onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
             />
           </div>
 
-          <Button onClick={handleSubmit} variant="hero" className="w-full md:w-auto gap-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full gap-2"
+          >
             <Send className="h-4 w-4" />
-            Send Message
+            {loading ? 'Sending...' : 'Send Message'}
           </Button>
         </CardContent>
       </Card>
+
+      {/* My Support Tickets */}
+      {tickets.length > 0 && (
+        <Card className="card-glow">
+          <CardHeader>
+            <CardTitle>My Support Tickets</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {tickets.map((ticket) => (
+              <div key={ticket.id} className="p-4 border border-border rounded-lg">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="font-semibold">{ticket.subject}</h4>
+                  {getStatusBadge(ticket.status)}
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{ticket.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  Created: {new Date(ticket.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* FAQ Section */}
       <Card className="card-glow">
@@ -161,12 +277,14 @@ export const HelpSupport = () => {
               <Input
                 placeholder="Search FAQs..."
                 className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
           <Accordion type="single" collapsible className="space-y-2">
-            {faqs.map((faq, index) => (
+            {filteredFaqs.map((faq, index) => (
               <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg px-4">
                 <AccordionTrigger className="text-left hover:no-underline">
                   {faq.question}
