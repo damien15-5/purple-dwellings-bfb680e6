@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from './PropertyCard';
 
@@ -35,12 +35,9 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
     <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <MapPin className="h-7 w-7 text-primary" />
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Around Your Locality</h2>
-              <p className="text-sm text-muted-foreground mt-1">Properties near {userLocation}</p>
-            </div>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Around Your Locality</h2>
+            <p className="text-sm text-muted-foreground mt-1">Properties near {userLocation}</p>
           </div>
           <Button 
             variant="ghost" 

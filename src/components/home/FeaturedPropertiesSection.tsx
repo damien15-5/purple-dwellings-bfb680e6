@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from './PropertyCard';
 import { Link } from 'react-router-dom';
@@ -36,12 +36,9 @@ export const FeaturedPropertiesSection = ({ properties, onPropertyView }: Featur
     <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="h-7 w-7 text-primary" />
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Featured Properties</h2>
-              <p className="text-sm text-muted-foreground mt-1">Most viewed and popular properties</p>
-            </div>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Featured Properties</h2>
+            <p className="text-sm text-muted-foreground mt-1">Most viewed and popular properties</p>
           </div>
           <Link to="/browse">
             <Button variant="outline" className="gap-2 hover:gap-3 transition-all">
