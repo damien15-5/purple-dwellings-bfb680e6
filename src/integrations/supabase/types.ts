@@ -535,68 +535,185 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          agency_fee: number | null
+          agreement_fee: number | null
           amenities: string[] | null
           area: number | null
           bathrooms: number | null
           bedrooms: number | null
+          city: string | null
           condition: string | null
           created_at: string
+          daily_price: number | null
           description: string
           documents: Json | null
+          flooring_type: string | null
+          furnishing_status: string | null
+          has_accessibility: boolean | null
+          has_air_conditioning: boolean | null
+          has_balcony: boolean | null
+          has_cctv: boolean | null
+          has_elevator: boolean | null
+          has_gatehouse: boolean | null
+          has_gym: boolean | null
+          has_internet: boolean | null
+          has_playground: boolean | null
+          has_pop_ceiling: boolean | null
+          has_power_supply: boolean | null
+          has_receipt: boolean | null
+          has_security: boolean | null
+          has_swimming_pool: boolean | null
+          has_wardrobes: boolean | null
+          has_water_heater: boolean | null
+          has_water_supply: boolean | null
           id: string
           images: string[] | null
+          is_pet_friendly: boolean | null
           is_verified: boolean | null
+          kitchen_type: string | null
+          kitchens: number | null
+          land_size: number | null
+          listing_type: string | null
+          location_link: string | null
+          monthly_price: number | null
+          other_property_type: string | null
+          parking_spaces: number | null
           price: number
           property_type: string
+          rent_duration: string | null
+          service_fee: number | null
+          state: string | null
           status: string
+          street: string | null
           title: string
+          title_type: string | null
+          toilets: number | null
           updated_at: string
           user_id: string
           video_url: string | null
+          weekly_price: number | null
           year_built: number | null
         }
         Insert: {
           address: string
+          agency_fee?: number | null
+          agreement_fee?: number | null
           amenities?: string[] | null
           area?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
+          city?: string | null
           condition?: string | null
           created_at?: string
+          daily_price?: number | null
           description: string
           documents?: Json | null
+          flooring_type?: string | null
+          furnishing_status?: string | null
+          has_accessibility?: boolean | null
+          has_air_conditioning?: boolean | null
+          has_balcony?: boolean | null
+          has_cctv?: boolean | null
+          has_elevator?: boolean | null
+          has_gatehouse?: boolean | null
+          has_gym?: boolean | null
+          has_internet?: boolean | null
+          has_playground?: boolean | null
+          has_pop_ceiling?: boolean | null
+          has_power_supply?: boolean | null
+          has_receipt?: boolean | null
+          has_security?: boolean | null
+          has_swimming_pool?: boolean | null
+          has_wardrobes?: boolean | null
+          has_water_heater?: boolean | null
+          has_water_supply?: boolean | null
           id?: string
           images?: string[] | null
+          is_pet_friendly?: boolean | null
           is_verified?: boolean | null
+          kitchen_type?: string | null
+          kitchens?: number | null
+          land_size?: number | null
+          listing_type?: string | null
+          location_link?: string | null
+          monthly_price?: number | null
+          other_property_type?: string | null
+          parking_spaces?: number | null
           price: number
           property_type: string
+          rent_duration?: string | null
+          service_fee?: number | null
+          state?: string | null
           status?: string
+          street?: string | null
           title: string
+          title_type?: string | null
+          toilets?: number | null
           updated_at?: string
           user_id: string
           video_url?: string | null
+          weekly_price?: number | null
           year_built?: number | null
         }
         Update: {
           address?: string
+          agency_fee?: number | null
+          agreement_fee?: number | null
           amenities?: string[] | null
           area?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
+          city?: string | null
           condition?: string | null
           created_at?: string
+          daily_price?: number | null
           description?: string
           documents?: Json | null
+          flooring_type?: string | null
+          furnishing_status?: string | null
+          has_accessibility?: boolean | null
+          has_air_conditioning?: boolean | null
+          has_balcony?: boolean | null
+          has_cctv?: boolean | null
+          has_elevator?: boolean | null
+          has_gatehouse?: boolean | null
+          has_gym?: boolean | null
+          has_internet?: boolean | null
+          has_playground?: boolean | null
+          has_pop_ceiling?: boolean | null
+          has_power_supply?: boolean | null
+          has_receipt?: boolean | null
+          has_security?: boolean | null
+          has_swimming_pool?: boolean | null
+          has_wardrobes?: boolean | null
+          has_water_heater?: boolean | null
+          has_water_supply?: boolean | null
           id?: string
           images?: string[] | null
+          is_pet_friendly?: boolean | null
           is_verified?: boolean | null
+          kitchen_type?: string | null
+          kitchens?: number | null
+          land_size?: number | null
+          listing_type?: string | null
+          location_link?: string | null
+          monthly_price?: number | null
+          other_property_type?: string | null
+          parking_spaces?: number | null
           price?: number
           property_type?: string
+          rent_duration?: string | null
+          service_fee?: number | null
+          state?: string | null
           status?: string
+          street?: string | null
           title?: string
+          title_type?: string | null
+          toilets?: number | null
           updated_at?: string
           user_id?: string
           video_url?: string | null
+          weekly_price?: number | null
           year_built?: number | null
         }
         Relationships: []

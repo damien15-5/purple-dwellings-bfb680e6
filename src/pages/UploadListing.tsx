@@ -1,51 +1,125 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, X, CheckCircle2, Loader2, FileText, Info } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Check } from 'lucide-react';
+import { BasicDetails } from '@/components/upload/BasicDetails';
+import { AmenitiesStep } from '@/components/upload/AmenitiesStep';
+import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
+import { DocumentsUploadStep } from '@/components/upload/DocumentsUploadStep';
+import { ReviewStep } from '@/components/upload/ReviewStep';
 
-const DOCUMENT_TYPES = [
-  { id: 'deed', name: 'Deed of Assignment', description: 'A document that officially transfers ownership of property from the seller to the buyer and is often used to apply for Governor\'s Consent.' },
-  { id: 'coo', name: 'Certificate of Occupancy (C of O)', description: 'A document that provides proof of a property\'s legal title and is considered very important in some regions.' },
-  { id: 'survey', name: 'Survey Plan', description: 'A document that defines the exact boundaries, location, and size of a piece of land.' },
-  { id: 'purchase', name: 'Purchase Agreement or Sale Agreement', description: 'A legal contract outlining the terms and conditions of the sale, including the price, payment structure, and timeline.' },
-  { id: 'title', name: 'Sale Deed or Title Deed', description: 'The primary legal document that transfers ownership of a property, details the property\'s information, and serves as proof of sale.' },
-  { id: 'consent', name: 'Governor\'s Consent', description: 'A government document that signifies the state government\'s approval of the land transfer.' },
-  { id: 'mortgage', name: 'Mortgage Documents', description: 'Legal documents related to a loan taken out to purchase the property.' },
-  { id: 'tax', name: 'Property Tax Receipts', description: 'Records of all property tax payments, such as Land Use Charge Payments.' },
-  { id: 'occupancy', name: 'Occupancy Certificate', description: 'A certificate indicating a building is safe to be occupied and is compliant with all necessary regulations.' },
-  { id: 'poa', name: 'Power of Attorney', description: 'A document that gives a person the legal right to act on behalf of a property owner.' },
-  { id: 'receipt', name: 'Receipt of Purchase', description: 'The first document issued after payment is made, acknowledging that the seller has received funds from the buyer.' },
+export type UploadFormData = {
+  // Basic details
+  propertyType: string;
+  otherPropertyType: string;
+  listingType: string;
+  state: string;
+  city: string;
+  street: string;
+  locationLink: string;
+  price: string;
+  size: string;
+  description: string;
+  
+  // Amenities
+  bedrooms: string;
+  bathrooms: string;
+  toilets: string;
+  kitchens: string;
+  parkingSpaces: string;
+  hasBalcony: boolean;
+  hasWardrobes: boolean;
+  hasPopCeiling: boolean;
+  hasWaterSupply: boolean;
+  hasPowerSupply: boolean;
+  hasSecurity: boolean;
+  hasCctv: boolean;
+  hasGatehouse: boolean;
+  hasSwimmingPool: boolean;
+  hasGym: boolean;
+  hasElevator: boolean;
+  hasAccessibility: boolean;
+  isPetFriendly: boolean;
+  hasInternet: boolean;
+  hasPlayground: boolean;
+  furnishingStatus: string;
+  
+  // Finishing
+  flooringType: string;
+  kitchenType: string;
+  hasAirConditioning: boolean;
+  hasWaterHeater: boolean;
+  
+  // Conditional fields
+  dailyPrice?: string;
+  weeklyPrice?: string;
+  monthlyPrice?: string;
+  serviceFee?: string;
+  rentDuration?: string;
+  agencyFee?: string;
+  agreementFee?: string;
+  titleType?: string;
+  landSize?: string;
+};
+
+const STEPS = [
+  { id: 1, name: 'Basic Details', icon: '📝' },
+  { id: 2, name: 'Amenities', icon: '✨' },
+  { id: 3, name: 'Images', icon: '📷' },
+  { id: 4, name: 'Documents', icon: '📄' },
+  { id: 5, name: 'Review', icon: '👀' },
 ];
 
 export const UploadListing = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [images, setImages] = useState<File[]>([]);
-  const [thumbnail, setThumbnail] = useState<File | null>(null);
-  const [video, setVideo] = useState<File | null>(null);
-  const [documents, setDocuments] = useState<{ type: string; file: File }[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
-  const [skipDocuments, setSkipDocuments] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
+  const [uploading, setUploading] = useState(false);
+  
+  const [formData, setFormData] = useState<UploadFormData>({
     propertyType: '',
-    bedrooms: '',
-    bathrooms: '',
-    kitchen: '',
-    sqft: '',
+    otherPropertyType: '',
+    listingType: 'sale',
+    state: '',
+    city: '',
+    street: '',
+    locationLink: '',
+    price: '',
+    size: '',
+    description: '',
+    bedrooms: '0',
+    bathrooms: '0',
+    toilets: '0',
+    kitchens: '1',
+    parkingSpaces: '0',
+    hasBalcony: false,
+    hasWardrobes: false,
+    hasPopCeiling: false,
+    hasWaterSupply: false,
+    hasPowerSupply: false,
+    hasSecurity: false,
+    hasCctv: false,
+    hasGatehouse: false,
+    hasSwimmingPool: false,
+    hasGym: false,
+    hasElevator: false,
+    hasAccessibility: false,
+    isPetFriendly: false,
+    hasInternet: false,
+    hasPlayground: false,
+    furnishingStatus: '',
+    flooringType: '',
+    kitchenType: '',
+    hasAirConditioning: false,
+    hasWaterHeater: false,
   });
+  
+  const [images, setImages] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<{ type: string; file: File }[]>([]);
+  const [hasReceipt, setHasReceipt] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,141 +134,45 @@ export const UploadListing = () => {
     checkAuth();
   }, [navigate]);
 
+  const updateFormData = (updates: Partial<UploadFormData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
   const handleNext = () => {
-    if (step === 1) {
-      if (!formData.title || !formData.price || !formData.description || !formData.propertyType) {
+    // Validation for each step
+    if (currentStep === 1) {
+      const required = ['propertyType', 'listingType', 'state', 'city', 'price', 'size', 'description'];
+      const missing = required.filter(field => !formData[field as keyof UploadFormData]);
+      
+      if (missing.length > 0) {
         toast.error('Please fill in all required fields');
         return;
       }
-      if (images.length === 0) {
-        toast.error('Please upload at least one image');
-        return;
-      }
-      if (!thumbnail) {
-        toast.error('Please select a thumbnail image');
+      
+      if (formData.propertyType === 'Others' && !formData.otherPropertyType) {
+        toast.error('Please specify the property type');
         return;
       }
     }
-    if (step === 2 && !skipDocuments && documents.length < 2) {
-      toast.error('Please upload at least 2 documents or skip this step');
-      return;
-    }
-    setStep(step + 1);
-  };
-
-  const handleImageUpload = (files: FileList | null) => {
-    if (!files) return;
-    const newImages = Array.from(files).slice(0, 20 - images.length);
-    setImages([...images, ...newImages]);
-    toast.success(`${newImages.length} image(s) uploaded`);
-  };
-
-  const handleThumbnailUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setThumbnail(files[0]);
-    toast.success('Thumbnail selected');
-  };
-
-  const handleVideoUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setVideo(files[0]);
-    toast.success('Video uploaded');
-  };
-
-  const handleDocumentUpload = (type: string, files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const existingDoc = documents.find(d => d.type === type);
-    if (existingDoc) {
-      toast.error('Document already uploaded');
-      return;
-    }
-    setDocuments([...documents, { type, file: files[0] }]);
-    toast.success('Document uploaded');
-  };
-
-  const uploadFiles = async (): Promise<{ images: string[]; thumbnail: string; video?: string; documents: any[] }> => {
-    const uploadedImages: string[] = [];
-    let uploadedThumbnail = '';
-    let uploadedVideo = '';
-    const uploadedDocs: any[] = [];
     
-    // Upload images
-    for (const image of images) {
-      const fileExt = image.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, image);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(filePath);
-
-      uploadedImages.push(publicUrl);
+    if (currentStep === 3) {
+      if (images.length < 3) {
+        toast.error('Please upload at least 3 images');
+        return;
+      }
+      
+      // Check receipt for non-land properties
+      if (formData.propertyType !== 'Land' && !hasReceipt) {
+        toast.error('Please upload a receipt (can be added as an image or document)');
+        return;
+      }
     }
+    
+    setCurrentStep(prev => Math.min(prev + 1, 5));
+  };
 
-    // Upload thumbnail
-    if (thumbnail) {
-      const fileExt = thumbnail.name.split('.').pop();
-      const fileName = `thumb_${Math.random()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, thumbnail);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(filePath);
-
-      uploadedThumbnail = publicUrl;
-    }
-
-    // Upload video if exists
-    if (video) {
-      const fileExt = video.name.split('.').pop();
-      const fileName = `video_${Math.random()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, video);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(filePath);
-
-      uploadedVideo = publicUrl;
-    }
-
-    // Upload documents
-    for (const doc of documents) {
-      const fileExt = doc.file.name.split('.').pop();
-      const fileName = `doc_${doc.type}_${Math.random()}.${fileExt}`;
-      const filePath = `${userId}/documents/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, doc.file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(filePath);
-
-      uploadedDocs.push({ type: doc.type, url: publicUrl });
-    }
-
-    return { images: uploadedImages, thumbnail: uploadedThumbnail, video: uploadedVideo, documents: uploadedDocs };
+  const handleBack = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async () => {
@@ -204,379 +182,219 @@ export const UploadListing = () => {
     }
 
     setUploading(true);
-    
+
     try {
-      const { images: imageUrls, thumbnail: thumbnailUrl, video: videoUrl, documents: docUrls } = await uploadFiles();
+      // Upload images
+      const imageUrls: string[] = [];
+      for (const image of images) {
+        const fileName = `${userId}/${Date.now()}_${image.name}`;
+        const { error: uploadError, data } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, image);
 
-      const { data, error } = await supabase
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(fileName);
+
+        imageUrls.push(publicUrl);
+      }
+
+      // Upload documents
+      const documentData: any[] = [];
+      for (const doc of documents) {
+        const fileName = `${userId}/docs/${Date.now()}_${doc.file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, doc.file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(fileName);
+
+        documentData.push({
+          type: doc.type,
+          url: publicUrl,
+          name: doc.file.name,
+        });
+      }
+
+      // Insert property
+      const { error: insertError } = await supabase
         .from('properties')
-        .insert([
-          {
-            user_id: userId,
-            title: formData.title,
-            description: formData.description,
-            property_type: formData.propertyType,
-            address: 'To be updated',
-            price: parseFloat(formData.price),
-            bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
-            bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
-            area: formData.sqft ? parseFloat(formData.sqft) : null,
-            status: 'published',
-            images: [thumbnailUrl, ...imageUrls],
-            video_url: videoUrl || null,
-            documents: docUrls,
-            is_verified: docUrls.length >= 2,
-          }
-        ])
-        .select()
-        .single();
+        .insert({
+          user_id: userId,
+          title: `${formData.propertyType} in ${formData.city}`,
+          description: formData.description,
+          property_type: formData.propertyType === 'Others' ? formData.otherPropertyType : formData.propertyType,
+          listing_type: formData.listingType,
+          address: `${formData.street}, ${formData.city}, ${formData.state}`,
+          state: formData.state,
+          city: formData.city,
+          street: formData.street,
+          location_link: formData.locationLink,
+          price: parseFloat(formData.price),
+          area: parseFloat(formData.size),
+          bedrooms: parseInt(formData.bedrooms),
+          bathrooms: parseInt(formData.bathrooms),
+          toilets: parseInt(formData.toilets),
+          kitchens: parseInt(formData.kitchens),
+          parking_spaces: parseInt(formData.parkingSpaces),
+          has_balcony: formData.hasBalcony,
+          has_wardrobes: formData.hasWardrobes,
+          has_pop_ceiling: formData.hasPopCeiling,
+          has_water_supply: formData.hasWaterSupply,
+          has_power_supply: formData.hasPowerSupply,
+          has_security: formData.hasSecurity,
+          has_cctv: formData.hasCctv,
+          has_gatehouse: formData.hasGatehouse,
+          has_swimming_pool: formData.hasSwimmingPool,
+          has_gym: formData.hasGym,
+          has_elevator: formData.hasElevator,
+          has_accessibility: formData.hasAccessibility,
+          is_pet_friendly: formData.isPetFriendly,
+          has_internet: formData.hasInternet,
+          has_playground: formData.hasPlayground,
+          furnishing_status: formData.furnishingStatus,
+          flooring_type: formData.flooringType,
+          kitchen_type: formData.kitchenType,
+          has_air_conditioning: formData.hasAirConditioning,
+          has_water_heater: formData.hasWaterHeater,
+          daily_price: formData.dailyPrice ? parseFloat(formData.dailyPrice) : null,
+          weekly_price: formData.weeklyPrice ? parseFloat(formData.weeklyPrice) : null,
+          monthly_price: formData.monthlyPrice ? parseFloat(formData.monthlyPrice) : null,
+          service_fee: formData.serviceFee ? parseFloat(formData.serviceFee) : null,
+          rent_duration: formData.rentDuration,
+          agency_fee: formData.agencyFee ? parseFloat(formData.agencyFee) : null,
+          agreement_fee: formData.agreementFee ? parseFloat(formData.agreementFee) : null,
+          title_type: formData.titleType,
+          land_size: formData.landSize ? parseFloat(formData.landSize) : null,
+          has_receipt: hasReceipt,
+          images: imageUrls,
+          documents: documentData,
+          status: 'pending',
+        });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      toast.success('Listing published successfully!');
-      setStep(3);
+      toast.success('Property listed successfully! Pending verification.');
+      navigate('/dashboard/listings');
     } catch (error: any) {
-      console.error('Error uploading listing:', error);
-      toast.error(error.message || 'Failed to upload listing');
+      console.error('Error uploading property:', error);
+      toast.error(error.message || 'Failed to upload property');
     } finally {
       setUploading(false);
     }
   };
 
-  if (step === 3) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full animate-scale-in">
-          <CardContent className="text-center py-12">
-            <CheckCircle2 className="h-24 w-24 text-success mx-auto mb-6 animate-float" />
-            <h1 className="text-3xl font-bold mb-4">Listing Published Successfully!</h1>
-            <p className="text-muted-foreground mb-8">
-              Your listing is now visible on the marketplace
-            </p>
-            <div className="space-y-3">
-              <Button onClick={() => navigate('/my-listings')} className="w-full hover-lift">
-                View My Listings
-              </Button>
-              <Button onClick={() => navigate('/dashboard')} variant="outline" className="w-full">
-                Go to Dashboard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {[1, 2].map((s) => (
-              <div key={s} className="flex items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                    s <= step ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
-                  }`}
-                >
-                  {s}
+    <div className="min-h-screen bg-gradient-to-b from-background via-secondary/20 to-background">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">List Your Property</h1>
+          <p className="text-muted-foreground">Complete all steps to publish your listing</p>
+        </div>
+
+        {/* Progress Steps */}
+        <Card className="mb-8 p-6 card-glow">
+          <div className="flex items-center justify-between">
+            {STEPS.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all duration-300 ${
+                      currentStep > step.id
+                        ? 'bg-primary text-primary-foreground'
+                        : currentStep === step.id
+                        ? 'bg-primary text-primary-foreground animate-pulse'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {currentStep > step.id ? <Check className="w-6 h-6" /> : step.icon}
+                  </div>
+                  <span className="text-xs mt-2 text-center font-medium">{step.name}</span>
                 </div>
-                {s < 2 && (
-                  <div className={`flex-1 h-1 mx-2 transition-all ${s < step ? 'bg-primary' : 'bg-accent'}`} />
+                {index < STEPS.length - 1 && (
+                  <div
+                    className={`h-1 w-16 mx-2 transition-all duration-300 ${
+                      currentStep > step.id ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  />
                 )}
               </div>
             ))}
           </div>
-        </div>
-
-        <Card className="card-glow">
-          <CardHeader>
-            <CardTitle>Upload New Listing</CardTitle>
-            <CardDescription>
-              Step {step} of 2: {['Property Details & Media', 'Documents (Optional)'][step - 1]}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {step === 1 && (
-              <div className="space-y-6 animate-fade-in">
-                {/* Images Upload */}
-                <div>
-                  <Label>Property Images (Up to 20) *</Label>
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-8 cursor-pointer hover:bg-accent/50 transition-colors mt-2">
-                    <Upload className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-sm font-medium mb-1">Drop images here or click to browse</p>
-                    <p className="text-xs text-muted-foreground">{images.length} of 20 uploaded</p>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => handleImageUpload(e.target.files)}
-                    />
-                  </label>
-                  {images.length > 0 && (
-                    <div className="grid grid-cols-4 gap-4 mt-4">
-                      {images.map((img, idx) => (
-                        <div key={idx} className="relative group">
-                          <img
-                            src={URL.createObjectURL(img)}
-                            alt={`Upload ${idx + 1}`}
-                            className="w-full h-24 object-cover rounded-lg"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Video Upload */}
-                <div>
-                  <Label>Property Video (Optional)</Label>
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:bg-accent/50 transition-colors mt-2">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">{video ? video.name : 'Upload video'}</p>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="video/*"
-                      onChange={(e) => handleVideoUpload(e.target.files)}
-                    />
-                  </label>
-                </div>
-
-                {/* Thumbnail Upload */}
-                <div>
-                  <Label>Thumbnail Image *</Label>
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:bg-accent/50 transition-colors mt-2">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">{thumbnail ? thumbnail.name : 'Upload thumbnail'}</p>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handleThumbnailUpload(e.target.files)}
-                    />
-                  </label>
-                  {thumbnail && (
-                    <img src={URL.createObjectURL(thumbnail)} alt="Thumbnail" className="mt-4 w-32 h-32 object-cover rounded-lg" />
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="title">Property Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g., Modern 3-Bedroom House"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="propertyType">Property Type *</Label>
-                  <Select value={formData.propertyType} onValueChange={(value) => setFormData({ ...formData, propertyType: value })}>
-                    <SelectTrigger id="propertyType">
-                      <SelectValue placeholder="Select property type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="House">House</SelectItem>
-                      <SelectItem value="Apartment">Apartment</SelectItem>
-                      <SelectItem value="Land">Land</SelectItem>
-                      <SelectItem value="Shop">Shop</SelectItem>
-                      <SelectItem value="Rental">Rental</SelectItem>
-                      <SelectItem value="Villa">Villa</SelectItem>
-                      <SelectItem value="Office">Office Space</SelectItem>
-                      <SelectItem value="Warehouse">Warehouse</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="bedrooms">Bedrooms</Label>
-                    <Input
-                      id="bedrooms"
-                      type="number"
-                      value={formData.bedrooms}
-                      onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-                      placeholder="3"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bathrooms">Bathrooms</Label>
-                    <Input
-                      id="bathrooms"
-                      type="number"
-                      value={formData.bathrooms}
-                      onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-                      placeholder="2"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="kitchen">Kitchen</Label>
-                    <Input
-                      id="kitchen"
-                      type="number"
-                      value={formData.kitchen}
-                      onChange={(e) => setFormData({ ...formData, kitchen: e.target.value })}
-                      placeholder="1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="sqft">Square Feet</Label>
-                    <Input
-                      id="sqft"
-                      type="number"
-                      value={formData.sqft}
-                      onChange={(e) => setFormData({ ...formData, sqft: e.target.value })}
-                      placeholder="2500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="price">Price (₦) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="45000000"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe your property..."
-                    rows={4}
-                  />
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-6 animate-fade-in">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Upload Property Documents</h3>
-                    <p className="text-sm text-muted-foreground">Upload at least 2 documents to verify your listing</p>
-                  </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Info className="w-4 h-4 mr-2" />
-                        Document Info
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Document Types Explained</DialogTitle>
-                        <DialogDescription>Learn about each document type</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        {DOCUMENT_TYPES.map((doc) => (
-                          <div key={doc.id} className="border-b pb-4">
-                            <h4 className="font-semibold mb-2">{doc.name}</h4>
-                            <p className="text-sm text-muted-foreground">{doc.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-
-                <div className="space-y-4">
-                  {DOCUMENT_TYPES.map((docType) => {
-                    const uploaded = documents.find(d => d.type === docType.id);
-                    return (
-                      <div key={docType.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium mb-1">{docType.name}</h4>
-                            <p className="text-sm text-muted-foreground line-clamp-2">{docType.description}</p>
-                          </div>
-                          {uploaded ? (
-                            <div className="flex items-center gap-2 ml-4">
-                              <CheckCircle2 className="w-5 h-5 text-green-500" />
-                              <span className="text-sm text-green-500">Uploaded</span>
-                            </div>
-                          ) : (
-                            <label className="ml-4">
-                              <Button variant="outline" size="sm" asChild>
-                                <span>
-                                  <FileText className="w-4 h-4 mr-2" />
-                                  Upload
-                                </span>
-                              </Button>
-                              <input
-                                type="file"
-                                className="hidden"
-                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                                onChange={(e) => handleDocumentUpload(docType.id, e.target.files)}
-                              />
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center space-x-2 pt-4">
-                  <Checkbox
-                    id="skip"
-                    checked={skipDocuments}
-                    onCheckedChange={(checked) => setSkipDocuments(checked as boolean)}
-                  />
-                  <Label htmlFor="skip" className="cursor-pointer">
-                    Skip document upload (listing will show as "Not Verified")
-                  </Label>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between mt-8">
-              <Button
-                variant="outline"
-                onClick={() => step === 1 ? navigate('/dashboard') : setStep(step - 1)}
-                disabled={uploading}
-              >
-                {step === 1 ? 'Cancel' : 'Back'}
-              </Button>
-              {step < 2 ? (
-                <Button onClick={handleNext} disabled={uploading}>
-                  Next Step
-                </Button>
-              ) : (
-                <Button onClick={handleSubmit} disabled={uploading}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    'Publish Listing'
-                  )}
-                </Button>
-              )}
-            </div>
-          </CardContent>
         </Card>
+
+        {/* Step Content */}
+        <Card className="p-8 card-glow mb-6">
+          {currentStep === 1 && (
+            <BasicDetails formData={formData} updateFormData={updateFormData} />
+          )}
+          
+          {currentStep === 2 && (
+            <AmenitiesStep formData={formData} updateFormData={updateFormData} />
+          )}
+          
+          {currentStep === 3 && (
+            <ImagesUploadStep 
+              images={images} 
+              setImages={setImages}
+              hasReceipt={hasReceipt}
+              setHasReceipt={setHasReceipt}
+              propertyType={formData.propertyType}
+            />
+          )}
+          
+          {currentStep === 4 && (
+            <DocumentsUploadStep 
+              documents={documents} 
+              setDocuments={setDocuments}
+              hasReceipt={hasReceipt}
+              setHasReceipt={setHasReceipt}
+              propertyType={formData.propertyType}
+            />
+          )}
+          
+          {currentStep === 5 && (
+            <ReviewStep 
+              formData={formData} 
+              images={images}
+              documents={documents}
+              onEdit={(step) => setCurrentStep(step)}
+            />
+          )}
+        </Card>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between items-center">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 1 || uploading}
+            className="px-8"
+          >
+            Back
+          </Button>
+          
+          <div className="text-sm text-muted-foreground">
+            Step {currentStep} of {STEPS.length}
+          </div>
+
+          {currentStep < 5 ? (
+            <Button onClick={handleNext} disabled={uploading} className="px-8">
+              Next
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={uploading} className="px-8">
+              {uploading ? 'Publishing...' : 'Publish Listing'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
