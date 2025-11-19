@@ -3,8 +3,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, Send, Paperclip, Search } from 'lucide-react';
+import { MessageSquare, Send, Paperclip, Search, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export const Messages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -13,6 +24,9 @@ export const Messages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadConversations();
@@ -118,6 +132,42 @@ export const Messages = () => {
     loadMessages(selectedConversation.id);
   };
 
+  const handleDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+
+    try {
+      // Mark all messages in this conversation as deleted
+      await supabase
+        .from('messages')
+        .update({ is_deleted: true })
+        .eq('conversation_id', conversationToDelete);
+
+      // If this was the selected conversation, clear it
+      if (selectedConversation?.id === conversationToDelete) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+
+      // Reload conversations to remove the deleted one
+      loadConversations();
+
+      toast({
+        title: 'Chat deleted',
+        description: 'The conversation has been deleted successfully.',
+      });
+    } catch (error: any) {
+      console.error('Error deleting conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete conversation. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setConversationToDelete(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -162,42 +212,58 @@ export const Messages = () => {
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  onClick={() => {
-                    setSelectedConversation(conversation);
-                    loadMessages(conversation.id);
-                  }}
-                  className={`p-4 border-b border-border cursor-pointer transition-colors hover:bg-accent ${
+                  className={`p-4 border-b border-border transition-colors hover:bg-accent ${
                     selectedConversation?.id === conversation.id ? 'bg-accent' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    {conversation.property?.images?.[0] && (
-                      <img
-                        src={conversation.property.images[0]}
-                        alt=""
-                        className="w-12 h-12 rounded object-cover flex-shrink-0"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="font-medium text-sm truncate">
-                          {conversation.property?.title || 'Property'}
+                    <div
+                      onClick={() => {
+                        setSelectedConversation(conversation);
+                        loadMessages(conversation.id);
+                      }}
+                      className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
+                    >
+                      {conversation.property?.images?.[0] && (
+                        <img
+                          src={conversation.property.images[0]}
+                          alt=""
+                          className="w-12 h-12 rounded object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-medium text-sm truncate">
+                            {conversation.property?.title || 'Property'}
+                          </p>
+                          {(conversation.buyer_unread > 0 || conversation.seller_unread > 0) && (
+                            <Badge className="bg-accent-purple text-white flex-shrink-0">
+                              {conversation.buyer_unread || conversation.seller_unread}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {conversation.last_message || 'No messages yet'}
                         </p>
-                        {(conversation.buyer_unread > 0 || conversation.seller_unread > 0) && (
-                          <Badge className="bg-accent-purple text-white flex-shrink-0">
-                            {conversation.buyer_unread || conversation.seller_unread}
-                          </Badge>
+                        {conversation.last_message_time && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(conversation.last_message_time).toLocaleDateString()}
+                          </p>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {conversation.last_message || 'No messages yet'}
-                      </p>
-                      {conversation.last_message_time && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(conversation.last_message_time).toLocaleDateString()}
-                        </p>
-                      )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConversationToDelete(conversation.id);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -302,6 +368,26 @@ export const Messages = () => {
           </Card>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all messages in this conversation. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConversation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
