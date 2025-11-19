@@ -55,7 +55,7 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
         <div className="relative group">
           <button
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white shadow-xl rounded-full p-3 hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white shadow-xl rounded-full p-3 hover:bg-primary hover:text-primary-foreground transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
             aria-label="Scroll left"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -78,7 +78,7 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
 
           <button
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white shadow-xl rounded-full p-3 hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white shadow-xl rounded-full p-3 hover:bg-primary hover:text-primary-foreground transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
             aria-label="Scroll right"
           >
             <ChevronRight className="h-6 w-6" />
