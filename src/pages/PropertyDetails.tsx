@@ -350,37 +350,40 @@ export const PropertyDetails = () => {
                 </div>
 
                 {/* Blurred Action Buttons */}
-                <div className="relative rounded-lg overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-md" />
-                  <div className="relative space-y-3 p-4">
-                    <Dialog open={showChat} onOpenChange={setShowChat}>
-                      <DialogTrigger asChild>
-                        <Button className="w-full" size="lg" variant="default">
-                          <MessageSquare className="w-5 h-5 mr-2" />
-                          Contact Seller
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[90vh]">
-                        <DialogHeader>
-                          <DialogTitle>Chat with Seller</DialogTitle>
-                          <DialogDescription>
-                            Connect directly with the property owner
-                          </DialogDescription>
-                        </DialogHeader>
-                        <ChatInterface
-                          propertyId={property.id}
-                          propertyOwnerId={property.user_id}
-                          propertyTitle={property.title}
-                        />
-                      </DialogContent>
-                    </Dialog>
-                    <Link to={`/start-escrow/${property.id}`}>
-                      <Button className="w-full" size="lg" variant="default">
-                        <Shield className="w-5 h-5 mr-2" />
-                        Start Escrow
+                <div className="space-y-2.5">
+                  <Dialog open={showChat} onOpenChange={setShowChat}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="w-full bg-background/30 backdrop-blur-2xl border border-border/50 hover:bg-background/40 text-foreground shadow-lg" 
+                        size="lg"
+                      >
+                        <MessageSquare className="w-5 h-5 mr-2" />
+                        Contact Seller
                       </Button>
-                    </Link>
-                  </div>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                      <DialogHeader>
+                        <DialogTitle>Chat with Seller</DialogTitle>
+                        <DialogDescription>
+                          Connect directly with the property owner
+                        </DialogDescription>
+                      </DialogHeader>
+                      <ChatInterface
+                        propertyId={property.id}
+                        propertyOwnerId={property.user_id}
+                        propertyTitle={property.title}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Link to={`/start-escrow/${property.id}`}>
+                    <Button 
+                      className="w-full bg-background/30 backdrop-blur-2xl border border-border/50 hover:bg-background/40 text-foreground shadow-lg" 
+                      size="lg"
+                    >
+                      <Shield className="w-5 h-5 mr-2" />
+                      Start Escrow
+                    </Button>
+                  </Link>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
