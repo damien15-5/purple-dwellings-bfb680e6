@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare, CheckCircle } from 'lucide-react';
+import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import xavorianLogo from '@/assets/xavorian-logo.png';
 import {
@@ -11,14 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
   const [isVerified, setIsVerified] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('');
   const location = useLocation();
 
   useEffect(() => {
@@ -38,15 +36,6 @@ export const Navigation = () => {
           .maybeSingle();
         
         setIsVerified(!!kycData);
-        
-        // Get avatar
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('avatar_url')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        
-        setAvatarUrl(profileData?.avatar_url || '');
       }
     };
 
@@ -67,20 +56,11 @@ export const Navigation = () => {
             .maybeSingle();
           
           setIsVerified(!!kycData);
-          
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('avatar_url')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          
-          setAvatarUrl(profileData?.avatar_url || '');
         }, 0);
       } else {
         setIsLoggedIn(false);
         setUserName('');
         setIsVerified(false);
-        setAvatarUrl('');
       }
     });
 
@@ -119,25 +99,6 @@ export const Navigation = () => {
               Xavorian
             </span>
           </Link>
-
-          {/* User Avatar with Verified Badge */}
-          {isLoggedIn && (
-            <div className="relative mr-2">
-              <Avatar className="h-9 w-9 border-2 border-border">
-                <AvatarImage src={avatarUrl} />
-                <AvatarFallback className="bg-gradient-to-br from-accent-purple to-accent-purple-light text-white text-sm">
-                  {userName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {isVerified && (
-                <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5">
-                  <div className="bg-gradient-to-br from-accent-purple to-blue-500 rounded-full p-0.5">
-                    <CheckCircle className="h-2.5 w-2.5 text-white fill-white" />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
