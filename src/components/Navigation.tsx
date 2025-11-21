@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare, CheckCircle } from 'lucide-react';
+import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import xavorianLogo from '@/assets/xavorian-logo.png';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +16,6 @@ export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [isVerified, setIsVerified] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -28,43 +25,19 @@ export const Navigation = () => {
       if (session) {
         setIsLoggedIn(true);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User');
-        
-        // Fetch profile and verification status
-        const [profileData, kycData] = await Promise.all([
-          supabase.from('profiles').select('avatar_url').eq('id', session.user.id).single(),
-          supabase.from('kyc_documents').select('status').eq('user_id', session.user.id).eq('status', 'verified').maybeSingle(),
-        ]);
-        
-        if (profileData.data) {
-          setUserAvatar(profileData.data.avatar_url);
-        }
-        setIsVerified(!!kycData.data);
       }
     };
 
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         setIsLoggedIn(true);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User');
-        
-        // Fetch profile and verification status
-        const [profileData, kycData] = await Promise.all([
-          supabase.from('profiles').select('avatar_url').eq('id', session.user.id).single(),
-          supabase.from('kyc_documents').select('status').eq('user_id', session.user.id).eq('status', 'verified').maybeSingle(),
-        ]);
-        
-        if (profileData.data) {
-          setUserAvatar(profileData.data.avatar_url);
-        }
-        setIsVerified(!!kycData.data);
       } else {
         setIsLoggedIn(false);
         setUserName('');
-        setUserAvatar(null);
-        setIsVerified(false);
       }
     });
 
@@ -104,28 +77,12 @@ export const Navigation = () => {
             </span>
           </Link>
 
-          {/* Profile Picture with Verification Badge or Hamburger Menu */}
+          {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {isLoggedIn ? (
-                <Button variant="ghost" className="relative p-0 h-10 w-10 rounded-full shrink-0">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={userAvatar || undefined} alt={userName} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent-purple text-white">
-                      {userName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isVerified && (
-                    <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full p-0.5">
-                      <CheckCircle className="h-3 w-3 text-white fill-white" />
-                    </div>
-                  )}
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon" className="shrink-0">
-                  <Menu className="w-6 h-6" />
-                </Button>
-              )}
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Menu className="w-6 h-6" />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {/* Navigation Links */}

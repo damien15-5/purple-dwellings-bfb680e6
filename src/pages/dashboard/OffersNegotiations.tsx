@@ -27,32 +27,12 @@ export const OffersNegotiations = () => {
       .from('escrow_transactions')
       .select(`
         *,
-        property:properties(title, address, images, price)
+        property:properties(title, address, images, price),
+        buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
+        seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
       `)
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .eq('offer_status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Fetch buyer and seller profiles separately
-    if (data && data.length > 0) {
-      const buyerIds = [...new Set(data.map(t => t.buyer_id))];
-      const sellerIds = [...new Set(data.map(t => t.seller_id))];
-      
-      const [buyersData, sellersData] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, email').in('id', buyerIds),
-        supabase.from('profiles').select('id, full_name, email').in('id', sellerIds),
-      ]);
-
-      // Map profiles to transactions
-      const buyersMap = new Map(buyersData.data?.map(b => [b.id, b]) || []);
-      const sellersMap = new Map(sellersData.data?.map(s => [s.id, s]) || []);
-
-      data.forEach(transaction => {
-        (transaction as any).buyer = buyersMap.get(transaction.buyer_id);
-        (transaction as any).seller = sellersMap.get(transaction.seller_id);
-      });
-    }
+      .order('created_at', { ascending: false });
 
     setOffers(data || []);
     setLoading(false);
