@@ -9,6 +9,7 @@ import { Lock, CreditCard, Clock, CheckCircle, XCircle, Eye, AlertTriangle, Filt
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export const EscrowTransactions = () => {
@@ -25,6 +26,8 @@ export const EscrowTransactions = () => {
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
 
   useEffect(() => {
     loadTransactions();
@@ -61,6 +64,11 @@ export const EscrowTransactions = () => {
   };
 
   const handleConfirmTransaction = async (escrowId: string) => {
+    if (confirmText !== 'CONFIRM') {
+      toast.error('Please type CONFIRM to proceed');
+      return;
+    }
+
     setConfirming(true);
     try {
       const { data, error } = await supabase.functions.invoke('confirm-escrow', {
@@ -71,6 +79,8 @@ export const EscrowTransactions = () => {
 
       if (data.success) {
         toast.success('Transaction confirmed successfully!');
+        setShowConfirmDialog(false);
+        setConfirmText('');
         loadTransactions();
       } else {
         throw new Error(data.error || 'Failed to confirm transaction');
@@ -81,6 +91,12 @@ export const EscrowTransactions = () => {
     } finally {
       setConfirming(false);
     }
+  };
+
+  const openConfirmDialog = (transaction: any) => {
+    setSelectedTransaction(transaction);
+    setShowConfirmDialog(true);
+    setConfirmText('');
   };
 
   const handleMakePayment = (escrowId: string, propertyId: string) => {
@@ -369,11 +385,10 @@ export const EscrowTransactions = () => {
                       <Button 
                         variant="hero" 
                         className="flex-1 gap-2"
-                        onClick={() => handleConfirmTransaction(transaction.id)}
-                        disabled={confirming}
+                        onClick={() => openConfirmDialog(transaction)}
                       >
                         <CheckCircle className="h-4 w-4" />
-                        {confirming ? 'Processing...' : 'Release Payment to Recipient'}
+                        Release Payment to Recipient
                       </Button>
                       <Button 
                         variant="destructive" 
@@ -415,6 +430,72 @@ export const EscrowTransactions = () => {
           ))}
         </div>
       )}
+
+      {/* Confirm Payment Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Payment Release
+            </DialogTitle>
+            <DialogDescription className="text-base font-semibold pt-4">
+              THIS WILL SEND THE MONEY TO THE HOUSE AGENT OR SELLER
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTransaction && (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm font-medium text-red-900 mb-2">
+                  You are about to release:
+                </p>
+                <p className="text-2xl font-bold text-red-600">
+                  ₦{selectedTransaction.total_amount?.toLocaleString()}
+                </p>
+                <p className="text-xs text-red-700 mt-1">
+                  to {selectedTransaction.seller_profile?.full_name}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-text" className="text-sm font-semibold">
+                  Type <span className="text-red-600 font-mono">CONFIRM</span> to proceed
+                </Label>
+                <input
+                  id="confirm-text"
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Type CONFIRM"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowConfirmDialog(false);
+                    setConfirmText('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => handleConfirmTransaction(selectedTransaction.id)}
+                  disabled={confirmText !== 'CONFIRM' || confirming}
+                >
+                  {confirming ? 'Processing...' : 'Confirm & Release'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Breakdown Dialog */}
       <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
