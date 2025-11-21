@@ -108,6 +108,10 @@ export const EscrowTransactions = () => {
       return;
     }
 
+    // Optimistically remove from UI immediately
+    setTransactions(prev => prev.filter(t => t.id !== transactionId));
+    setFilteredTransactions(prev => prev.filter(t => t.id !== transactionId));
+
     try {
       const { error } = await supabase
         .from('escrow_transactions')
@@ -117,10 +121,11 @@ export const EscrowTransactions = () => {
       if (error) throw error;
 
       toast.success('Transaction deleted successfully');
-      loadTransactions();
     } catch (error: any) {
       console.error('Error deleting transaction:', error);
       toast.error('Failed to delete transaction');
+      // Reload on error to restore state
+      loadTransactions();
     }
   };
 
