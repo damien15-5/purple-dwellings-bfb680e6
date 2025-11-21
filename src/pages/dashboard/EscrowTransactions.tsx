@@ -14,20 +14,36 @@ export const EscrowTransactions = () => {
   }, []);
 
   const loadTransactions = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data } = await supabase
-      .from('escrow_transactions')
-      .select(`
-        *,
-        property:properties(title, address, images)
-      `)
-      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select(`
+          id,
+          transaction_amount,
+          escrow_fee,
+          total_amount,
+          status,
+          created_at,
+          property:properties(
+            id,
+            title,
+            address,
+            images
+          )
+        `)
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    setTransactions(data || []);
-    setLoading(false);
+      setTransactions(data || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
