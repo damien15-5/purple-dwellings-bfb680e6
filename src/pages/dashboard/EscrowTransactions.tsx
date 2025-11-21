@@ -3,23 +3,42 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, CreditCard, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Lock, CreditCard, Clock, CheckCircle, XCircle, Eye, AlertTriangle, History, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export const EscrowTransactions = () => {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showDispute, setShowDispute] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadTransactions();
   }, []);
+
+  useEffect(() => {
+    if (statusFilter === 'all') {
+      setFilteredTransactions(transactions);
+    } else {
+      setFilteredTransactions(transactions.filter(t => t.status === statusFilter));
+    }
+  }, [statusFilter, transactions]);
 
   const loadTransactions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -31,12 +50,15 @@ export const EscrowTransactions = () => {
       .from('escrow_transactions')
       .select(`
         *,
-        property:properties(title, address, images)
+        property:properties(title, address, images),
+        buyer_profile:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
+        seller_profile:profiles!escrow_transactions_seller_id_fkey(full_name, email)
       `)
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
 
     setTransactions(data || []);
+    setFilteredTransactions(data || []);
     setLoading(false);
   };
 
@@ -65,6 +87,61 @@ export const EscrowTransactions = () => {
 
   const handleMakePayment = (escrowId: string, propertyId: string) => {
     navigate(`/start-escrow/${propertyId}?escrowId=${escrowId}`);
+  };
+
+  const loadTransactionHistory = async (escrowId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          actor:profiles(full_name)
+        `)
+        .eq('escrow_id', escrowId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setHistoryLogs(data || []);
+      setShowHistory(true);
+    } catch (error: any) {
+      console.error('Error loading history:', error);
+      toast.error('Failed to load transaction history');
+    }
+  };
+
+  const raiseDispute = async () => {
+    if (!selectedTransaction || !disputeReason || !disputeDescription) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('raise-dispute', {
+        body: {
+          escrowId: selectedTransaction.id,
+          reason: disputeReason,
+          description: disputeDescription,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Dispute raised successfully');
+        setShowDispute(false);
+        setDisputeReason('');
+        setDisputeDescription('');
+        loadTransactions();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('Error raising dispute:', error);
+      toast.error(error.message || 'Failed to raise dispute');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -98,9 +175,28 @@ export const EscrowTransactions = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Escrow Transactions</h1>
-        <p className="text-muted-foreground">Track your secure property transactions</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Escrow Transactions</h1>
+          <p className="text-muted-foreground">Track your secure property transactions</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending_payment">Pending Payment</SelectItem>
+              <SelectItem value="funded">Funded</SelectItem>
+              <SelectItem value="inspection_period">Inspection Period</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="disputed">Disputed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {transactions.length === 0 ? (
@@ -117,7 +213,7 @@ export const EscrowTransactions = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {transactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <Card key={transaction.id} className="card-glow">
               <CardHeader>
                 <div className="flex items-start gap-4">
@@ -139,6 +235,14 @@ export const EscrowTransactions = () => {
                     <p className="text-sm text-muted-foreground">
                       {transaction.property?.address}
                     </p>
+                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                      <div>
+                        <span className="font-medium">Buyer:</span> {transaction.buyer_profile?.full_name || 'Unknown'}
+                      </div>
+                      <div>
+                        <span className="font-medium">Seller:</span> {transaction.seller_profile?.full_name || 'Unknown'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -241,7 +345,7 @@ export const EscrowTransactions = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   {transaction.status === 'pending_payment' && transaction.buyer_id === currentUserId && (
                     <Button 
                       variant="hero" 
@@ -253,19 +357,32 @@ export const EscrowTransactions = () => {
                     </Button>
                   )}
                   {(transaction.status === 'inspection_period' || transaction.status === 'funded') && transaction.buyer_id === currentUserId && (
-                    <Button 
-                      variant="hero" 
-                      className="flex-1 gap-2"
-                      onClick={() => handleConfirmTransaction(transaction.id)}
-                      disabled={confirming}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {confirming ? 'Confirming...' : 'Confirm Transaction'}
-                    </Button>
+                    <>
+                      <Button 
+                        variant="hero" 
+                        className="flex-1 gap-2"
+                        onClick={() => handleConfirmTransaction(transaction.id)}
+                        disabled={confirming}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        {confirming ? 'Confirming...' : 'Confirm Transaction'}
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          setSelectedTransaction(transaction);
+                          setShowDispute(true);
+                        }}
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        Raise Dispute
+                      </Button>
+                    </>
                   )}
                   <Button 
                     variant="outline" 
-                    className="flex-1 gap-2"
+                    className="gap-2"
                     onClick={() => {
                       setSelectedTransaction(transaction);
                       setShowBreakdown(true);
@@ -273,6 +390,17 @@ export const EscrowTransactions = () => {
                   >
                     <Eye className="h-4 w-4" />
                     View Breakdown
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2"
+                    onClick={() => {
+                      setSelectedTransaction(transaction);
+                      loadTransactionHistory(transaction.id);
+                    }}
+                  >
+                    <History className="h-4 w-4" />
+                    History
                   </Button>
                 </div>
               </CardContent>
@@ -380,6 +508,132 @@ export const EscrowTransactions = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transaction History</DialogTitle>
+            <DialogDescription>
+              Complete timeline of events for this escrow transaction
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTransaction && (
+            <div className="space-y-4">
+              {/* Property Header */}
+              <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
+                {selectedTransaction.property?.images && selectedTransaction.property.images.length > 0 && (
+                  <img
+                    src={selectedTransaction.property.images[0]}
+                    alt={selectedTransaction.property.title}
+                    className="w-20 h-20 rounded-lg object-cover border-2 border-border"
+                  />
+                )}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg mb-1">
+                    {selectedTransaction.property?.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Transaction ID: {selectedTransaction.id.substring(0, 8)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground">Timeline</h4>
+                {historyLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No history available yet
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {historyLogs.map((log, index) => (
+                      <div key={log.id} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-3 h-3 rounded-full ${
+                            index === 0 ? 'bg-primary' : 'bg-muted-foreground'
+                          }`} />
+                          {index < historyLogs.length - 1 && (
+                            <div className="w-0.5 h-full bg-border mt-1" />
+                          )}
+                        </div>
+                        <div className="flex-1 pb-4">
+                          <div className="flex items-start justify-between mb-1">
+                            <p className="font-medium text-sm">{log.action}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(log.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          {log.actor && (
+                            <p className="text-xs text-muted-foreground mb-1">
+                              By: {log.actor.full_name}
+                            </p>
+                          )}
+                          {log.reason && (
+                            <p className="text-sm text-muted-foreground">
+                              Reason: {log.reason}
+                            </p>
+                          )}
+                          {log.before_state && log.after_state && (
+                            <div className="mt-2 p-2 bg-muted rounded text-xs">
+                              <p className="text-muted-foreground">
+                                Status changed: {log.before_state.status} → {log.after_state.status}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Dialog */}
+      <Dialog open={showDispute} onOpenChange={setShowDispute}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Raise a Dispute</DialogTitle>
+            <DialogDescription>
+              Describe the issue with this transaction. An admin will review your case.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="reason">Dispute Reason</Label>
+              <Textarea
+                id="reason"
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="Brief reason for dispute..."
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Detailed Description</Label>
+              <Textarea
+                id="description"
+                value={disputeDescription}
+                onChange={(e) => setDisputeDescription(e.target.value)}
+                placeholder="Provide detailed information about the issue..."
+                className="mt-2 min-h-32"
+              />
+            </div>
+            <Button
+              onClick={raiseDispute}
+              disabled={submitting}
+              className="w-full"
+            >
+              {submitting ? 'Submitting...' : 'Submit Dispute'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
