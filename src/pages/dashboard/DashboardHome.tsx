@@ -28,6 +28,7 @@ export const DashboardHome = () => {
   });
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -38,19 +39,23 @@ export const DashboardHome = () => {
     if (!user) return;
 
     // Load only summary data first
-    const [profileData, listingsCount, offersCount, savedCount] = await Promise.all([
+    const [profileData, listingsCount, activeOffersCount, savedCount, kycData] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).eq('buyer_id', user.id),
+      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true })
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+        .eq('offer_status', 'pending'),
       supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
     ]);
 
     setProfile(profileData.data);
+    setIsVerified(!!kycData.data);
     setStats({
       savedProperties: savedCount.count || 0,
       myListings: listingsCount.count || 0,
-      offers: offersCount.count || 0,
-      escrow: offersCount.count || 0,
+      offers: activeOffersCount.count || 0,
+      escrow: activeOffersCount.count || 0,
     });
 
     // Load analytics lazily
@@ -122,9 +127,17 @@ export const DashboardHome = () => {
       {/* Welcome Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-purple to-accent-purple-light p-8 text-white shadow-xl">
         <div className="relative z-10">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Welcome back, {profile?.full_name || 'User'}! 👋
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold">
+              Welcome back, {profile?.full_name || 'User'}! 👋
+            </h1>
+            {isVerified && (
+              <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                <CheckCircle className="h-5 w-5 text-blue-300" />
+                <span className="text-sm font-medium">Verified</span>
+              </div>
+            )}
+          </div>
           <p className="text-white/90 text-lg">
             Here's what's happening with your properties today
           </p>
@@ -226,37 +239,6 @@ export const DashboardHome = () => {
                 </Button>
               </Link>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Document Verification Status */}
-      <Card className="card-glow">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            Document Verification Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-green-50 border border-green-200">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="font-medium text-green-900">Identity Verified</span>
-              </div>
-              <span className="text-sm text-green-700">Completed</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-yellow-600" />
-                <span className="font-medium text-yellow-900">Property Documents</span>
-              </div>
-              <Link to="/dashboard/documents">
-                <Button variant="outline" size="sm">Review</Button>
-              </Link>
-            </div>
           </div>
         </CardContent>
       </Card>

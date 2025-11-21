@@ -32,6 +32,7 @@ export const OffersNegotiations = () => {
         seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
       `)
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+      .eq('offer_status', 'pending')
       .order('created_at', { ascending: false });
 
     setOffers(data || []);
