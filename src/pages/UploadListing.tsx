@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -80,17 +80,6 @@ export const UploadListing = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   
-  // Determine which steps to show based on listing type
-  const getActiveSteps = () => {
-    if (formData.listingType === 'sale') {
-      return ALL_STEPS;
-    }
-    // Skip documents step for non-sale listings
-    return ALL_STEPS.filter(step => !step.skipForNonSale);
-  };
-  
-  const STEPS = getActiveSteps();
-  
   const [formData, setFormData] = useState<UploadFormData>({
     propertyType: '',
     otherPropertyType: '',
@@ -132,6 +121,15 @@ export const UploadListing = () => {
   const [images, setImages] = useState<File[]>([]);
   const [documents, setDocuments] = useState<{ type: string; file: File }[]>([]);
   const [hasReceipt, setHasReceipt] = useState(false);
+
+  // Compute steps based on listing type
+  const STEPS = useMemo(() => {
+    if (formData.listingType === 'sale') {
+      return ALL_STEPS;
+    }
+    // Skip documents step for non-sale listings
+    return ALL_STEPS.filter(step => !step.skipForNonSale);
+  }, [formData.listingType]);
 
   useEffect(() => {
     const checkAuth = async () => {
