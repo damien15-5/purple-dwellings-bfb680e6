@@ -344,6 +344,15 @@ export const EscrowTransactions = () => {
                   </div>
                 </div>
 
+                {(transaction.status === 'inspection_period' || transaction.status === 'funded') && transaction.buyer_id === currentUserId && (
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-amber-600 flex items-center gap-1.5 px-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Only confirm if Property have been released to you and documents signed
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-3 flex-wrap">
                   {transaction.status === 'pending_payment' && transaction.buyer_id === currentUserId && (
                     <Button 
@@ -356,23 +365,19 @@ export const EscrowTransactions = () => {
                     </Button>
                   )}
                   {(transaction.status === 'inspection_period' || transaction.status === 'funded') && transaction.buyer_id === currentUserId && (
-                    <div className="flex-1 space-y-2">
+                    <>
                       <Button 
                         variant="hero" 
-                        className="w-full gap-2"
+                        className="flex-1 gap-2"
                         onClick={() => handleConfirmTransaction(transaction.id)}
                         disabled={confirming}
                       >
                         <CheckCircle className="h-4 w-4" />
                         {confirming ? 'Processing...' : 'Release Payment to Recipient'}
                       </Button>
-                      <p className="text-xs text-amber-600 flex items-center gap-1 px-2">
-                        <AlertTriangle className="h-3 w-3" />
-                        Only confirm if house has been received
-                      </p>
                       <Button 
                         variant="destructive" 
-                        className="w-full gap-2"
+                        className="flex-1 gap-2"
                         onClick={() => {
                           setSelectedTransaction(transaction);
                           setShowDispute(true);
@@ -381,7 +386,7 @@ export const EscrowTransactions = () => {
                         <AlertTriangle className="h-4 w-4" />
                         Raise Dispute
                       </Button>
-                    </div>
+                    </>
                   )}
                   <Button 
                     variant="outline" 
