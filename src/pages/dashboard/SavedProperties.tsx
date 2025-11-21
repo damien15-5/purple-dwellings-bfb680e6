@@ -16,59 +16,91 @@ export const SavedProperties = () => {
   }, []);
 
   const loadSavedProperties = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // For non-logged in users, load from localStorage only
+        const localSaved = await loadFromLocalStorage();
+        setSavedProperties(localSaved);
+        setLoading(false);
+        return;
+      }
+
+      // Load from database first (faster)
+      const { data } = await supabase
+        .from('saved_properties')
+        .select(`
+          id,
+          created_at,
+          property:properties(
+            id,
+            title,
+            address,
+            price,
+            images
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      setSavedProperties(data || []);
+      setLoading(false);
+
+      // Sync localStorage in background
+      syncLocalStorage(user.id);
+    } catch (error) {
+      console.error('Error loading saved properties:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadFromLocalStorage = async () => {
+    const saved: any[] = [];
+    const propertyIds: string[] = [];
     
-    // Load from localStorage
-    const localSaved: any[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key?.startsWith('saved_')) {
-        const propertyId = key.replace('saved_', '');
-        const { data: property } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('id', propertyId)
-          .eq('status', 'published')
-          .maybeSingle();
-        
-        if (property) {
-          localSaved.push({
-            id: key,
-            property,
-            created_at: new Date().toISOString()
-          });
-        }
+        propertyIds.push(key.replace('saved_', ''));
       }
     }
 
-    if (!user) {
-      setSavedProperties(localSaved);
-      setLoading(false);
-      return;
-    }
+    if (propertyIds.length === 0) return [];
 
-    // Load from database if logged in
     const { data } = await supabase
-      .from('saved_properties')
-      .select(`
-        *,
-        property:properties(*)
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .from('properties')
+      .select('id, title, address, price, images')
+      .in('id', propertyIds)
+      .eq('status', 'published');
 
-    // Combine and deduplicate
-    const dbSaved = data || [];
-    const combined = [...dbSaved];
+    return (data || []).map(property => ({
+      id: `saved_${property.id}`,
+      property,
+      created_at: new Date().toISOString()
+    }));
+  };
+
+  const syncLocalStorage = async (userId: string) => {
+    const propertyIds: string[] = [];
     
-    localSaved.forEach(local => {
-      if (!combined.find(db => db.property?.id === local.property?.id)) {
-        combined.push(local);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('saved_')) {
+        propertyIds.push(key.replace('saved_', ''));
       }
-    });
+    }
 
-    setSavedProperties(combined);
-    setLoading(false);
+    if (propertyIds.length > 0) {
+      // Insert saved properties from localStorage to database
+      await supabase
+        .from('saved_properties')
+        .upsert(
+          propertyIds.map(id => ({ user_id: userId, property_id: id })),
+          { onConflict: 'user_id,property_id', ignoreDuplicates: true }
+        );
+    }
   };
 
   const handleRemove = async (savedId: string, propertyId?: string) => {

@@ -35,41 +35,52 @@ export const DashboardHome = () => {
   }, []);
 
   const loadDashboardData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Load only summary data first
-    const [profileData, listingsCount, activeOffersCount, savedCount, kycData] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true })
-        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-        .eq('offer_status', 'pending'),
-      supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
-    ]);
+      // Load profile and verification first (most important)
+      const [profileData, kycData] = await Promise.all([
+        supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
+        supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
+      ]);
 
-    setProfile(profileData.data);
-    setIsVerified(!!kycData.data);
-    setStats({
-      savedProperties: savedCount.count || 0,
-      myListings: listingsCount.count || 0,
-      offers: activeOffersCount.count || 0,
-      escrow: activeOffersCount.count || 0,
-    });
+      setProfile(profileData.data);
+      setIsVerified(!!kycData.data);
+      setLoading(false);
 
-    // Load analytics lazily
-    setTimeout(async () => {
-      const { data: analyticsData } = await supabase
-        .from('user_analytics')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Load counts in background (non-blocking)
+      Promise.all([
+        supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('escrow_transactions').select('id', { count: 'exact', head: true })
+          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+          .eq('offer_status', 'pending'),
+        supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      ]).then(([listingsCount, activeOffersCount, savedCount]) => {
+        setStats({
+          savedProperties: savedCount.count || 0,
+          myListings: listingsCount.count || 0,
+          offers: activeOffersCount.count || 0,
+          escrow: activeOffersCount.count || 0,
+        });
+      });
 
-      setAnalytics(analyticsData);
-    }, 100);
+      // Load analytics lazily (lowest priority)
+      setTimeout(async () => {
+        const { data: analyticsData } = await supabase
+          .from('user_analytics')
+          .select('total_views, total_sales, total_revenue')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-    setLoading(false);
+        if (analyticsData) {
+          setAnalytics(analyticsData);
+        }
+      }, 300);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+      setLoading(false);
+    }
   };
 
   if (loading) {
