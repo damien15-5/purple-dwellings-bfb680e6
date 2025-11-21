@@ -53,6 +53,8 @@ export const Navigation = () => {
   const navLinks = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/browse', label: 'Properties', icon: null },
+    { to: '/upload-listing', label: 'Upload Listing', icon: null },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/dashboard/chats', label: 'Messages', icon: MessageSquare },
     { to: '/about', label: 'About Us', icon: null },
     { to: '/contact', label: 'Contact', icon: null },
