@@ -66,12 +66,12 @@ export type UploadFormData = {
   landSize?: string;
 };
 
-const STEPS = [
-  { id: 1, name: 'Basic Details', icon: '📝' },
-  { id: 2, name: 'Amenities', icon: '✨' },
-  { id: 3, name: 'Images', icon: '📷' },
-  { id: 4, name: 'Documents', icon: '📄' },
-  { id: 5, name: 'Review', icon: '👀' },
+const ALL_STEPS = [
+  { id: 1, name: 'Basic Details', icon: '📝', required: true },
+  { id: 2, name: 'Amenities', icon: '✨', required: true },
+  { id: 3, name: 'Images', icon: '📷', required: true },
+  { id: 4, name: 'Documents', icon: '📄', required: false, skipForNonSale: true },
+  { id: 5, name: 'Review', icon: '👀', required: true },
 ];
 
 export const UploadListing = () => {
@@ -79,6 +79,17 @@ export const UploadListing = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Determine which steps to show based on listing type
+  const getActiveSteps = () => {
+    if (formData.listingType === 'sale') {
+      return ALL_STEPS;
+    }
+    // Skip documents step for non-sale listings
+    return ALL_STEPS.filter(step => !step.skipForNonSale);
+  };
+  
+  const STEPS = getActiveSteps();
   
   const [formData, setFormData] = useState<UploadFormData>({
     propertyType: '',
@@ -163,8 +174,8 @@ export const UploadListing = () => {
       }
     }
     
-    if (currentStep === 4) {
-      // Require at least 3 documents total
+    if (currentStep === 4 && formData.listingType === 'sale') {
+      // Documents step only required for sale listings
       if (documents.length < 3) {
         toast.error('Please upload at least 3 documents');
         return;
@@ -177,7 +188,7 @@ export const UploadListing = () => {
       }
     }
     
-    setCurrentStep(prev => Math.min(prev + 1, 5));
+    setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   };
 
   const handleBack = () => {
@@ -222,27 +233,30 @@ export const UploadListing = () => {
 
       const imageUrls = await Promise.all(imageUploads);
 
-      // Upload documents in parallel
-      const documentUploads = documents.map(async (doc) => {
-        const fileName = `${userId}/docs/${Date.now()}_${Math.random()}_${doc.file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(fileName, doc.file);
+      // Upload documents in parallel (only for sale listings)
+      let documentData: any[] = [];
+      if (formData.listingType === 'sale' && documents.length > 0) {
+        const documentUploads = documents.map(async (doc) => {
+          const fileName = `${userId}/docs/${Date.now()}_${Math.random()}_${doc.file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(fileName, doc.file);
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(fileName);
+          const { data: { publicUrl } } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(fileName);
 
-        return {
-          type: doc.type,
-          url: publicUrl,
-          name: doc.file.name,
-        };
-      });
+          return {
+            type: doc.type,
+            url: publicUrl,
+            name: doc.file.name,
+          };
+        });
 
-      const documentData = await Promise.all(documentUploads);
+        documentData = await Promise.all(documentUploads);
+      }
 
       // Insert property
       const { error: insertError } = await supabase
@@ -387,7 +401,7 @@ export const UploadListing = () => {
             />
           )}
           
-          {currentStep === 4 && (
+          {currentStep === 4 && formData.listingType === 'sale' && (
             <DocumentsUploadStep 
               documents={documents} 
               setDocuments={setDocuments}
@@ -397,7 +411,7 @@ export const UploadListing = () => {
             />
           )}
           
-          {currentStep === 5 && (
+          {((currentStep === 5 && formData.listingType === 'sale') || (currentStep === 4 && formData.listingType !== 'sale')) && (
             <ReviewStep 
               formData={formData} 
               images={images}
@@ -422,7 +436,7 @@ export const UploadListing = () => {
             Step {currentStep} of {STEPS.length}
           </div>
 
-          {currentStep < 5 ? (
+          {currentStep < STEPS.length ? (
             <Button 
               onClick={handleNext} 
               disabled={uploading} 
