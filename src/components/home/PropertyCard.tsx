@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useState, useRef, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type PropertyCardProps = {
   id: string;
@@ -38,6 +40,7 @@ export const PropertyCard = ({
   const [isIntersecting, setIsIntersecting] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -56,6 +59,58 @@ export const PropertyCard = ({
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const checkSaved = async () => {
+      const localKey = `saved_${id}`;
+      if (localStorage.getItem(localKey)) {
+        setIsSaved(true);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('saved_properties')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('property_id', id)
+          .maybeSingle();
+        
+        if (data) setIsSaved(true);
+      }
+    };
+    checkSaved();
+  }, [id]);
+
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const localKey = `saved_${id}`;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (isSaved) {
+      localStorage.removeItem(localKey);
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('property_id', id);
+      }
+      setIsSaved(false);
+      toast({ description: 'Removed from saved properties' });
+    } else {
+      localStorage.setItem(localKey, 'true');
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .insert({ user_id: user.id, property_id: id });
+      }
+      setIsSaved(true);
+      toast({ description: 'Added to saved properties' });
+    }
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -122,10 +177,7 @@ export const PropertyCard = ({
         )}
 
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsSaved(!isSaved);
-          }}
+          onClick={handleToggleSave}
           className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-all hover:scale-110 shadow-sm z-10"
         >
           <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
