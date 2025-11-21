@@ -27,6 +27,11 @@ export const DashboardHome = () => {
     offers: 0,
     escrow: 0,
   });
+  const [financialStats, setFinancialStats] = useState({
+    totalTransactionsMade: 0,
+    totalSpentBuying: 0,
+    amountOnEscrow: 0,
+  });
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,6 +60,23 @@ export const DashboardHome = () => {
       myListings: listingsCount.count || 0,
       offers: activeOffersCount.count || 0,
       escrow: escrowCount.count || 0,
+    });
+
+    // Load financial stats
+    const [completedAsSeller, completedAsBuyer, activeEscrow] = await Promise.all([
+      supabase.from('escrow_transactions').select('total_amount').eq('seller_id', user.id).eq('status', 'completed'),
+      supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).eq('status', 'completed'),
+      supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).in('status', ['funded', 'inspection_period']),
+    ]);
+
+    const totalTransactionsMade = completedAsSeller.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+    const totalSpentBuying = completedAsBuyer.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+    const amountOnEscrow = activeEscrow.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+
+    setFinancialStats({
+      totalTransactionsMade,
+      totalSpentBuying,
+      amountOnEscrow,
     });
 
     // Load analytics lazily
@@ -166,6 +188,54 @@ export const DashboardHome = () => {
             </Card>
           </Link>
         ))}
+      </div>
+
+      {/* Financial Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="card-glow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              Total Transactions Made
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">
+              ₦{financialStats.totalTransactionsMade.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">From properties sold</p>
+          </CardContent>
+        </Card>
+
+        <Card className="card-glow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-blue-500" />
+              Total Spent Buying
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">
+              ₦{financialStats.totalSpentBuying.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">On purchased properties</p>
+          </CardContent>
+        </Card>
+
+        <Card className="card-glow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Lock className="h-4 w-4 text-purple-500" />
+              Amount on Escrow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">
+              ₦{financialStats.amountOnEscrow.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Active escrow funds</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Analytics Section */}

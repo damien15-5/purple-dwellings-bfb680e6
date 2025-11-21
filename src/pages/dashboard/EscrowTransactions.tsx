@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, CreditCard, Clock, CheckCircle, XCircle, Eye, AlertTriangle, History, Filter } from 'lucide-react';
+import { Lock, CreditCard, Clock, CheckCircle, XCircle, Eye, AlertTriangle, Filter, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -19,9 +19,7 @@ export const EscrowTransactions = () => {
   const [confirming, setConfirming] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
-  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -89,23 +87,24 @@ export const EscrowTransactions = () => {
     navigate(`/start-escrow/${propertyId}?escrowId=${escrowId}`);
   };
 
-  const loadTransactionHistory = async (escrowId: string) => {
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select(`
-          *,
-          actor:profiles(full_name)
-        `)
-        .eq('escrow_id', escrowId)
-        .order('created_at', { ascending: false });
+      const { error } = await supabase
+        .from('escrow_transactions')
+        .delete()
+        .eq('id', transactionId);
 
       if (error) throw error;
-      setHistoryLogs(data || []);
-      setShowHistory(true);
+
+      toast.success('Transaction deleted successfully');
+      loadTransactions();
     } catch (error: any) {
-      console.error('Error loading history:', error);
-      toast.error('Failed to load transaction history');
+      console.error('Error deleting transaction:', error);
+      toast.error('Failed to delete transaction');
     }
   };
 
@@ -357,19 +356,23 @@ export const EscrowTransactions = () => {
                     </Button>
                   )}
                   {(transaction.status === 'inspection_period' || transaction.status === 'funded') && transaction.buyer_id === currentUserId && (
-                    <>
+                    <div className="flex-1 space-y-2">
                       <Button 
                         variant="hero" 
-                        className="flex-1 gap-2"
+                        className="w-full gap-2"
                         onClick={() => handleConfirmTransaction(transaction.id)}
                         disabled={confirming}
                       >
                         <CheckCircle className="h-4 w-4" />
-                        {confirming ? 'Confirming...' : 'Confirm Transaction'}
+                        {confirming ? 'Processing...' : 'Release Payment to Recipient'}
                       </Button>
+                      <p className="text-xs text-amber-600 flex items-center gap-1 px-2">
+                        <AlertTriangle className="h-3 w-3" />
+                        Only confirm if house has been received
+                      </p>
                       <Button 
                         variant="destructive" 
-                        className="flex-1 gap-2"
+                        className="w-full gap-2"
                         onClick={() => {
                           setSelectedTransaction(transaction);
                           setShowDispute(true);
@@ -378,7 +381,7 @@ export const EscrowTransactions = () => {
                         <AlertTriangle className="h-4 w-4" />
                         Raise Dispute
                       </Button>
-                    </>
+                    </div>
                   )}
                   <Button 
                     variant="outline" 
@@ -391,17 +394,16 @@ export const EscrowTransactions = () => {
                     <Eye className="h-4 w-4" />
                     View Breakdown
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => {
-                      setSelectedTransaction(transaction);
-                      loadTransactionHistory(transaction.id);
-                    }}
-                  >
-                    <History className="h-4 w-4" />
-                    History
-                  </Button>
+                  {transaction.status !== 'completed' && (
+                    <Button 
+                      variant="destructive" 
+                      className="gap-2"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -506,91 +508,6 @@ export const EscrowTransactions = () => {
                   <p className="text-sm">{selectedTransaction.terms}</p>
                 </div>
               )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* History Dialog */}
-      <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Transaction History</DialogTitle>
-            <DialogDescription>
-              Complete timeline of events for this escrow transaction
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedTransaction && (
-            <div className="space-y-4">
-              {/* Property Header */}
-              <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
-                {selectedTransaction.property?.images && selectedTransaction.property.images.length > 0 && (
-                  <img
-                    src={selectedTransaction.property.images[0]}
-                    alt={selectedTransaction.property.title}
-                    className="w-20 h-20 rounded-lg object-cover border-2 border-border"
-                  />
-                )}
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">
-                    {selectedTransaction.property?.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Transaction ID: {selectedTransaction.id.substring(0, 8)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="space-y-4">
-                <h4 className="font-semibold text-sm text-muted-foreground">Timeline</h4>
-                {historyLogs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No history available yet
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {historyLogs.map((log, index) => (
-                      <div key={log.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className={`w-3 h-3 rounded-full ${
-                            index === 0 ? 'bg-primary' : 'bg-muted-foreground'
-                          }`} />
-                          {index < historyLogs.length - 1 && (
-                            <div className="w-0.5 h-full bg-border mt-1" />
-                          )}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <div className="flex items-start justify-between mb-1">
-                            <p className="font-medium text-sm">{log.action}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(log.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                          {log.actor && (
-                            <p className="text-xs text-muted-foreground mb-1">
-                              By: {log.actor.full_name}
-                            </p>
-                          )}
-                          {log.reason && (
-                            <p className="text-sm text-muted-foreground">
-                              Reason: {log.reason}
-                            </p>
-                          )}
-                          {log.before_state && log.after_state && (
-                            <div className="mt-2 p-2 bg-muted rounded text-xs">
-                              <p className="text-muted-foreground">
-                                Status changed: {log.before_state.status} → {log.after_state.status}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           )}
         </DialogContent>
