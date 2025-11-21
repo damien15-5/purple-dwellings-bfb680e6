@@ -37,46 +37,50 @@ export const DashboardHome = () => {
   const loadDashboardData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-      // Load profile and verification first (most important)
-      const [profileData, kycData] = await Promise.all([
+      // Load all essential data together with proper error handling
+      const [profileData, kycData, listingsCount, activeOffersCount, savedCount, analyticsData] = await Promise.allSettled([
         supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
         supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
-      ]);
-
-      setProfile(profileData.data);
-      setIsVerified(!!kycData.data);
-      setLoading(false);
-
-      // Load counts in background (non-blocking)
-      Promise.all([
         supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('escrow_transactions').select('id', { count: 'exact', head: true })
           .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
           .eq('offer_status', 'pending'),
         supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      ]).then(([listingsCount, activeOffersCount, savedCount]) => {
-        setStats({
-          savedProperties: savedCount.count || 0,
-          myListings: listingsCount.count || 0,
-          offers: activeOffersCount.count || 0,
-          escrow: activeOffersCount.count || 0,
-        });
-      });
-
-      // Load analytics lazily (lowest priority)
-      setTimeout(async () => {
-        const { data: analyticsData } = await supabase
-          .from('user_analytics')
+        supabase.from('user_analytics')
           .select('total_views, total_sales, total_revenue')
           .eq('user_id', user.id)
-          .maybeSingle();
+          .maybeSingle()
+      ]);
 
-        if (analyticsData) {
-          setAnalytics(analyticsData);
-        }
-      }, 300);
+      // Set profile data
+      if (profileData.status === 'fulfilled' && profileData.value.data) {
+        setProfile(profileData.value.data);
+      }
+
+      // Set verification status
+      if (kycData.status === 'fulfilled') {
+        setIsVerified(!!kycData.value.data);
+      }
+
+      // Set stats
+      setStats({
+        savedProperties: savedCount.status === 'fulfilled' ? (savedCount.value.count || 0) : 0,
+        myListings: listingsCount.status === 'fulfilled' ? (listingsCount.value.count || 0) : 0,
+        offers: activeOffersCount.status === 'fulfilled' ? (activeOffersCount.value.count || 0) : 0,
+        escrow: activeOffersCount.status === 'fulfilled' ? (activeOffersCount.value.count || 0) : 0,
+      });
+
+      // Set analytics
+      if (analyticsData.status === 'fulfilled' && analyticsData.value.data) {
+        setAnalytics(analyticsData.value.data);
+      }
+
+      setLoading(false);
     } catch (error) {
       console.error('Error loading dashboard:', error);
       setLoading(false);
