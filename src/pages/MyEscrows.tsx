@@ -51,9 +51,7 @@ export const MyEscrows = () => {
         .from('escrow_transactions' as any)
         .select(`
           *,
-          properties(title, address, images),
-          buyer:buyer_id(full_name),
-          seller:seller_id(full_name)
+          properties(title, address, images)
         `)
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
