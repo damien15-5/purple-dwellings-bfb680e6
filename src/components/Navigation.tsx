@@ -52,14 +52,7 @@ export const Navigation = () => {
 
   const navLinks = [
     { to: '/', label: 'Home', icon: Home },
-    { to: '/browse?type=house', label: 'Houses', icon: null },
-    { to: '/browse?type=land', label: 'Lands', icon: null },
-    { to: '/browse?type=shop', label: 'Shops', icon: null },
-    { to: '/browse?type=apartment', label: 'Apartments', icon: null },
-    { to: '/browse?type=rental', label: 'Rentals', icon: null },
-    { to: '/browse?type=villa', label: 'Villas', icon: null },
-    { to: '/browse?type=office', label: 'Offices', icon: null },
-    { to: '/browse?type=warehouse', label: 'Warehouses', icon: null },
+    { to: '/browse', label: 'Properties', icon: null },
     { to: '/dashboard/chats', label: 'Messages', icon: MessageSquare },
     { to: '/about', label: 'About Us', icon: null },
     { to: '/contact', label: 'Contact', icon: null },
