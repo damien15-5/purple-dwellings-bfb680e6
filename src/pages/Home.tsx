@@ -49,6 +49,15 @@ export const Home = () => {
   useEffect(() => {
     fetchProperties();
     detectUserLocation();
+
+    // Safety timeout so the page never stays stuck on loading
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, []);
 
   const detectUserLocation = async () => {
