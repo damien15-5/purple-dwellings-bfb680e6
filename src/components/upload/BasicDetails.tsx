@@ -18,9 +18,15 @@ const LISTING_TYPES = [
   { value: 'lease', label: 'Lease' },
   { value: 'joint-venture', label: 'Joint Venture' },
   { value: 'co-living', label: 'Co-living' },
-  { value: 'airbnb', label: 'AirBnB-type listing' },
-  { value: 'off-plan', label: 'Off-plan property' },
   { value: 'distress-sale', label: 'Distress sale' },
+];
+
+const NIGERIAN_STATES = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
+  'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe',
+  'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara',
+  'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau',
+  'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
 ];
 
 type Props = {
@@ -85,12 +91,16 @@ export const BasicDetails = ({ formData, updateFormData }: Props) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Label htmlFor="state">State *</Label>
-          <Input
-            id="state"
-            value={formData.state}
-            onChange={(e) => updateFormData({ state: e.target.value })}
-            placeholder="e.g., Lagos"
-          />
+          <Select value={formData.state} onValueChange={(value) => updateFormData({ state: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select state" />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              {NIGERIAN_STATES.map(state => (
+                <SelectItem key={state} value={state}>{state}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

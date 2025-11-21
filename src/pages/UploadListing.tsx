@@ -166,7 +166,8 @@ export const UploadListing = () => {
     }
     
     if (currentStep === 3) {
-      if (images.length < 3) {
+      const imageCount = images.filter(f => f.type.startsWith('image/')).length;
+      if (imageCount < 3) {
         toast.error('Please upload at least 3 images');
         return;
       }
