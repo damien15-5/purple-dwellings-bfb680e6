@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Property } from '@/types/property';
 import { MapPin, Heart } from 'lucide-react';
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface PropertyCardProps {
   property: Property;
@@ -9,6 +11,61 @@ interface PropertyCardProps {
 
 export const PropertyCard = memo(({ property }: PropertyCardProps) => {
   const [isFavorite, setIsFavorite] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const checkSaved = async () => {
+      const localKey = `saved_${String(property.id)}`;
+      if (localStorage.getItem(localKey)) {
+        setIsFavorite(true);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('saved_properties')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('property_id', String(property.id))
+          .maybeSingle();
+        
+        if (data) setIsFavorite(true);
+      }
+    };
+    checkSaved();
+  }, [property.id]);
+
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    const localKey = `saved_${String(property.id)}`;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (isFavorite) {
+      // Remove from saved
+      localStorage.removeItem(localKey);
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('property_id', String(property.id));
+      }
+      setIsFavorite(false);
+      toast({ description: 'Removed from saved properties' });
+    } else {
+      // Add to saved
+      localStorage.setItem(localKey, 'true');
+      if (user) {
+        await supabase
+          .from('saved_properties')
+          .insert({ user_id: user.id, property_id: String(property.id) });
+      }
+      setIsFavorite(true);
+      toast({ description: 'Added to saved properties' });
+    }
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -33,10 +90,7 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
             loading="lazy"
           />
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsFavorite(!isFavorite);
-            }}
+            onClick={handleToggleSave}
             className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background hover:scale-110 transition-all z-10"
           >
             <Heart

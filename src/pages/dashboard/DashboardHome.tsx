@@ -20,6 +20,7 @@ import {
 
 export const DashboardHome = () => {
   const [profile, setProfile] = useState<any>(null);
+  const [isVerified, setIsVerified] = useState(false);
   const [stats, setStats] = useState({
     savedProperties: 0,
     myListings: 0,
@@ -37,20 +38,23 @@ export const DashboardHome = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Load only summary data first
-    const [profileData, listingsCount, offersCount, savedCount] = await Promise.all([
+    // Load summary data
+    const [profileData, kycData, listingsCount, activeOffersCount, escrowCount, savedCount] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
       supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).eq('buyer_id', user.id),
+      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`).in('offer_status', ['pending', 'accepted']),
+      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
       supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     ]);
 
     setProfile(profileData.data);
+    setIsVerified(!!kycData.data);
     setStats({
       savedProperties: savedCount.count || 0,
       myListings: listingsCount.count || 0,
-      offers: offersCount.count || 0,
-      escrow: offersCount.count || 0,
+      offers: activeOffersCount.count || 0,
+      escrow: escrowCount.count || 0,
     });
 
     // Load analytics lazily
@@ -122,8 +126,14 @@ export const DashboardHome = () => {
       {/* Welcome Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-purple to-accent-purple-light p-8 text-white shadow-xl">
         <div className="relative z-10">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3 flex-wrap">
             Welcome back, {profile?.full_name || 'User'}! 👋
+            {isVerified && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-sm font-medium">
+                <CheckCircle className="h-4 w-4" />
+                Verified
+              </span>
+            )}
           </h1>
           <p className="text-white/90 text-lg">
             Here's what's happening with your properties today
@@ -230,36 +240,6 @@ export const DashboardHome = () => {
         </CardContent>
       </Card>
 
-      {/* Document Verification Status */}
-      <Card className="card-glow">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            Document Verification Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-green-50 border border-green-200">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="font-medium text-green-900">Identity Verified</span>
-              </div>
-              <span className="text-sm text-green-700">Completed</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-yellow-600" />
-                <span className="font-medium text-yellow-900">Property Documents</span>
-              </div>
-              <Link to="/dashboard/documents">
-                <Button variant="outline" size="sm">Review</Button>
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
