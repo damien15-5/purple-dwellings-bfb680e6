@@ -245,12 +245,24 @@ export const OffersNegotiations = () => {
                   )}
 
                   {isUserBuyer && offer.offer_status === 'accepted' && (
-                    <Link to={`/start-escrow/${offer.property?.id}?escrowId=${offer.id}`} className="block">
-                      <Button variant="hero" className="w-full gap-2">
-                        <ShieldCheck className="h-4 w-4" />
-                        Make Payment
-                      </Button>
-                    </Link>
+                    <>
+                      {offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' ? (
+                        <Button
+                          className="w-full bg-green-600 hover:bg-green-700"
+                          disabled
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Payment Made
+                        </Button>
+                      ) : (
+                        <Link to={`/start-escrow/${offer.property?.id}?escrowId=${offer.id}`} className="block">
+                          <Button variant="hero" className="w-full gap-2">
+                            <ShieldCheck className="h-4 w-4" />
+                            Make Payment
+                          </Button>
+                        </Link>
+                      )}
+                    </>
                   )}
 
                   <Link to={`/property/${offer.property?.id}/chat`}>
