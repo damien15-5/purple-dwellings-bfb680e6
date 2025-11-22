@@ -84,8 +84,8 @@ export const Home = () => {
           bedrooms: p.bedrooms || 0,
           type: p.property_type,
           status: p.status,
-          views: 0,
-          clicks: 0,
+          views: p.views || 0,
+          clicks: p.clicks || 0,
           city: p.city || '',
           state: p.state || '',
           address: p.address || '',
@@ -115,9 +115,30 @@ export const Home = () => {
 
   const handlePropertyView = async (id: string) => {
     try {
-      setAllProperties(prev => 
-        prev.map(p => p.id === id ? { ...p, views: p.views + 1, clicks: p.clicks + 1 } : p)
-      );
+      // Get current view count
+      const { data: property } = await supabase
+        .from('properties')
+        .select('views, clicks')
+        .eq('id', id)
+        .single();
+      
+      if (property) {
+        // Increment views in database
+        const { error } = await supabase
+          .from('properties')
+          .update({ 
+            views: (property.views || 0) + 1,
+            clicks: (property.clicks || 0) + 1
+          })
+          .eq('id', id);
+        
+        if (error) throw error;
+
+        // Update local state
+        setAllProperties(prev => 
+          prev.map(p => p.id === id ? { ...p, views: p.views + 1, clicks: p.clicks + 1 } : p)
+        );
+      }
     } catch (error) {
       console.error('Error tracking view:', error);
     }
