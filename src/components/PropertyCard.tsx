@@ -91,24 +91,24 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
           />
           <button
             onClick={handleToggleSave}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background hover:scale-110 transition-all z-10"
+            className="absolute top-2 right-2 p-1 sm:p-1.5 rounded-full bg-background/80 hover:bg-background hover:scale-110 transition-all z-10"
           >
             <Heart
-              className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'}`}
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'}`}
             />
           </button>
         </div>
         <div className="space-y-0.5">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-sm line-clamp-1">{property.title}</h3>
+            <h3 className="font-semibold text-xs sm:text-sm line-clamp-1">{property.title}</h3>
           </div>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground">
+            <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 flex-shrink-0" />
             <span className="line-clamp-1">{property.location}</span>
           </div>
           <div className="flex items-baseline gap-1 pt-0.5">
-            <span className="font-semibold text-sm">{formatPrice(property.price)}</span>
-            <span className="text-xs text-muted-foreground">total</span>
+            <span className="font-semibold text-xs sm:text-sm">{formatPrice(property.price)}</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground">total</span>
           </div>
         </div>
       </Link>

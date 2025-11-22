@@ -146,40 +146,40 @@ export const DashboardHome = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-purple to-accent-purple-light p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-gradient-to-r from-accent-purple to-accent-purple-light p-4 sm:p-6 md:p-8 text-white shadow-xl">
         <div className="relative z-10">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3 flex-wrap">
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 flex items-center gap-2 md:gap-3 flex-wrap">
             Welcome back, {profile?.full_name || 'User'}! 👋
             {isVerified && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-sm font-medium">
-                <CheckCircle className="h-4 w-4" />
+              <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs sm:text-sm font-medium">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 Verified
               </span>
             )}
           </h1>
-          <p className="text-white/90 text-lg">
+          <p className="text-white/90 text-sm sm:text-base md:text-lg">
             Here's what's happening with your properties today
           </p>
         </div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 sm:w-36 sm:h-36 md:w-48 md:h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statCards.map((stat) => (
           <Link key={stat.title} to={stat.link}>
             <Card className="hover-lift card-glow cursor-pointer group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                <div className={`p-2 sm:p-3 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-foreground">{stat.value}</div>
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   View details
                   <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
@@ -191,16 +191,16 @@ export const DashboardHome = () => {
       </div>
 
       {/* Financial Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <Card className="card-glow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-500" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
               Total Transactions Made
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">
               ₦{financialStats.totalTransactionsMade.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">From properties sold</p>
@@ -208,14 +208,14 @@ export const DashboardHome = () => {
         </Card>
 
         <Card className="card-glow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-blue-500" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
               Total Spent Buying
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">
               ₦{financialStats.totalSpentBuying.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">On purchased properties</p>
@@ -223,14 +223,14 @@ export const DashboardHome = () => {
         </Card>
 
         <Card className="card-glow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Lock className="h-4 w-4 text-purple-500" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
               Amount on Escrow
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">
               ₦{financialStats.amountOnEscrow.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Active escrow funds</p>
@@ -240,16 +240,16 @@ export const DashboardHome = () => {
 
       {/* Analytics Section */}
       {analytics && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           <Card className="card-glow">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Eye className="h-4 w-4 text-blue-500" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
                 Total Views
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">
                 {analytics.total_views || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">All-time property views</p>
@@ -257,14 +257,14 @@ export const DashboardHome = () => {
           </Card>
 
           <Card className="card-glow">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
                 Total Sales
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">
                 {analytics.total_sales || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Successful transactions</p>
@@ -272,14 +272,14 @@ export const DashboardHome = () => {
           </Card>
 
           <Card className="card-glow">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-purple-500" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
+                <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
                 Total Revenue
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">
                 ₦{(analytics.total_revenue || 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Total earnings</p>
@@ -290,19 +290,19 @@ export const DashboardHome = () => {
 
       {/* Quick Actions */}
       <Card className="card-glow">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="p-4 sm:p-6 pt-0">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {quickActions.map((action) => (
               <Link key={action.label} to={action.link}>
                 <Button
                   variant={action.variant}
-                  className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                  className="w-full h-auto py-3 sm:py-4 flex flex-col items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <action.icon className="h-6 w-6" />
-                  <span>{action.label}</span>
+                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+                  <span className="text-center leading-tight">{action.label}</span>
                 </Button>
               </Link>
             ))}

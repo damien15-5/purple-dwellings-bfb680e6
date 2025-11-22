@@ -95,26 +95,26 @@ export const OffersNegotiations = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Offers & Negotiations</h1>
-        <p className="text-muted-foreground">Manage your property offers and negotiations</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Offers & Negotiations</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Manage your property offers and negotiations</p>
       </div>
 
       {offers.length === 0 ? (
         <Card className="card-glow">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Handshake className="h-12 w-12 text-muted-foreground" />
+          <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16 px-4">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Handshake className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Offers Yet</h3>
-            <p className="text-muted-foreground text-center max-w-md">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">No Offers Yet</h3>
+            <p className="text-sm sm:text-base text-muted-foreground text-center max-w-md">
               You don't have any offers or negotiations at the moment
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
           {offers.map((offer) => {
             const isUserBuyer = offer.buyer_id === currentUserId;
             

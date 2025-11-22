@@ -198,7 +198,7 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="relative h-[60vh] overflow-hidden">
+      <section className="relative h-[50vh] md:h-[60vh] overflow-hidden">
         <div className="absolute inset-0">
           <img 
             src={heroImage} 
@@ -209,30 +209,30 @@ export const Home = () => {
         </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center justify-center">
-          <div className="text-center space-y-6 animate-fade-in max-w-5xl">
-            <h1 className="text-5xl md:text-6xl font-bold text-white">
+          <div className="text-center space-y-4 md:space-y-6 animate-fade-in max-w-5xl w-full">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">
               XAVORIAN
             </h1>
 
-            <div className="flex gap-2 bg-white rounded-full p-1.5 shadow-2xl w-[70vw] max-w-6xl mx-auto">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <div className="flex gap-1.5 sm:gap-2 bg-white rounded-full p-1 sm:p-1.5 shadow-2xl w-full max-w-3xl mx-auto">
+              <div className="flex-1 relative min-w-0">
+                <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Search destinations..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-0 h-10 pl-12 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="border-0 h-8 sm:h-9 md:h-10 pl-8 sm:pl-10 md:pl-12 text-xs sm:text-sm md:text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
               
-              <Button className="rounded-full h-10 w-10 p-0 bg-primary hover:bg-primary/90">
-                <Search className="h-5 w-5" />
+              <Button className="rounded-full h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 p-0 bg-primary hover:bg-primary/90 shrink-0">
+                <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
               </Button>
 
               <Popover open={filterOpen} onOpenChange={setFilterOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="rounded-full h-10 w-10 p-0 border-0 hover:bg-muted">
-                    <SlidersHorizontal className="h-5 w-5" />
+                  <Button variant="outline" className="rounded-full h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 p-0 border-0 hover:bg-muted shrink-0">
+                    <SlidersHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[380px] p-4 bg-background" align="end">

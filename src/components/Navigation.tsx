@@ -93,9 +93,9 @@ export const Navigation = () => {
             <img 
               src={xavorianLogo} 
               alt="Xavorian" 
-              className="w-10 h-10 transition-transform group-hover:scale-110"
+              className="w-8 h-8 sm:w-10 sm:h-10 transition-transform group-hover:scale-110"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent hidden sm:inline-block">
+            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent hidden sm:inline-block">
               Xavorian
             </span>
           </Link>
@@ -103,16 +103,16 @@ export const Navigation = () => {
           {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
-                <Menu className="w-6 h-6" />
+              <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10">
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {/* Navigation Links */}
               {navLinks.map((link) => (
                 <Link key={link.to} to={link.to}>
-                  <DropdownMenuItem className="cursor-pointer">
-                    {link.icon && <link.icon className="w-4 h-4 mr-2" />}
+                  <DropdownMenuItem className="cursor-pointer text-sm sm:text-base">
+                    {link.icon && <link.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />}
                     {link.label}
                   </DropdownMenuItem>
                 </Link>
