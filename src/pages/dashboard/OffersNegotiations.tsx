@@ -265,7 +265,7 @@ export const OffersNegotiations = () => {
                     </>
                   )}
 
-                  <Link to={`/property/${offer.property?.id}/chat`}>
+                  <Link to={`/chat/${offer.property?.id}`}>
                     <Button variant="outline" className="w-full gap-2">
                       <MessageSquare className="h-4 w-4" />
                       View Negotiation History
