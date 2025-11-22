@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MyListingCard } from '@/components/MyListingCard';
@@ -10,6 +10,8 @@ export const MyListings = () => {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     fetchUserProperties();
   }, []);
@@ -19,7 +21,7 @@ export const MyListings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
+        navigate('/login');
         return;
       }
 
