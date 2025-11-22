@@ -19,6 +19,7 @@ export const StartEscrow = () => {
   const [submitting, setSubmitting] = useState(false);
   const [property, setProperty] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
+  const [existingEscrow, setExistingEscrow] = useState<any>(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     paymentMethod: 'escrow' as 'escrow' | 'direct',
@@ -26,16 +27,17 @@ export const StartEscrow = () => {
     terms: '',
   });
 
-  // Fee calculations
+  // Fee calculations - use offer_amount if exists, otherwise property price
   const calculateFees = (price: number) => {
     const ataraFee = price * 0.015; // 1.5%
     const platformFee = price > 30000000 ? price * 0.005 : price * 0.01; // 0.5% or 1%
     return { ataraFee, platformFee };
   };
 
-  const fees = property ? calculateFees(property.price) : { ataraFee: 0, platformFee: 0 };
+  const effectivePrice = existingEscrow?.offer_amount || property?.price || 0;
+  const fees = effectivePrice ? calculateFees(effectivePrice) : { ataraFee: 0, platformFee: 0 };
   const totalFees = fees.ataraFee + fees.platformFee;
-  const totalAmount = property ? property.price + totalFees : 0;
+  const totalAmount = effectivePrice + totalFees;
 
   useEffect(() => {
     fetchPropertyDetails();
@@ -44,11 +46,11 @@ export const StartEscrow = () => {
   // If there's an existing escrow, fetch it and redirect to payment
   useEffect(() => {
     if (existingEscrowId && property) {
-      handleExistingEscrow();
+      fetchAndHandleExistingEscrow();
     }
   }, [existingEscrowId, property]);
 
-  const handleExistingEscrow = async () => {
+  const fetchAndHandleExistingEscrow = async () => {
     try {
       const { data: escrow, error } = await supabase
         .from('escrow_transactions')
@@ -57,6 +59,8 @@ export const StartEscrow = () => {
         .single();
 
       if (error) throw error;
+
+      setExistingEscrow(escrow);
 
       // Check payment timing
       if (escrow.payment_timing === 'now' && escrow.status === 'pending_payment') {
@@ -139,7 +143,7 @@ export const StartEscrow = () => {
           property_id: id,
           buyer_id: user.id,
           seller_id: property.user_id,
-          transaction_amount: property.price,
+          transaction_amount: effectivePrice,
           atara_fee: fees.ataraFee,
           platform_fee: fees.platformFee,
           escrow_fee: totalFees,
@@ -300,12 +304,12 @@ export const StartEscrow = () => {
                                       <span className="text-muted-foreground">Atara Pay Fee (1.5%)</span>
                                       <span className="font-medium">₦{fees.ataraFee.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">
-                                        Platform Fee ({property.price > 30000000 ? '0.5%' : '1%'})
-                                      </span>
-                                      <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
-                                    </div>
+                                     <div className="flex justify-between">
+                                       <span className="text-muted-foreground">
+                                         Platform Fee ({effectivePrice > 30000000 ? '0.5%' : '1%'})
+                                       </span>
+                                       <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
+                                     </div>
                                     <div className="flex justify-between pt-2 border-t border-border/50">
                                       <span className="font-semibold">Total Fees</span>
                                       <span className="font-semibold text-primary">₦{totalFees.toLocaleString()}</span>
@@ -351,12 +355,12 @@ export const StartEscrow = () => {
                                         <span className="text-muted-foreground">Paystack Fee (1.5%)</span>
                                         <span className="font-medium">₦{fees.ataraFee.toLocaleString()}</span>
                                       </div>
-                                      <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                          Platform Fee ({property.price > 30000000 ? '0.5%' : '1%'})
-                                        </span>
-                                        <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
-                                      </div>
+                                       <div className="flex justify-between">
+                                         <span className="text-muted-foreground">
+                                           Platform Fee ({effectivePrice > 30000000 ? '0.5%' : '1%'})
+                                         </span>
+                                         <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
+                                       </div>
                                       <div className="flex justify-between pt-2 border-t border-border/50">
                                         <span className="font-semibold">Total Fees</span>
                                         <span className="font-semibold text-primary">₦{totalFees.toLocaleString()}</span>
@@ -495,8 +499,16 @@ export const StartEscrow = () => {
                         </div>
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Property Price</span>
-                          <span className="font-semibold">₦{property.price.toLocaleString()}</span>
+                          <span className="font-semibold">₦{effectivePrice.toLocaleString()}</span>
                         </div>
+                        {existingEscrow?.offer_amount && (
+                          <div className="flex justify-between py-2 bg-green-50 -mx-6 px-6">
+                            <span className="text-sm text-green-700">Negotiated Offer</span>
+                            <span className="text-sm font-semibold text-green-700">
+                              Saved ₦{(property.price - existingEscrow.offer_amount).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Processing Fee</span>
                           <span className="font-semibold">₦{fees.ataraFee.toLocaleString()}</span>
@@ -572,10 +584,23 @@ export const StartEscrow = () => {
                     <span className="text-sm text-muted-foreground">Seller</span>
                     <span className="text-sm font-medium">{seller?.full_name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Property Price</span>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Original Price</span>
                     <span className="text-sm font-bold">₦{property.price.toLocaleString()}</span>
                   </div>
+                  {existingEscrow?.offer_amount && (
+                    <>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-green-600">Negotiated Price</span>
+                        <span className="text-sm font-bold text-green-600">₦{existingEscrow.offer_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="bg-green-50 p-2 rounded-lg border border-green-200">
+                        <p className="text-xs text-green-700 text-center">
+                          You saved ₦{(property.price - existingEscrow.offer_amount).toLocaleString()}!
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
