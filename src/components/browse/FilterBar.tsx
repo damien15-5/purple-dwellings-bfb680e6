@@ -62,7 +62,7 @@ export const FilterBar = ({
 
   const FilterContent = () => (
     <div className="space-y-6">
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label>Price Range</Label>
         <Slider
           value={priceRange}
@@ -74,6 +74,34 @@ export const FilterBar = ({
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>{formatPrice(priceRange[0])}</span>
           <span>{formatPrice(priceRange[1])}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Min Price (₦)</Label>
+            <Input
+              type="number"
+              placeholder="0"
+              value={priceRange[0]}
+              onChange={(e) => {
+                const value = Math.max(0, parseInt(e.target.value) || 0);
+                setPriceRange([value, priceRange[1]]);
+              }}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Max Price (₦)</Label>
+            <Input
+              type="number"
+              placeholder="500000000"
+              value={priceRange[1]}
+              onChange={(e) => {
+                const value = Math.min(500000000, parseInt(e.target.value) || 500000000);
+                setPriceRange([priceRange[0], value]);
+              }}
+              className="h-9"
+            />
+          </div>
         </div>
       </div>
 
