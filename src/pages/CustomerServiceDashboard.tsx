@@ -220,23 +220,23 @@ export const CustomerServiceDashboard = () => {
           <CardHeader>
             <CardTitle>All Tickets</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>User Email</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="min-w-[150px]">Subject</TableHead>
+                  <TableHead className="min-w-[150px]">User Email</TableHead>
+                  <TableHead className="min-w-[100px]">Priority</TableHead>
+                  <TableHead className="min-w-[100px]">Status</TableHead>
+                  <TableHead className="min-w-[100px]">Created</TableHead>
+                  <TableHead className="min-w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tickets.map((ticket) => (
                   <TableRow key={ticket.id}>
-                    <TableCell className="font-medium">{ticket.subject}</TableCell>
-                    <TableCell>{ticket.user_email}</TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">{ticket.subject}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{ticket.user_email}</TableCell>
                     <TableCell>
                       <Badge className={getPriorityColor(ticket.priority)}>
                         {ticket.priority}
@@ -246,11 +246,11 @@ export const CustomerServiceDashboard = () => {
                       <Badge className={getStatusColor(ticket.status)}>
                         <span className="flex items-center gap-1">
                           {getStatusIcon(ticket.status)}
-                          {ticket.status.replace('_', ' ')}
+                          <span className="hidden sm:inline">{ticket.status.replace('_', ' ')}</span>
                         </span>
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs sm:text-sm">
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
@@ -258,7 +258,7 @@ export const CustomerServiceDashboard = () => {
                         value={ticket.status}
                         onValueChange={(value) => updateTicketStatus(ticket.id, value)}
                       >
-                        <SelectTrigger className="w-32">
+                        <SelectTrigger className="w-28 sm:w-32">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -38,6 +38,7 @@ export const Messages = () => {
   const [counterOfferAmount, setCounterOfferAmount] = useState('');
   const [counterOfferMessage, setCounterOfferMessage] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const [escrowStatuses, setEscrowStatuses] = useState<Map<string, any>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -115,6 +116,20 @@ export const Messages = () => {
 
       if (error) throw error;
       if (data) setMessages(data);
+
+      // Load escrow status for this conversation
+      if (selectedConversation?.property_id) {
+        const { data: escrowData } = await supabase
+          .from('escrow_transactions')
+          .select('*')
+          .eq('property_id', selectedConversation.property_id)
+          .or(`buyer_id.eq.${currentUserId},seller_id.eq.${currentUserId}`)
+          .maybeSingle();
+        
+        if (escrowData) {
+          setEscrowStatuses(prev => new Map(prev).set(convId, escrowData));
+        }
+      }
 
       // Mark messages from other person as read
       if (currentUserId) {
@@ -637,67 +652,67 @@ export const Messages = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in pb-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Messages</h1>
-        <p className="text-muted-foreground">Communicate with buyers and sellers</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Messages</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Communicate with buyers and sellers</p>
       </div>
 
       {conversations.length === 0 ? (
         <Card className="card-glow">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
-              <MessageSquare className="h-12 w-12 text-muted-foreground" />
+          <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-full bg-muted flex items-center justify-center mb-4">
+              <MessageSquare className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Messages Yet</h3>
-            <p className="text-muted-foreground text-center max-w-md">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">No Messages Yet</h3>
+            <p className="text-sm sm:text-base text-muted-foreground text-center max-w-md px-4">
               Start a conversation by contacting a property owner or wait for buyers to reach out
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[500px] sm:h-[600px]">
           {/* Conversations List */}
           <Card className="lg:col-span-1 card-glow overflow-hidden">
-            <div className="p-4 border-b border-border">
+            <div className="p-3 sm:p-4 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search conversations..."
-                  className="pl-10"
+                  placeholder="Search..."
+                  className="pl-8 sm:pl-10 text-sm"
                 />
               </div>
             </div>
-            <div className="overflow-y-auto h-[calc(600px-80px)]">
+            <div className="overflow-y-auto h-[calc(500px-64px)] sm:h-[calc(600px-80px)]">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className={`p-4 border-b border-border transition-colors hover:bg-accent ${
+                  className={`p-3 sm:p-4 border-b border-border transition-colors hover:bg-accent ${
                     selectedConversation?.id === conversation.id ? 'bg-accent' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2 sm:gap-3">
                     <div
                       onClick={() => {
                         setSelectedConversation(conversation);
                         loadMessages(conversation.id);
                       }}
-                      className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
+                      className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer"
                     >
                       {conversation.property?.images?.[0] && (
                         <img
                           src={conversation.property.images[0]}
                           alt=""
-                          className="w-12 h-12 rounded object-cover flex-shrink-0"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0"
                         />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <p className="font-medium text-sm truncate">
+                          <p className="font-medium text-xs sm:text-sm truncate">
                             {conversation.property?.title || 'Property'}
                           </p>
                           {(conversation.buyer_unread > 0 || conversation.seller_unread > 0) && (
-                            <Badge className="bg-accent-purple text-white flex-shrink-0">
+                            <Badge className="bg-accent-purple text-white flex-shrink-0 text-xs">
                               {conversation.buyer_unread || conversation.seller_unread}
                             </Badge>
                           )}
@@ -715,14 +730,14 @@ export const Messages = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                       onClick={(e) => {
                         e.stopPropagation();
                         setConversationToDelete(conversation.id);
                         setDeleteDialogOpen(true);
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
@@ -735,21 +750,21 @@ export const Messages = () => {
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-border">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                <div className="p-3 sm:p-4 border-b border-border">
+                  <div className="flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                       {selectedConversation.property?.images?.[0] && (
                         <img
                           src={selectedConversation.property.images[0]}
                           alt=""
-                          className="w-12 h-12 rounded object-cover"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0"
                         />
                       )}
-                      <div>
-                        <p className="font-semibold">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm sm:text-base truncate">
                           {selectedConversation.property?.title}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
                           Contact info available after escrow
                         </p>
                       </div>
@@ -757,17 +772,18 @@ export const Messages = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-2"
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm flex-shrink-0"
                       onClick={() => setOfferDialogOpen(true)}
                     >
-                      <HandshakeIcon className="h-4 w-4" />
-                      Offer / Negotiation
+                      <HandshakeIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Offer / Negotiation</span>
+                      <span className="sm:hidden">Offer</span>
                     </Button>
                   </div>
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-[300px]">
                   {messages.length === 0 ? (
                     <div className="h-full flex items-center justify-center">
                       <p className="text-muted-foreground text-sm">
@@ -784,13 +800,19 @@ export const Messages = () => {
                         onAcceptOffer={handleAcceptOffer}
                         onRejectOffer={handleRejectOffer}
                         onCounterOffer={handleCounterOffer}
+                        isPaidOrConfirmed={
+                          escrowStatuses.get(selectedConversation.id)?.payment_verified_at != null ||
+                          escrowStatuses.get(selectedConversation.id)?.status === 'funded' ||
+                          escrowStatuses.get(selectedConversation.id)?.status === 'inspection_period' ||
+                          escrowStatuses.get(selectedConversation.id)?.status === 'completed'
+                        }
                       />
                     ))
                   )}
                 </div>
 
                 {/* Message Input */}
-                <div className="p-4 border-t border-border">
+                <div className="p-3 sm:p-4 border-t border-border">
                   <div className="flex gap-2">
                     <input
                       ref={fileInputRef}
@@ -808,11 +830,12 @@ export const Messages = () => {
                       size="icon"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
+                      className="h-9 w-9 sm:h-10 sm:w-10"
                     >
-                      <Paperclip className="h-4 w-4" />
+                      <Paperclip className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     <Input
-                      placeholder="Type your message..."
+                      placeholder="Type..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {
@@ -821,13 +844,16 @@ export const Messages = () => {
                           handleSendMessage();
                         }
                       }}
+                      className="text-sm"
                     />
                     <Button
                       variant="hero"
                       onClick={handleSendMessage}
                       disabled={uploading || (!newMessage.trim() && !selectedFile)}
+                      className="h-9 w-9 sm:h-10 sm:w-10"
+                      size="icon"
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
