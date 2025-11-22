@@ -336,6 +336,7 @@ export type Database = {
       }
       escrow_transactions: {
         Row: {
+          atara_fee: number | null
           buyer_confirmed: boolean | null
           buyer_id: string
           cancelled_at: string | null
@@ -350,10 +351,13 @@ export type Database = {
           offer_status: string | null
           pay_later: boolean | null
           pay_later_reminder_sent: boolean | null
+          payment_method: string | null
+          payment_timing: string | null
           payment_verified_at: string | null
           paystack_access_code: string | null
           paystack_reference: string | null
           paystack_verified_at: string | null
+          platform_fee: number | null
           property_id: string | null
           release_reason: string | null
           release_requested_at: string | null
@@ -370,6 +374,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          atara_fee?: number | null
           buyer_confirmed?: boolean | null
           buyer_id: string
           cancelled_at?: string | null
@@ -384,10 +389,13 @@ export type Database = {
           offer_status?: string | null
           pay_later?: boolean | null
           pay_later_reminder_sent?: boolean | null
+          payment_method?: string | null
+          payment_timing?: string | null
           payment_verified_at?: string | null
           paystack_access_code?: string | null
           paystack_reference?: string | null
           paystack_verified_at?: string | null
+          platform_fee?: number | null
           property_id?: string | null
           release_reason?: string | null
           release_requested_at?: string | null
@@ -404,6 +412,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          atara_fee?: number | null
           buyer_confirmed?: boolean | null
           buyer_id?: string
           cancelled_at?: string | null
@@ -418,10 +427,13 @@ export type Database = {
           offer_status?: string | null
           pay_later?: boolean | null
           pay_later_reminder_sent?: boolean | null
+          payment_method?: string | null
+          payment_timing?: string | null
           payment_verified_at?: string | null
           paystack_access_code?: string | null
           paystack_reference?: string | null
           paystack_verified_at?: string | null
+          platform_fee?: number | null
           property_id?: string | null
           release_reason?: string | null
           release_requested_at?: string | null

@@ -27,7 +27,7 @@ const navItems = [
   { to: '/dashboard/my-listings', icon: ListChecks, label: 'My Listings' },
   { to: '/dashboard/saved', icon: Heart, label: 'Saved Properties' },
   { to: '/dashboard/offers', icon: Handshake, label: 'Offers & Negotiations' },
-  { to: '/dashboard/escrow', icon: Lock, label: 'Escrow Transactions' },
+  { to: '/dashboard/escrow', icon: Lock, label: 'Transactions' },
   { to: '/dashboard/documents', icon: FileCheck, label: 'Document Verification' },
   { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { to: '/dashboard/messages', icon: MessageSquare, label: 'Messages' },

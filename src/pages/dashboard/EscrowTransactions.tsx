@@ -197,8 +197,8 @@ export const EscrowTransactions = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Escrow Transactions</h1>
-          <p className="text-muted-foreground">Track your secure property transactions</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Transactions</h1>
+          <p className="text-muted-foreground">Track your property payment transactions</p>
         </div>
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
