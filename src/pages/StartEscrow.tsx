@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ShieldCheck, AlertCircle, MapPin, Home, Bed, Bath, Maximize, FileText, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertCircle, CreditCard, AlertTriangle, ArrowRight, CheckCircle2, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,21 +17,22 @@ export const StartEscrow = () => {
   const [property, setProperty] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
   const [step, setStep] = useState(1);
-  const [payment, setPayment] = useState<{ authorization_url: string; access_code: string; reference: string; tx_hash: string } | null>(null);
   const [formData, setFormData] = useState({
-    paymentMethod: 'card',
+    paymentMethod: 'escrow' as 'escrow' | 'direct',
+    paymentTiming: 'now' as 'now' | 'later',
     terms: '',
-    agreeToTerms: false,
-    readyToProceed: false,
   });
 
-  const calculateEscrowFee = (price: number) => {
-    const feePercentage = price > 30000000 ? 0.01 : 0.015;
-    return price * feePercentage;
+  // Fee calculations
+  const calculateFees = (price: number) => {
+    const ataraFee = price * 0.015; // 1.5%
+    const platformFee = price > 30000000 ? price * 0.005 : price * 0.01; // 0.5% or 1%
+    return { ataraFee, platformFee };
   };
 
-  const escrowFee = property ? calculateEscrowFee(property.price) : 0;
-  const totalAmount = property ? property.price + escrowFee : 0;
+  const fees = property ? calculateFees(property.price) : { ataraFee: 0, platformFee: 0 };
+  const totalFees = fees.ataraFee + fees.platformFee;
+  const totalAmount = property ? property.price + totalFees : 0;
 
   useEffect(() => {
     fetchPropertyDetails();
@@ -71,23 +71,10 @@ export const StartEscrow = () => {
     }
   };
 
-  const handleNext = () => {
-    if (step === 2 && (!formData.agreeToTerms || !formData.readyToProceed)) {
-      toast.error('Please accept all terms to proceed');
-      return;
-    }
-    setStep(step + 1);
-  };
-
+  const handleNext = () => setStep(step + 1);
   const handleBack = () => setStep(step - 1);
 
   const handleSubmit = async () => {
-    // If payment already prepared, just redirect
-    if (payment?.authorization_url) {
-      window.location.href = payment.authorization_url;
-      return;
-    }
-
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -97,6 +84,7 @@ export const StartEscrow = () => {
         return;
       }
 
+      // Create transaction record
       const { data: escrow, error: escrowError } = await supabase
         .from('escrow_transactions' as any)
         .insert({
@@ -104,10 +92,14 @@ export const StartEscrow = () => {
           buyer_id: user.id,
           seller_id: property.user_id,
           transaction_amount: property.price,
-          escrow_fee: escrowFee,
+          atara_fee: fees.ataraFee,
+          platform_fee: fees.platformFee,
+          escrow_fee: totalFees,
           total_amount: totalAmount,
           terms: formData.terms,
-          status: 'pending_payment',
+          payment_method: formData.paymentMethod,
+          payment_timing: formData.paymentTiming,
+          status: formData.paymentTiming === 'now' ? 'pending_payment' : 'pending_payment',
           inspection_start_date: new Date().toISOString(),
           inspection_end_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
         })
@@ -116,30 +108,37 @@ export const StartEscrow = () => {
 
       if (escrowError) throw escrowError;
 
-      // Initialize payment but DO NOT redirect automatically
-      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
-        'initialize-payment',
-        {
-          body: { escrowId: (escrow as any).id },
+      if (formData.paymentTiming === 'later') {
+        toast.success('Payment scheduled! You can complete it from your Transactions page.');
+        navigate('/dashboard/escrow');
+        return;
+      }
+
+      // Initialize payment for "Pay Now"
+      if (formData.paymentMethod === 'escrow') {
+        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+          'initialize-payment',
+          {
+            body: { escrowId: (escrow as any).id },
+          }
+        );
+
+        if (paymentError) throw paymentError;
+
+        if (paymentData.success) {
+          toast.success('Redirecting to payment gateway...');
+          window.location.href = paymentData.authorization_url;
+        } else {
+          throw new Error(paymentData.error || 'Failed to initialize payment');
         }
-      );
-
-      if (paymentError) throw paymentError;
-
-      if (paymentData.success) {
-        setPayment({
-          authorization_url: paymentData.authorization_url,
-          access_code: paymentData.access_code,
-          reference: paymentData.reference,
-          tx_hash: paymentData.tx_hash,
-        });
-        toast.success('Payment generated. Review details below and click Pay Now');
       } else {
-        throw new Error(paymentData.error || 'Failed to initialize payment');
+        // Direct payment - show confirmation and navigate
+        toast.success('Payment request created. Please complete payment directly to the seller.');
+        navigate('/dashboard/escrow');
       }
     } catch (error: any) {
-      console.error('Error creating escrow:', error);
-      toast.error(error.message || 'Failed to create escrow');
+      console.error('Error creating payment:', error);
+      toast.error(error.message || 'Failed to create payment');
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +202,7 @@ export const StartEscrow = () => {
                   Payment Method
                 </span>
                 <span className={step >= 2 ? 'text-primary' : 'text-muted-foreground'}>
-                  Terms & Documents
+                  Payment Timing
                 </span>
                 <span className={step >= 3 ? 'text-primary' : 'text-muted-foreground'}>
                   Review & Confirm
@@ -215,84 +214,199 @@ export const StartEscrow = () => {
               <CardHeader className="border-b border-border/50 bg-gradient-to-br from-accent/30 to-transparent">
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary-light">
-                    <ShieldCheck className="h-6 w-6 text-primary-foreground" />
+                    <CreditCard className="h-6 w-6 text-primary-foreground" />
                   </div>
-                  Secure Escrow Transaction
+                  Make Payment
                 </CardTitle>
                 <CardDescription className="text-base">
-                  Complete the form below to initiate a secure escrow for <strong className="text-foreground">{property.title}</strong>
+                  Choose your preferred payment method for <strong className="text-foreground">{property.title}</strong>
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
                 {/* Step 1: Payment Method */}
                 {step === 1 && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="bg-gradient-to-br from-accent/50 to-accent/20 p-6 rounded-xl border border-border/50">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Transaction Summary
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center py-2 border-b border-border/30">
-                          <span className="text-muted-foreground">Property Price</span>
-                          <span className="font-bold text-lg">₦{property.price.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-border/30">
-                          <span className="text-muted-foreground">
-                            Escrow Fee ({property.price > 30000000 ? '1%' : '1.5%'})
-                          </span>
-                          <span className="font-bold text-lg text-primary">₦{escrowFee.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
-                          <span className="font-semibold text-lg">Total Amount</span>
-                          <span className="font-bold text-2xl text-primary">₦{totalAmount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                        <p className="text-sm text-foreground">
-                          <strong>Escrow Period:</strong> 21 Days - All transactions must be completed within this timeframe.
-                        </p>
-                      </div>
-                    </div>
-
                     <div>
-                      <Label className="text-base font-semibold mb-3 block">Select Payment Method</Label>
+                      <Label className="text-base font-semibold mb-4 block">Select Payment Method</Label>
                       <RadioGroup
                         value={formData.paymentMethod}
-                        onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                        className="space-y-3"
+                        onValueChange={(value: any) => setFormData({ ...formData, paymentMethod: value })}
+                        className="space-y-4"
                       >
-                        <div className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
-                          formData.paymentMethod === 'bank-transfer' ? 'border-primary bg-primary/5' : 'border-border'
+                        {/* Escrow Payment Option */}
+                        <div className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+                          formData.paymentMethod === 'escrow' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                         }`}>
-                          <RadioGroupItem value="bank-transfer" id="bank" />
-                          <Label htmlFor="bank" className="cursor-pointer flex-1 font-medium">
-                            Bank Transfer
-                          </Label>
+                          <div className="flex items-start gap-4">
+                            <RadioGroupItem value="escrow" id="escrow" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="escrow" className="cursor-pointer font-semibold text-lg flex items-center gap-2">
+                                <ShieldCheck className="h-5 w-5 text-primary" />
+                                Make Payment via Escrow (Atara Pay)
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Secure payment held in escrow until property verification is complete. Full platform protection.
+                              </p>
+                              
+                              {formData.paymentMethod === 'escrow' && (
+                                <div className="mt-4 space-y-3 bg-background/50 p-4 rounded-lg border border-border/50">
+                                  <h4 className="font-semibold text-sm">Fee Breakdown</h4>
+                                  <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Atara Pay Fee (1.5%)</span>
+                                      <span className="font-medium">₦{fees.ataraFee.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">
+                                        Platform Fee ({property.price > 30000000 ? '0.5%' : '1%'})
+                                      </span>
+                                      <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between pt-2 border-t border-border/50">
+                                      <span className="font-semibold">Total Fees</span>
+                                      <span className="font-semibold text-primary">₦{totalFees.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between pt-2 border-t border-border/50">
+                                      <span className="font-semibold">Total Payment</span>
+                                      <span className="font-bold text-lg text-primary">₦{totalAmount.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                                    <p className="text-xs text-foreground flex items-start gap-2">
+                                      <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                      <span>Funds are securely held until you confirm property delivery and sign documents.</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className={`flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
-                          formData.paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border'
+
+                        {/* Direct Payment Option */}
+                        <div className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+                          formData.paymentMethod === 'direct' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                         }`}>
-                          <RadioGroupItem value="card" id="card" />
-                          <Label htmlFor="card" className="cursor-pointer flex-1 font-medium">
-                            Debit/Credit Card
-                          </Label>
+                          <div className="flex items-start gap-4">
+                            <RadioGroupItem value="direct" id="direct" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="direct" className="cursor-pointer font-semibold text-lg flex items-center gap-2">
+                                <CreditCard className="h-5 w-5 text-primary" />
+                                Make Payment Directly to Seller's Account
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Pay directly to the seller without escrow protection. Lower fees but higher risk.
+                              </p>
+                              
+                              {formData.paymentMethod === 'direct' && (
+                                <div className="mt-4 space-y-3">
+                                  <div className="bg-background/50 p-4 rounded-lg border border-border/50">
+                                    <h4 className="font-semibold text-sm mb-3">Fee Breakdown</h4>
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Paystack Fee (1.5%)</span>
+                                        <span className="font-medium">₦{fees.ataraFee.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">
+                                          Platform Fee ({property.price > 30000000 ? '0.5%' : '1%'})
+                                        </span>
+                                        <span className="font-medium">₦{fees.platformFee.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between pt-2 border-t border-border/50">
+                                        <span className="font-semibold">Total Fees</span>
+                                        <span className="font-semibold text-primary">₦{totalFees.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between pt-2 border-t border-border/50">
+                                        <span className="font-semibold">Total Payment</span>
+                                        <span className="font-bold text-lg text-primary">₦{totalAmount.toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                                    <div className="flex items-start gap-2">
+                                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <h4 className="font-semibold text-sm text-destructive mb-1">Risk Warning</h4>
+                                        <p className="text-xs text-foreground">
+                                          Direct payments are not protected by escrow. The platform cannot guarantee transaction security or 
+                                          recover funds in case of fraud or disputes. Proceed with caution and only if you trust the seller.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </RadioGroup>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={() => navigate(-1)} className="flex-1">
+                        Cancel
+                      </Button>
+                      <Button onClick={handleNext} className="flex-1 gap-2">
+                        Continue
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Step 2: Terms & Documents */}
+                {/* Step 2: Payment Timing */}
                 {step === 2 && (
                   <div className="space-y-6 animate-fade-in">
                     <div>
+                      <Label className="text-base font-semibold mb-4 block">When would you like to pay?</Label>
+                      <RadioGroup
+                        value={formData.paymentTiming}
+                        onValueChange={(value: any) => setFormData({ ...formData, paymentTiming: value })}
+                        className="space-y-4"
+                      >
+                        <div className={`border-2 rounded-xl p-5 cursor-pointer transition-all ${
+                          formData.paymentTiming === 'now' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                        }`}>
+                          <div className="flex items-start gap-4">
+                            <RadioGroupItem value="now" id="now" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="now" className="cursor-pointer font-semibold text-lg">
+                                Make Payment Now
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Process payment immediately and secure the property
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className={`border-2 rounded-xl p-5 cursor-pointer transition-all ${
+                          formData.paymentTiming === 'later' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                        }`}>
+                          <div className="flex items-start gap-4">
+                            <RadioGroupItem value="later" id="later" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="later" className="cursor-pointer font-semibold text-lg">
+                                Make Payment Later
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Save payment details and complete transaction from your Transactions page
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <div>
                       <Label htmlFor="terms" className="text-base font-semibold mb-2 block">
-                        Additional Terms (Optional)
+                        Additional Notes (Optional)
                       </Label>
                       <Textarea
                         id="terms"
-                        placeholder="Add any special terms or conditions for this transaction..."
+                        placeholder="Add any special notes or instructions for this payment..."
                         value={formData.terms}
                         onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                         rows={4}
@@ -300,221 +414,127 @@ export const StartEscrow = () => {
                       />
                     </div>
 
-                    <div>
-                      <Label className="text-base font-semibold mb-3 block flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Documents Uploaded
-                      </Label>
-                      <div className="space-y-2 bg-gradient-to-br from-accent/50 to-accent/20 p-5 rounded-xl border border-border/50">
-                        {property.documents && Array.isArray(property.documents) && property.documents.length > 0 ? (
-                          property.documents.map((doc: any, index: number) => (
-                            <div key={index} className="flex items-center gap-3 p-3 bg-background/80 rounded-lg">
-                              <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{doc.name || `Document ${index + 1}`}</p>
-                                <p className="text-xs text-muted-foreground">{doc.type || 'Document'}</p>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="flex items-center gap-3 p-3 bg-background/80 rounded-lg">
-                            <CheckCircle2 className="h-5 w-5 text-primary" />
-                            <span className="text-sm">Property documentation verified by seller</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 bg-primary/5 p-5 rounded-xl border border-primary/20">
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          id="agreeTerms"
-                          checked={formData.agreeToTerms}
-                          onCheckedChange={(checked) => 
-                            setFormData({ ...formData, agreeToTerms: checked as boolean })
-                          }
-                          className="mt-1"
-                        />
-                        <Label htmlFor="agreeTerms" className="cursor-pointer leading-relaxed">
-                          I agree to the escrow terms and conditions, including the 21-day transaction period
-                        </Label>
-                      </div>
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          id="readyProceed"
-                          checked={formData.readyToProceed}
-                          onCheckedChange={(checked) =>
-                            setFormData({ ...formData, readyToProceed: checked as boolean })
-                          }
-                          className="mt-1"
-                        />
-                        <Label htmlFor="readyProceed" className="cursor-pointer leading-relaxed">
-                          I am ready to proceed with this transaction and understand that funds will be held in escrow
-                        </Label>
-                      </div>
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={handleBack} className="flex-1">
+                        Back
+                      </Button>
+                      <Button onClick={handleNext} className="flex-1 gap-2">
+                        Continue
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Step 3: Review */}
+                {/* Step 3: Review & Confirm */}
                 {step === 3 && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="bg-gradient-to-br from-accent/50 to-accent/20 p-6 rounded-xl space-y-4 border border-border/50">
-                      <h3 className="font-semibold text-lg mb-4">Transaction Details</h3>
-                      <div className="flex justify-between items-center py-2 border-b border-border/30">
-                        <span className="text-muted-foreground">Property</span>
-                        <span className="font-semibold text-right">{property.title}</span>
+                    <div className="bg-gradient-to-br from-accent/50 to-accent/20 p-6 rounded-xl border border-border/50 space-y-4">
+                      <h3 className="font-semibold text-lg">Payment Summary</h3>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Property</span>
+                          <span className="font-semibold text-right max-w-[60%]">{property.title}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Payment Method</span>
+                          <span className="font-semibold">
+                            {formData.paymentMethod === 'escrow' ? 'Escrow (Atara Pay)' : 'Direct to Seller'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Payment Timing</span>
+                          <span className="font-semibold">
+                            {formData.paymentTiming === 'now' ? 'Pay Now' : 'Pay Later'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Property Price</span>
+                          <span className="font-semibold">₦{property.price.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Processing Fee</span>
+                          <span className="font-semibold">₦{fees.ataraFee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Platform Fee</span>
+                          <span className="font-semibold">₦{fees.platformFee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
+                          <span className="font-semibold text-lg">Total Amount</span>
+                          <span className="font-bold text-2xl text-primary">₦{totalAmount.toLocaleString()}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-border/30">
-                        <span className="text-muted-foreground">Property Price</span>
-                        <span className="font-semibold">₦{property.price.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-border/30">
-                        <span className="text-muted-foreground">Escrow Fee</span>
-                        <span className="font-semibold text-primary">₦{escrowFee.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
-                        <span className="font-semibold text-lg">Total to Pay</span>
-                        <span className="font-bold text-2xl text-primary">₦{totalAmount.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-border/30">
-                        <span className="text-muted-foreground">Payment Method</span>
-                        <span className="font-semibold capitalize">{formData.paymentMethod.replace('-', ' ')}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-border/30">
-                        <span className="text-muted-foreground">Escrow Period</span>
-                        <span className="font-semibold">21 Days</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-muted-foreground">Seller</span>
-                        <span className="font-semibold">{seller?.full_name || 'Property Owner'}</span>
-                      </div>
+
+                      {formData.paymentMethod === 'escrow' && (
+                        <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <p className="text-xs text-foreground flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-primary" />
+                            <span>Funds will be held securely in escrow and released to seller after you confirm property delivery.</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                    <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-xl bg-primary/20">
-                            <ShieldCheck className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-lg mb-2">Escrow Protection Active</h4>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              Your total payment of ₦{totalAmount.toLocaleString()} will be held securely by our escrow service. 
-                              Funds will only be released to the seller after you confirm receipt and satisfaction with the property. 
-                              You have 21 days to complete all inspections and confirmations.
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={handleBack} className="flex-1" disabled={submitting}>
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={handleSubmit} 
+                        className="flex-1 gap-2"
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            {formData.paymentTiming === 'now' ? 'Proceed to Payment' : 'Save Payment'}
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
-
-                {/* Navigation */}
-                <div className="flex justify-between mt-8 pt-6 border-t border-border/50">
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    disabled={step === 1 || submitting}
-                    className="hover-lift"
-                    size="lg"
-                  >
-                    Back
-                  </Button>
-                  {step < 3 ? (
-                    <Button onClick={handleNext} className="hover-lift" size="lg">
-                      Continue
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={handleSubmit} 
-                      disabled={submitting}
-                      className="hover-lift bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary"
-                      size="lg"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        'Proceed to Payment'
-                      )}
-                    </Button>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Property Details Sidebar */}
+          {/* Property Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <Card className="card-glow overflow-hidden">
-                <div className="relative h-56 overflow-hidden">
+            <Card className="sticky top-8 card-glow">
+              <CardHeader className="border-b border-border/50">
+                <CardTitle className="text-lg">Property Details</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {property.images && property.images.length > 0 && (
                   <img
-                    src={property.images?.[0] || '/placeholder.svg'}
+                    src={property.images[0]}
                     alt={property.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-48 object-cover rounded-lg border border-border"
                   />
-                  <div className="absolute top-3 right-3 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                    {property.property_type}
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">{property.title}</h3>
+                  <p className="text-sm text-muted-foreground">{property.address}</p>
+                </div>
+                <div className="pt-4 border-t border-border/50">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Seller</span>
+                    <span className="text-sm font-medium">{seller?.full_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Property Price</span>
+                    <span className="text-sm font-bold">₦{property.price.toLocaleString()}</span>
                   </div>
                 </div>
-                <CardContent className="p-6">
-                  <h3 className="font-bold text-xl mb-2 line-clamp-2">{property.title}</h3>
-                  <p className="text-muted-foreground text-sm mb-4 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <span className="line-clamp-1">{property.address}</span>
-                  </p>
-
-                  <div className="space-y-3 mb-4">
-                    {property.bedrooms && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Bed className="h-4 w-4 text-muted-foreground" />
-                        <span>{property.bedrooms} Bedrooms</span>
-                      </div>
-                    )}
-                    {property.bathrooms && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Bath className="h-4 w-4 text-muted-foreground" />
-                        <span>{property.bathrooms} Bathrooms</span>
-                      </div>
-                    )}
-                    {property.area && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Maximize className="h-4 w-4 text-muted-foreground" />
-                        <span>{property.area} sqm</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Property Price</span>
-                      <span className="text-2xl font-bold text-primary">
-                        ₦{property.price.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="mt-4 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-3">
-                    <ShieldCheck className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div className="text-sm">
-                      <p className="font-semibold mb-1">100% Secure</p>
-                      <p className="text-muted-foreground text-xs">
-                        Your payment is protected by our escrow service until transaction completion.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
