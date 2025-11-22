@@ -24,6 +24,7 @@ type MessageItemProps = {
   onAcceptOffer?: (messageId: string, amount: number) => void;
   onRejectOffer?: (messageId: string) => void;
   onCounterOffer?: (messageId: string, currentAmount: number) => void;
+  isPaidOrConfirmed?: boolean;
 };
 
 export const MessageItem = ({ 
@@ -32,7 +33,8 @@ export const MessageItem = ({
   senderName,
   onAcceptOffer,
   onRejectOffer,
-  onCounterOffer 
+  onCounterOffer,
+  isPaidOrConfirmed = false
 }: MessageItemProps) => {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -87,7 +89,14 @@ export const MessageItem = ({
               {message.offer_status}
             </Badge>
           )}
-          {!isOwnMessage && message.offer_status === 'pending' && (
+          {isPaidOrConfirmed && message.offer_status === 'accepted' && (
+            <div className="mt-3 bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
+              <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
+              <p className="text-sm font-semibold text-green-700">Payment Confirmed</p>
+              <p className="text-xs text-green-600">Transaction secured in escrow</p>
+            </div>
+          )}
+          {!isOwnMessage && message.offer_status === 'pending' && !isPaidOrConfirmed && (
             <div className="flex gap-2 mt-3">
               <Button 
                 size="sm" 

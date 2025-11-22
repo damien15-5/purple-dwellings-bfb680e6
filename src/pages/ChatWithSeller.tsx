@@ -52,6 +52,7 @@ export const ChatWithSeller = () => {
   const [counterOfferAmount, setCounterOfferAmount] = useState('');
   const [counterDialogOpen, setCounterDialogOpen] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [escrowStatus, setEscrowStatus] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,6 +132,18 @@ export const ChatWithSeller = () => {
 
       if (messagesData) {
         setMessages(messagesData);
+      }
+
+      // Check escrow status
+      const { data: escrowData } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('property_id', id)
+        .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
+        .maybeSingle();
+      
+      if (escrowData) {
+        setEscrowStatus(escrowData);
       }
 
       // Mark messages as read
@@ -693,6 +706,12 @@ export const ChatWithSeller = () => {
                       onAcceptOffer={handleAcceptOffer}
                       onRejectOffer={handleRejectOffer}
                       onCounterOffer={handleCounterOffer}
+                      isPaidOrConfirmed={
+                        escrowStatus?.payment_verified_at != null || 
+                        escrowStatus?.status === 'funded' || 
+                        escrowStatus?.status === 'inspection_period' || 
+                        escrowStatus?.status === 'completed'
+                      }
                     />
                   ))
                 )}

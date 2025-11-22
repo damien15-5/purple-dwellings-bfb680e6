@@ -169,13 +169,13 @@ export const OffersNegotiations = () => {
                     </div>
                   )}
 
-                  {!isUserBuyer && offer.offer_status === 'pending' && (
-                    <div className="flex gap-3">
+                  {!isUserBuyer && offer.offer_status === 'pending' && !offer.payment_verified_at && offer.status === 'pending_payment' && (
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
                             variant="hero"
-                            className="flex-1 gap-2"
+                            className="flex-1 gap-2 text-sm"
                             onClick={() => setSelectedOffer(offer)}
                           >
                             <Check className="h-4 w-4" />
@@ -208,7 +208,7 @@ export const OffersNegotiations = () => {
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
-                            className="flex-1 gap-2"
+                            className="flex-1 gap-2 text-sm"
                             onClick={() => setSelectedOffer(offer)}
                           >
                             <X className="h-4 w-4" />
@@ -237,32 +237,40 @@ export const OffersNegotiations = () => {
                         </DialogContent>
                       </Dialog>
 
-                      <Button variant="outline" className="gap-2">
+                      <Button variant="outline" className="gap-2 flex-1 text-sm">
                         <MessageSquare className="h-4 w-4" />
                         Counter
                       </Button>
                     </div>
                   )}
 
-                  {isUserBuyer && offer.offer_status === 'accepted' && (
-                    <>
-                      {offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' ? (
-                        <Button
-                          className="w-full bg-green-600 hover:bg-green-700"
-                          disabled
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Payment Made
-                        </Button>
-                      ) : (
-                        <Link to={`/start-escrow/${offer.property?.id}?escrowId=${offer.id}`} className="block">
-                          <Button variant="hero" className="w-full gap-2">
-                            <ShieldCheck className="h-4 w-4" />
-                            Make Payment
-                          </Button>
-                        </Link>
-                      )}
-                    </>
+                  {offer.offer_status === 'accepted' && (offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' || offer.status === 'completed') && (
+                    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <ShieldCheck className="h-5 w-5" />
+                        <span className="font-semibold">Offer Confirmed & Payment Received</span>
+                      </div>
+                      <p className="text-sm text-green-600 mt-1">This transaction is now secured in escrow</p>
+                    </div>
+                  )}
+
+                  {isUserBuyer && offer.offer_status === 'accepted' && !offer.payment_verified_at && offer.status === 'pending_payment' && (
+                    <Link to={`/start-escrow/${offer.property?.id}?escrowId=${offer.id}`} className="block">
+                      <Button variant="hero" className="w-full gap-2">
+                        <ShieldCheck className="h-4 w-4" />
+                        Make Payment
+                      </Button>
+                    </Link>
+                  )}
+                  
+                  {isUserBuyer && offer.offer_status === 'accepted' && (offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' || offer.status === 'completed') && (
+                    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-semibold">Payment Confirmed</span>
+                      </div>
+                      <p className="text-sm text-green-600 mt-1">Your payment has been secured in escrow</p>
+                    </div>
                   )}
 
                   <Link to={`/chat/${offer.property?.id}`}>
