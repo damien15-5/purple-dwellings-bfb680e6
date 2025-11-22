@@ -213,23 +213,23 @@ export const PropertyDetails = () => {
           <div className="lg:col-span-2 space-y-4">
             {/* Main Media Display */}
             {mediaItems.length > 0 && (
-              <div className="relative h-[500px] rounded-xl overflow-hidden card-glow">
+              <div className="relative h-[250px] sm:h-[350px] md:h-[400px] lg:h-[500px] rounded-xl overflow-hidden card-glow bg-black">
                 {mediaItems[selectedImage]?.type === 'image' ? (
                   <img
                     src={mediaItems[selectedImage].url}
                     alt={property.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain md:object-cover"
                   />
                 ) : (
                   <video 
                     controls 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain md:object-cover"
                     src={mediaItems[selectedImage]?.url}
                   >
                     Your browser does not support the video tag.
                   </video>
                 )}
-                <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
+                <Badge className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-primary text-primary-foreground text-xs sm:text-sm">
                   {property.property_type}
                 </Badge>
               </div>
@@ -237,7 +237,7 @@ export const PropertyDetails = () => {
 
             {/* Thumbnail Carousel */}
             {mediaItems.length > 1 && (
-              <div className="relative px-12">
+              <div className="relative px-8 sm:px-12">
                 <Carousel
                   opts={{
                     align: "start",
@@ -247,10 +247,10 @@ export const PropertyDetails = () => {
                 >
                   <CarouselContent>
                     {mediaItems.map((item, index) => (
-                      <CarouselItem key={index} className="basis-1/4">
+                      <CarouselItem key={index} className="basis-1/3 sm:basis-1/4">
                         <button
                           onClick={() => setSelectedImage(index)}
-                          className={`h-24 rounded-lg overflow-hidden border-2 transition-all relative w-full ${
+                          className={`h-16 sm:h-20 md:h-24 rounded-lg overflow-hidden border-2 transition-all relative w-full ${
                             selectedImage === index ? 'border-primary' : 'border-transparent'
                           }`}
                         >
@@ -260,7 +260,7 @@ export const PropertyDetails = () => {
                             <>
                               <video src={item.url} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                                <Play className="w-6 h-6 text-white" />
+                                <Play className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                               </div>
                             </>
                           )}
@@ -268,8 +268,8 @@ export const PropertyDetails = () => {
                       </CarouselItem>
                     ))}
                   </CarouselContent>
-                  <CarouselPrevious className="absolute -left-4" />
-                  <CarouselNext className="absolute -right-4" />
+                  <CarouselPrevious className="absolute -left-2 sm:-left-4 h-7 w-7 sm:h-8 sm:w-8" />
+                  <CarouselNext className="absolute -right-2 sm:-right-4 h-7 w-7 sm:h-8 sm:w-8" />
                 </Carousel>
               </div>
             )}
