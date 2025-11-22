@@ -381,7 +381,7 @@ export const PropertyDetails = () => {
                       size="lg"
                     >
                       <Shield className="w-5 h-5 mr-2" />
-                      Start Escrow
+                      Make Payment
                     </Button>
                   </Link>
                 </div>

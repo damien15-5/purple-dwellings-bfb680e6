@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,9 @@ import { toast } from 'sonner';
 export const StartEscrow = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const existingEscrowId = searchParams.get('escrowId');
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [property, setProperty] = useState<any>(null);
@@ -37,6 +40,51 @@ export const StartEscrow = () => {
   useEffect(() => {
     fetchPropertyDetails();
   }, [id]);
+
+  // If there's an existing escrow, fetch it and redirect to payment
+  useEffect(() => {
+    if (existingEscrowId && property) {
+      handleExistingEscrow();
+    }
+  }, [existingEscrowId, property]);
+
+  const handleExistingEscrow = async () => {
+    try {
+      const { data: escrow, error } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('id', existingEscrowId)
+        .single();
+
+      if (error) throw error;
+
+      // Check payment timing
+      if (escrow.payment_timing === 'now' && escrow.status === 'pending_payment') {
+        // Initialize payment and redirect immediately
+        toast.loading('Preparing payment...');
+        
+        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+          'initialize-payment',
+          {
+            body: { escrowId: existingEscrowId },
+          }
+        );
+
+        if (paymentError) throw paymentError;
+
+        if (paymentData.success) {
+          toast.success('Redirecting to payment gateway...');
+          window.location.href = paymentData.authorization_url;
+        } else {
+          throw new Error(paymentData.error || 'Failed to initialize payment');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error handling existing escrow:', error);
+      toast.error(error.message || 'Failed to process payment');
+      setLoading(false);
+    }
+  };
 
   const fetchPropertyDetails = async () => {
     try {
@@ -99,7 +147,7 @@ export const StartEscrow = () => {
           terms: formData.terms,
           payment_method: formData.paymentMethod,
           payment_timing: formData.paymentTiming,
-          status: formData.paymentTiming === 'now' ? 'pending_payment' : 'pending_payment',
+          status: 'pending_payment',
           inspection_start_date: new Date().toISOString(),
           inspection_end_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
         })
@@ -114,32 +162,28 @@ export const StartEscrow = () => {
         return;
       }
 
-      // Initialize payment for "Pay Now"
-      if (formData.paymentMethod === 'escrow') {
-        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
-          'initialize-payment',
-          {
-            body: { escrowId: (escrow as any).id },
-          }
-        );
-
-        if (paymentError) throw paymentError;
-
-        if (paymentData.success) {
-          toast.success('Redirecting to payment gateway...');
-          window.location.href = paymentData.authorization_url;
-        } else {
-          throw new Error(paymentData.error || 'Failed to initialize payment');
+      // Initialize payment for "Pay Now" and redirect immediately
+      toast.loading('Preparing payment gateway...');
+      
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        'initialize-payment',
+        {
+          body: { escrowId: (escrow as any).id },
         }
+      );
+
+      if (paymentError) throw paymentError;
+
+      if (paymentData.success) {
+        toast.success('Redirecting to Paystack...');
+        // Redirect immediately
+        window.location.href = paymentData.authorization_url;
       } else {
-        // Direct payment - show confirmation and navigate
-        toast.success('Payment request created. Please complete payment directly to the seller.');
-        navigate('/dashboard/escrow');
+        throw new Error(paymentData.error || 'Failed to initialize payment');
       }
     } catch (error: any) {
       console.error('Error creating payment:', error);
       toast.error(error.message || 'Failed to create payment');
-    } finally {
       setSubmitting(false);
     }
   };
