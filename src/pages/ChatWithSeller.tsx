@@ -308,7 +308,7 @@ export const ChatWithSeller = () => {
             <Link to={`/start-escrow/${id}`} className="block">
               <Button className="w-full" size="lg">
                 <ShieldCheck className="w-5 h-5 mr-2" />
-                Start Escrow Process
+                Make Payment
               </Button>
             </Link>
             <Card className="h-[600px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
@@ -456,7 +456,7 @@ export const ChatWithSeller = () => {
               <Link to={`/start-escrow/${property.id}`}>
                 <Button className="w-full hover-lift animate-glow bg-light-purple-accent hover:bg-light-purple-accent/90">
                   <ShieldCheck className="mr-2 h-4 w-4" />
-                  Start Escrow
+                  Make Payment
                 </Button>
               </Link>
               <Link to={`/3d-tour/${property.id}`}>
