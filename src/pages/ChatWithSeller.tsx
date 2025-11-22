@@ -4,10 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Send, ShieldCheck, AlertCircle, Paperclip, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, ShieldCheck, AlertCircle, Paperclip, X, Loader2, HandshakeIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { filterContactInfo } from '@/utils/contentFilter';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { MessageItem } from '@/components/chat/MessageItem';
 
 type Message = {
   id: string;
@@ -17,6 +21,9 @@ type Message = {
   is_read: boolean;
   file_url: string | null;
   file_type: string | null;
+  message_type: string;
+  offer_amount: number | null;
+  offer_status: string | null;
 };
 
 type Property = {
@@ -39,6 +46,12 @@ export const ChatWithSeller = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false);
+  const [counterOfferAmount, setCounterOfferAmount] = useState('');
+  const [counterDialogOpen, setCounterDialogOpen] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -262,6 +275,313 @@ export const ChatWithSeller = () => {
     }
   };
 
+  const handleSendOffer = async () => {
+    if (!offerAmount || !conversationId || !currentUserId || !property) return;
+
+    const amount = parseFloat(offerAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      const content = offerMessage || `I'd like to make an offer of ₦${amount.toLocaleString()} for this property.`;
+      
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content,
+          message_type: 'offer',
+          offer_amount: amount,
+          offer_status: 'pending'
+        });
+
+      if (error) throw error;
+
+      // Create or update escrow transaction with offer
+      const { data: existingEscrow } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('property_id', property.id)
+        .eq('buyer_id', currentUserId)
+        .eq('seller_id', property.user_id)
+        .single();
+
+      if (existingEscrow) {
+        await supabase
+          .from('escrow_transactions')
+          .update({
+            offer_amount: amount,
+            offer_status: 'pending',
+            offer_message: content
+          })
+          .eq('id', existingEscrow.id);
+      } else {
+        // Calculate fees
+        const ataraFee = amount * 0.015;
+        const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
+        const totalFees = ataraFee + platformFee;
+
+        await supabase
+          .from('escrow_transactions')
+          .insert({
+            property_id: property.id,
+            buyer_id: currentUserId,
+            seller_id: property.user_id,
+            transaction_amount: amount,
+            escrow_fee: ataraFee,
+            platform_fee: platformFee,
+            atara_fee: ataraFee,
+            total_amount: amount + totalFees,
+            offer_amount: amount,
+            offer_status: 'pending',
+            offer_message: content,
+            status: 'pending_payment'
+          });
+      }
+
+      // Create notification for seller
+      await supabase.rpc('create_notification', {
+        p_user_id: property.user_id,
+        p_title: 'New Offer Received',
+        p_description: `You received an offer of ₦${amount.toLocaleString()} for ${property.title}`,
+        p_type: 'offer'
+      });
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `New offer: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', conversationId);
+
+      setOfferAmount('');
+      setOfferMessage('');
+      setOfferDialogOpen(false);
+      toast.success('Offer sent successfully');
+    } catch (error) {
+      console.error('Error sending offer:', error);
+      toast.error('Failed to send offer');
+    }
+  };
+
+  const handleAcceptOffer = async (messageId: string, amount: number) => {
+    if (!conversationId || !currentUserId || !property) return;
+
+    try {
+      // Update message status
+      const { error: msgError } = await supabase
+        .from('messages')
+        .update({ offer_status: 'accepted' })
+        .eq('id', messageId);
+
+      if (msgError) throw msgError;
+
+      // Send acceptance message
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: `Offer of ₦${amount.toLocaleString()} has been accepted!`,
+          message_type: 'accept'
+        });
+
+      // Update escrow transaction
+      await supabase
+        .from('escrow_transactions')
+        .update({
+          offer_status: 'accepted',
+          seller_responded_at: new Date().toISOString(),
+          seller_response: 'accepted'
+        })
+        .eq('property_id', property.id)
+        .eq('offer_amount', amount);
+
+      // Notify the buyer
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('buyer_id')
+        .eq('id', conversationId)
+        .single();
+
+      if (conversation) {
+        await supabase.rpc('create_notification', {
+          p_user_id: conversation.buyer_id,
+          p_title: 'Offer Accepted',
+          p_description: `Your offer of ₦${amount.toLocaleString()} for ${property.title} has been accepted!`,
+          p_type: 'offer_accepted'
+        });
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Offer accepted: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', conversationId);
+
+      toast.success('Offer accepted successfully');
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      toast.error('Failed to accept offer');
+    }
+  };
+
+  const handleRejectOffer = async (messageId: string) => {
+    if (!conversationId || !currentUserId || !property) return;
+
+    try {
+      // Update message status
+      const { error: msgError } = await supabase
+        .from('messages')
+        .update({ offer_status: 'rejected' })
+        .eq('id', messageId);
+
+      if (msgError) throw msgError;
+
+      // Send rejection message
+      const { data: msg } = await supabase
+        .from('messages')
+        .select('offer_amount')
+        .eq('id', messageId)
+        .single();
+
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: `Offer of ₦${msg?.offer_amount?.toLocaleString()} has been rejected.`,
+          message_type: 'reject'
+        });
+
+      // Update escrow transaction
+      await supabase
+        .from('escrow_transactions')
+        .update({
+          offer_status: 'rejected',
+          seller_responded_at: new Date().toISOString(),
+          seller_response: 'rejected'
+        })
+        .eq('property_id', property.id)
+        .eq('offer_amount', msg?.offer_amount);
+
+      // Notify the buyer
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('buyer_id')
+        .eq('id', conversationId)
+        .single();
+
+      if (conversation) {
+        await supabase.rpc('create_notification', {
+          p_user_id: conversation.buyer_id,
+          p_title: 'Offer Rejected',
+          p_description: `Your offer of ₦${msg?.offer_amount?.toLocaleString()} for ${property.title} has been rejected.`,
+          p_type: 'offer_rejected'
+        });
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: 'Offer rejected',
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', conversationId);
+
+      toast.success('Offer rejected');
+    } catch (error) {
+      console.error('Error rejecting offer:', error);
+      toast.error('Failed to reject offer');
+    }
+  };
+
+  const handleCounterOffer = async (messageId: string, currentAmount: number) => {
+    setSelectedMessageId(messageId);
+    setCounterOfferAmount(currentAmount.toString());
+    setCounterDialogOpen(true);
+  };
+
+  const handleSendCounterOffer = async () => {
+    if (!counterOfferAmount || !conversationId || !currentUserId || !property || !selectedMessageId) return;
+
+    const amount = parseFloat(counterOfferAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      // Update original message
+      await supabase
+        .from('messages')
+        .update({ offer_status: 'countered' })
+        .eq('id', selectedMessageId);
+
+      // Send counter offer message
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: `Counter offer: ₦${amount.toLocaleString()}`,
+          message_type: 'counter_offer',
+          offer_amount: amount,
+          offer_status: 'pending'
+        });
+
+      // Update escrow transaction
+      await supabase
+        .from('escrow_transactions')
+        .update({
+          offer_amount: amount,
+          offer_status: 'pending',
+          offer_message: `Counter offer: ₦${amount.toLocaleString()}`
+        })
+        .eq('property_id', property.id);
+
+      // Notify the other party
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('buyer_id, seller_id')
+        .eq('id', conversationId)
+        .single();
+
+      const recipientId = currentUserId === conversation?.buyer_id ? conversation?.seller_id : conversation?.buyer_id;
+      
+      if (recipientId) {
+        await supabase.rpc('create_notification', {
+          p_user_id: recipientId,
+          p_title: 'Counter Offer Received',
+          p_description: `Counter offer of ₦${amount.toLocaleString()} for ${property.title}`,
+          p_type: 'counter_offer'
+        });
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Counter offer: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', conversationId);
+
+      setCounterOfferAmount('');
+      setCounterDialogOpen(false);
+      setSelectedMessageId(null);
+      toast.success('Counter offer sent');
+    } catch (error) {
+      console.error('Error sending counter offer:', error);
+      toast.error('Failed to send counter offer');
+    }
+  };
+
   if (!property) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -320,41 +640,15 @@ export const ChatWithSeller = () => {
                   </div>
                 ) : (
                   messages.map((msg) => (
-                    <div
+                    <MessageItem
                       key={msg.id}
-                      className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'} animate-fade-in`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg p-4 ${
-                          msg.sender_id === currentUserId
-                            ? 'bg-light-purple-accent text-black'
-                            : 'bg-black text-white'
-                        }`}
-                      >
-                        {msg.file_url && (
-                          <div className="mb-2">
-                            {msg.file_type === 'image' ? (
-                              <img
-                                src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${msg.file_url}`}
-                                alt="Shared image"
-                                className="rounded-lg max-w-full h-auto cursor-pointer"
-                                onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${msg.file_url}`, '_blank')}
-                              />
-                            ) : (
-                              <video
-                                src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-media/${msg.file_url}`}
-                                controls
-                                className="rounded-lg max-w-full h-auto"
-                              />
-                            )}
-                          </div>
-                        )}
-                        <p className="text-sm">{msg.content}</p>
-                        <p className={`text-xs mt-2 ${msg.sender_id === currentUserId ? 'text-black/70' : 'text-white/70'}`}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
+                      message={msg}
+                      isOwnMessage={msg.sender_id === currentUserId}
+                      senderName={msg.sender_id === currentUserId ? 'You' : sellerName}
+                      onAcceptOffer={handleAcceptOffer}
+                      onRejectOffer={handleRejectOffer}
+                      onCounterOffer={handleCounterOffer}
+                    />
                   ))
                 )}
                 <div ref={messagesEndRef} />
@@ -406,6 +700,52 @@ export const ChatWithSeller = () => {
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
+                  <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="border-2 border-light-purple-border hover:bg-light-purple-accent/10"
+                      >
+                        <HandshakeIcon className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Make an Offer</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div>
+                          <Label htmlFor="offer-amount">Offer Amount (₦)</Label>
+                          <Input
+                            id="offer-amount"
+                            type="number"
+                            value={offerAmount}
+                            onChange={(e) => setOfferAmount(e.target.value)}
+                            placeholder="Enter your offer amount"
+                            className="mt-1"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Original price: ₦{property?.price.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <Label htmlFor="offer-message">Message (Optional)</Label>
+                          <Textarea
+                            id="offer-message"
+                            value={offerMessage}
+                            onChange={(e) => setOfferMessage(e.target.value)}
+                            placeholder="Add a message with your offer..."
+                            className="mt-1"
+                          />
+                        </div>
+                        <Button onClick={handleSendOffer} className="w-full">
+                          Send Offer
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Input
                     placeholder="Type your message..."
                     value={message}
@@ -422,6 +762,31 @@ export const ChatWithSeller = () => {
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
+                
+                {/* Counter Offer Dialog */}
+                <Dialog open={counterDialogOpen} onOpenChange={setCounterDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Counter Offer</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <Label htmlFor="counter-amount">Counter Offer Amount (₦)</Label>
+                        <Input
+                          id="counter-amount"
+                          type="number"
+                          value={counterOfferAmount}
+                          onChange={(e) => setCounterOfferAmount(e.target.value)}
+                          placeholder="Enter your counter offer"
+                          className="mt-1"
+                        />
+                      </div>
+                      <Button onClick={handleSendCounterOffer} className="w-full">
+                        Send Counter Offer
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </Card>
           </div>
