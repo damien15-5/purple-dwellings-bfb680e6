@@ -163,25 +163,25 @@ export const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <h1 className="text-4xl font-bold text-center mb-4 animate-fade-in text-foreground">Contact Customer Care</h1>
-        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">Get instant support from our AI assistant or create a ticket for human assistance</p>
+    <div className="min-h-screen bg-background py-8 sm:py-12 px-4">
+      <div className="container mx-auto max-w-7xl">
+        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-3 sm:mb-4 animate-fade-in text-foreground">Contact Customer Care</h1>
+        <p className="text-center text-muted-foreground mb-8 sm:mb-12 max-w-2xl mx-auto text-sm sm:text-base px-4">Get instant support from our AI assistant or create a ticket for human assistance</p>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* AI Chat */}
           <Card className="bg-white border-2 border-light-purple-border hover-lift">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Bot className="h-5 w-5 text-light-purple-accent" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex items-center gap-2 text-foreground text-base sm:text-lg">
+                <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-light-purple-accent" />
                 Chat with AI Assistant
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-96 overflow-y-auto space-y-4 mb-4">
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="h-80 sm:h-96 overflow-y-auto space-y-3 sm:space-y-4 mb-3 sm:mb-4 px-1">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                    <div className={`max-w-[80%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-light-purple-accent text-white' : 'bg-accent/50 border border-light-purple-border text-foreground'}`}>
+                    <div className={`max-w-[85%] sm:max-w-[80%] p-2.5 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-light-purple-accent text-white' : 'bg-accent/50 border border-light-purple-border text-foreground'}`}>
                       {msg.content}
                     </div>
                   </div>
@@ -195,19 +195,20 @@ export const Contact = () => {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2">
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                   placeholder="Type your message..."
                   disabled={isLoading}
+                  className="text-sm sm:text-base"
                 />
-                <Button onClick={handleSendMessage} disabled={isLoading}>
-                  <Send className="h-4 w-4" />
+                <Button onClick={handleSendMessage} disabled={isLoading} size="sm" className="sm:size-default">
+                  <Send className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {quickReplies.map(reply => (
                   <Button 
                     key={reply} 
@@ -225,14 +226,14 @@ export const Contact = () => {
 
           {/* Support Ticket */}
           <Card className="bg-white border-2 border-light-purple-border hover-lift">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <User className="h-5 w-5 text-light-purple-accent" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex items-center gap-2 text-foreground text-base sm:text-lg">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-light-purple-accent" />
                 Create Support Ticket
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleTicketSubmit} className="space-y-4">
+              <form onSubmit={handleTicketSubmit} className="space-y-3 sm:space-y-4">
                 <div>
                   <Select value={ticketIssueType} onValueChange={setTicketIssueType} required>
                     <SelectTrigger>
@@ -262,12 +263,13 @@ export const Contact = () => {
                 </div>
                 <Textarea 
                   placeholder="Describe your issue..." 
-                  rows={8} 
+                  rows={6} 
                   required 
                   value={ticketDescription}
                   onChange={(e) => setTicketDescription(e.target.value)}
+                  className="text-sm sm:text-base min-h-[120px] sm:min-h-[160px]"
                 />
-                <Button type="submit" className="w-full hover-lift">Submit Ticket</Button>
+                <Button type="submit" className="w-full hover-lift text-sm sm:text-base">Submit Ticket</Button>
               </form>
             </CardContent>
           </Card>
