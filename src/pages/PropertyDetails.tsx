@@ -4,18 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Shield, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ChatInterface } from '@/components/ChatInterface';
 import { supabase } from '@/integrations/supabase/client';
 import { toast as sonnerToast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   Carousel,
   CarouselContent,
@@ -50,7 +41,6 @@ export const PropertyDetails = () => {
   const { toast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [sellerName, setSellerName] = useState('Seller');
@@ -351,30 +341,16 @@ export const PropertyDetails = () => {
 
                 {/* Blurred Action Buttons */}
                 <div className="space-y-2.5">
-                  <Dialog open={showChat} onOpenChange={setShowChat}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="w-full bg-background/30 backdrop-blur-2xl border border-border/50 hover:bg-background/40 text-foreground shadow-lg" 
-                        size="lg"
-                      >
-                        <MessageSquare className="w-5 h-5 mr-2" />
-                        Contact Seller
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh]">
-                      <DialogHeader>
-                        <DialogTitle>Chat with Seller</DialogTitle>
-                        <DialogDescription>
-                          Connect directly with the property owner
-                        </DialogDescription>
-                      </DialogHeader>
-                      <ChatInterface
-                        propertyId={property.id}
-                        propertyOwnerId={property.user_id}
-                        propertyTitle={property.title}
-                      />
-                    </DialogContent>
-                  </Dialog>
+                  <Link to={`/property/${property.id}/chat`}>
+                    <Button 
+                      className="w-full relative overflow-hidden group bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/90 hover:via-primary hover:to-primary text-white shadow-xl hover:shadow-2xl transition-all duration-300 border-0" 
+                      size="lg"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <MessageSquare className="w-5 h-5 mr-2 relative z-10" />
+                      <span className="relative z-10 font-semibold">Message Seller</span>
+                    </Button>
+                  </Link>
                   <Link to={`/start-escrow/${property.id}`}>
                     <Button 
                       className="w-full bg-background/30 backdrop-blur-2xl border border-border/50 hover:bg-background/40 text-foreground shadow-lg" 

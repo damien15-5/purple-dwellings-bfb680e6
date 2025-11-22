@@ -180,10 +180,10 @@ export const ChatWithSeller = () => {
 
     // Validate file type and size
     const isImage = file.type.startsWith('image/');
-    const isVideo = file.type === 'video/mp4';
+    const isVideo = file.type.startsWith('video/');
     
     if (!isImage && !isVideo) {
-      toast.error('Only images (JPG, PNG) and videos (MP4) are allowed');
+      toast.error('Only images (JPG, PNG, JPEG) and videos (MP4) are allowed');
       return;
     }
 
@@ -596,7 +596,7 @@ export const ChatWithSeller = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-white sticky top-0 z-10 border-2 border-light-purple-border">
+      <div className="border-b bg-white sticky top-0 z-10 border-2 border-light-purple-border shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -617,6 +617,51 @@ export const ChatWithSeller = () => {
                 <p className="text-sm text-muted-foreground">Property Seller</p>
               </div>
             </div>
+            <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="gap-2 border-2 border-light-purple-accent hover:bg-light-purple-accent hover:text-white transition-all"
+                >
+                  <HandshakeIcon className="h-4 w-4" />
+                  Make Offer
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Make an Offer</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label htmlFor="header-offer-amount">Offer Amount (₦)</Label>
+                    <Input
+                      id="header-offer-amount"
+                      type="number"
+                      value={offerAmount}
+                      onChange={(e) => setOfferAmount(e.target.value)}
+                      placeholder="Enter your offer amount"
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Original price: ₦{property?.price.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="header-offer-message">Message (Optional)</Label>
+                    <Textarea
+                      id="header-offer-message"
+                      value={offerMessage}
+                      onChange={(e) => setOfferMessage(e.target.value)}
+                      placeholder="Add a message with your offer..."
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button onClick={handleSendOffer} className="w-full">
+                    Send Offer
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
@@ -659,7 +704,7 @@ export const ChatWithSeller = () => {
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-900 flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   <p>
-                    🛡️ <strong>Security Notice:</strong> Phone numbers, emails, and links are automatically removed. Media: Images (JPG/PNG, max 2MB), Videos (MP4, max 5MB).
+                    🛡️ <strong>Security Notice:</strong> Phone numbers, emails, and links are automatically removed. Media: Images (max 2MB), Videos (max 5MB).
                   </p>
                 </div>
                 
@@ -686,7 +731,7 @@ export const ChatWithSeller = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/jpg,video/mp4"
+                    accept="image/jpeg,image/png,video/mp4,video/quicktime,video/x-msvideo"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
