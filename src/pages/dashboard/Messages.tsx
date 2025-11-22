@@ -34,6 +34,10 @@ export const Messages = () => {
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
+  const [isCounterOfferOpen, setIsCounterOfferOpen] = useState(false);
+  const [counterOfferAmount, setCounterOfferAmount] = useState('');
+  const [counterOfferMessage, setCounterOfferMessage] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -476,10 +480,110 @@ export const Messages = () => {
   };
 
   const handleCounterOffer = async (messageId: string, currentAmount: number) => {
-    toast({
-      title: 'Counter offer',
-      description: 'Counter offers can be managed from the Offers & Negotiations page.',
-    });
+    const message = messages.find(m => m.id === messageId);
+    if (message) {
+      setSelectedMessage(message);
+      setCounterOfferAmount('');
+      setCounterOfferMessage('');
+      setIsCounterOfferOpen(true);
+    }
+  };
+
+  const handleSendCounterOffer = async () => {
+    if (!counterOfferAmount || !selectedMessage) return;
+
+    try {
+      // Update the original message status
+      await supabase
+        .from('messages')
+        .update({
+          offer_status: 'countered',
+        })
+        .eq('id', selectedMessage.id);
+
+      // Find the related escrow transaction and update the offer amount
+      const { data: escrowData } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('buyer_id', selectedConversation?.buyer_id)
+        .eq('seller_id', selectedConversation?.seller_id)
+        .eq('property_id', selectedConversation?.property_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (escrowData) {
+        const amount = parseFloat(counterOfferAmount);
+        const ataraFee = amount * 0.015;
+        const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
+        const totalFees = ataraFee + platformFee;
+
+        // Update the escrow transaction with the new counter offer amount
+        await supabase
+          .from('escrow_transactions')
+          .update({
+            transaction_amount: amount,
+            atara_fee: ataraFee,
+            platform_fee: platformFee,
+            escrow_fee: totalFees,
+            total_amount: amount + totalFees,
+            offer_amount: amount,
+            offer_status: 'pending',
+            offer_message: counterOfferMessage || `Counter offer: ₦${amount.toLocaleString()}`,
+          })
+          .eq('id', escrowData.id);
+      }
+
+      // Send counter offer message
+      const { error: messageError } = await supabase.from('messages').insert({
+        conversation_id: selectedConversation!.id,
+        sender_id: currentUserId!,
+        content: counterOfferMessage || `Counter offer: ₦${parseFloat(counterOfferAmount).toLocaleString()}`,
+        message_type: 'counter_offer',
+        offer_amount: parseFloat(counterOfferAmount),
+        offer_status: 'pending',
+      });
+
+      if (messageError) throw messageError;
+
+      // Create notification for the other party
+      const recipientId = selectedMessage.sender_id === currentUserId ? 
+        (selectedConversation?.buyer_id === currentUserId ? selectedConversation?.seller_id : selectedConversation?.buyer_id) : 
+        selectedMessage.sender_id;
+
+      if (recipientId) {
+        await supabase.rpc('create_notification', {
+          p_user_id: recipientId,
+          p_title: 'Counter Offer Received',
+          p_description: `New counter offer of ₦${parseFloat(counterOfferAmount).toLocaleString()}`,
+          p_type: 'offer',
+        });
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Counter offer: ₦${parseFloat(counterOfferAmount).toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation!.id);
+
+      toast({
+        title: 'Counter offer sent',
+        description: 'Your counter offer has been sent successfully.',
+      });
+      setIsCounterOfferOpen(false);
+      setCounterOfferAmount('');
+      setCounterOfferMessage('');
+      setSelectedMessage(null);
+    } catch (error) {
+      console.error('Error sending counter offer:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send counter offer. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDeleteConversation = async () => {
@@ -768,6 +872,54 @@ export const Messages = () => {
                       </Button>
                       <Button onClick={handleSendOffer} disabled={uploading}>
                         Send Offer
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Counter Offer Dialog */}
+                <Dialog open={isCounterOfferOpen} onOpenChange={setIsCounterOfferOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Counter Offer</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                      {selectedMessage && (
+                        <div className="bg-muted p-3 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Current offer</p>
+                          <p className="text-lg font-semibold">
+                            ₦{selectedMessage.offer_amount?.toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <Label htmlFor="counter-offer-amount">Your Counter Offer (₦)</Label>
+                        <Input
+                          id="counter-offer-amount"
+                          type="number"
+                          value={counterOfferAmount}
+                          onChange={(e) => setCounterOfferAmount(e.target.value)}
+                          placeholder="Enter your counter offer"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="counter-offer-message">Message (optional)</Label>
+                        <Input
+                          id="counter-offer-message"
+                          value={counterOfferMessage}
+                          onChange={(e) => setCounterOfferMessage(e.target.value)}
+                          placeholder="Add a note with your counter offer"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsCounterOfferOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSendCounterOffer} disabled={uploading}>
+                        Send Counter Offer
                       </Button>
                     </DialogFooter>
                   </DialogContent>
