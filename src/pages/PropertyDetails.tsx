@@ -341,7 +341,7 @@ export const PropertyDetails = () => {
 
                 {/* Blurred Action Buttons */}
                 <div className="space-y-2.5">
-                  <Link to={`/property/${property.id}/chat`}>
+                  <Link to={`/chat/${property.id}`}>
                     <Button 
                       className="w-full relative overflow-hidden group bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/90 hover:via-primary hover:to-primary text-white shadow-xl hover:shadow-2xl transition-all duration-300 border-0" 
                       size="lg"
