@@ -141,16 +141,37 @@ export const PropertyCard = ({
     }
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = async () => {
+    // Track view in database
+    try {
+      const { data: property } = await supabase
+        .from('properties')
+        .select('views, clicks')
+        .eq('id', id)
+        .single();
+      
+      if (property) {
+        await supabase
+          .from('properties')
+          .update({ 
+            views: (property.views || 0) + 1,
+            clicks: (property.clicks || 0) + 1
+          })
+          .eq('id', id);
+      }
+    } catch (error) {
+      console.error('Error tracking view:', error);
+    }
+    
     if (onView) onView();
   };
 
   return (
-    <Card
-      ref={cardRef}
-      className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden cursor-pointer group relative border-0 shadow-none bg-transparent`}
-      onClick={handleCardClick}
-    >
+    <Link to={`/property/${id}`} onClick={handleCardClick}>
+      <Card
+        ref={cardRef}
+        className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden cursor-pointer group relative border-0 shadow-none bg-transparent`}
+      >
       <div className={`relative ${sizes[variant].container} overflow-hidden bg-muted rounded-xl mb-2`}>
         {isIntersecting && (
           <img
@@ -212,5 +233,6 @@ export const PropertyCard = ({
         </div>
       </div>
     </Card>
+    </Link>
   );
 };

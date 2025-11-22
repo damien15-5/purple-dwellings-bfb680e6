@@ -679,6 +679,7 @@ export type Database = {
           bathrooms: number | null
           bedrooms: number | null
           city: string | null
+          clicks: number | null
           condition: string | null
           created_at: string
           daily_price: number | null
@@ -728,6 +729,7 @@ export type Database = {
           updated_at: string
           user_id: string
           video_url: string | null
+          views: number | null
           weekly_price: number | null
           year_built: number | null
         }
@@ -740,6 +742,7 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           city?: string | null
+          clicks?: number | null
           condition?: string | null
           created_at?: string
           daily_price?: number | null
@@ -789,6 +792,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           video_url?: string | null
+          views?: number | null
           weekly_price?: number | null
           year_built?: number | null
         }
@@ -801,6 +805,7 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           city?: string | null
+          clicks?: number | null
           condition?: string | null
           created_at?: string
           daily_price?: number | null
@@ -850,6 +855,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           video_url?: string | null
+          views?: number | null
           weekly_price?: number | null
           year_built?: number | null
         }
