@@ -413,12 +413,6 @@ export const Chat = () => {
     toast.info('Offer rejected');
   };
 
-  const handleCounterOffer = async (messageId: string, currentAmount: number) => {
-    // This would open a dialog to enter counter offer amount
-    // For now, just show a toast
-    toast.info('Counter offer feature - enter your counter amount');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -480,7 +474,6 @@ export const Chat = () => {
                         senderName={message.sender_id === currentUserId ? 'You' : otherUserName}
                         onAcceptOffer={handleAcceptOffer}
                         onRejectOffer={handleRejectOffer}
-                        onCounterOffer={handleCounterOffer}
                       />
                     ))
                   )}
