@@ -52,14 +52,14 @@ const AdminSettings = () => {
                 <p className="font-medium">Maintenance Mode</p>
                 <p className="text-sm text-muted-foreground">Put the platform in maintenance mode</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('Maintenance mode configuration coming soon')}>Configure</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Feature Toggles</p>
                 <p className="text-sm text-muted-foreground">Enable or disable platform features</p>
               </div>
-              <Button variant="outline">Manage</Button>
+              <Button variant="outline" onClick={() => alert('Feature toggles management coming soon')}>Manage</Button>
             </div>
           </CardContent>
         </Card>
@@ -78,21 +78,21 @@ const AdminSettings = () => {
                 <p className="font-medium">Change Admin Password</p>
                 <p className="text-sm text-muted-foreground">Update your admin password</p>
               </div>
-              <Button variant="outline">Change</Button>
+              <Button variant="outline" onClick={() => alert('Password change functionality coming soon')}>Change</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">IP Access Control</p>
                 <p className="text-sm text-muted-foreground">Manage allowed IP addresses</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('IP access control coming soon')}>Configure</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Security Logs</p>
                 <p className="text-sm text-muted-foreground">View security and access logs</p>
               </div>
-              <Button variant="outline">View Logs</Button>
+              <Button variant="outline" onClick={() => alert('Security logs coming soon')}>View Logs</Button>
             </div>
           </CardContent>
         </Card>
@@ -111,14 +111,14 @@ const AdminSettings = () => {
                 <p className="font-medium">Escrow Fee Percentage</p>
                 <p className="text-sm text-muted-foreground">Configure platform fee percentage</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('Escrow fee configuration coming soon')}>Configure</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Verification Thresholds</p>
                 <p className="text-sm text-muted-foreground">Set KYC verification requirements</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('Verification threshold configuration coming soon')}>Configure</Button>
             </div>
           </CardContent>
         </Card>
@@ -137,14 +137,14 @@ const AdminSettings = () => {
                 <p className="font-medium">Email Notifications</p>
                 <p className="text-sm text-muted-foreground">Configure email notification settings</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('Email notification configuration coming soon')}>Configure</Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Alert Preferences</p>
                 <p className="text-sm text-muted-foreground">Manage admin alert preferences</p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Button variant="outline" onClick={() => alert('Alert preferences coming soon')}>Configure</Button>
             </div>
           </CardContent>
         </Card>

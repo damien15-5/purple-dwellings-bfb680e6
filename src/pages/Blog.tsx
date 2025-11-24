@@ -107,12 +107,12 @@ export const Blog = () => {
                     </div>
                   </div>
 
-                  <Link
-                    to="#"
-                    className="inline-flex items-center gap-2 text-light-purple-accent font-semibold hover:gap-3 transition-all"
+                  <button
+                    onClick={() => alert('Full blog article coming soon!')}
+                    className="inline-flex items-center gap-2 text-light-purple-accent font-semibold hover:gap-3 transition-all cursor-pointer"
                   >
                     Read More <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  </button>
                 </div>
               </article>
             ))}
