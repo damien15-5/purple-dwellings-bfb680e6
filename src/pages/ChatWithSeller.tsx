@@ -49,10 +49,8 @@ export const ChatWithSeller = () => {
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
-  const [counterOfferAmount, setCounterOfferAmount] = useState('');
-  const [counterDialogOpen, setCounterDialogOpen] = useState(false);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [escrowStatus, setEscrowStatus] = useState<any>(null);
+  const [respondingMessages, setRespondingMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -384,6 +382,9 @@ export const ChatWithSeller = () => {
   const handleAcceptOffer = async (messageId: string, amount: number) => {
     if (!conversationId || !currentUserId || !property) return;
 
+    // Mark this message as being responded to
+    setRespondingMessages(prev => new Set(prev).add(messageId));
+
     try {
       // Update message status
       const { error: msgError } = await supabase
@@ -442,11 +443,20 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error accepting offer:', error);
       toast.error('Failed to accept offer');
+      // Remove from responding set on error
+      setRespondingMessages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(messageId);
+        return newSet;
+      });
     }
   };
 
   const handleRejectOffer = async (messageId: string) => {
     if (!conversationId || !currentUserId || !property) return;
+
+    // Mark this message as being responded to
+    setRespondingMessages(prev => new Set(prev).add(messageId));
 
     try {
       // Update message status
@@ -512,86 +522,12 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error rejecting offer:', error);
       toast.error('Failed to reject offer');
-    }
-  };
-
-  const handleCounterOffer = async (messageId: string, currentAmount: number) => {
-    setSelectedMessageId(messageId);
-    setCounterOfferAmount(currentAmount.toString());
-    setCounterDialogOpen(true);
-  };
-
-  const handleSendCounterOffer = async () => {
-    if (!counterOfferAmount || !conversationId || !currentUserId || !property || !selectedMessageId) return;
-
-    const amount = parseFloat(counterOfferAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    try {
-      // Update original message
-      await supabase
-        .from('messages')
-        .update({ offer_status: 'countered' })
-        .eq('id', selectedMessageId);
-
-      // Send counter offer message
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: currentUserId,
-          content: `Counter offer: ₦${amount.toLocaleString()}`,
-          message_type: 'counter_offer',
-          offer_amount: amount,
-          offer_status: 'pending'
-        });
-
-      // Update escrow transaction
-      await supabase
-        .from('escrow_transactions')
-        .update({
-          offer_amount: amount,
-          offer_status: 'pending',
-          offer_message: `Counter offer: ₦${amount.toLocaleString()}`
-        })
-        .eq('property_id', property.id);
-
-      // Notify the other party
-      const { data: conversation } = await supabase
-        .from('conversations')
-        .select('buyer_id, seller_id')
-        .eq('id', conversationId)
-        .single();
-
-      const recipientId = currentUserId === conversation?.buyer_id ? conversation?.seller_id : conversation?.buyer_id;
-      
-      if (recipientId) {
-        await supabase.rpc('create_notification', {
-          p_user_id: recipientId,
-          p_title: 'Counter Offer Received',
-          p_description: `Counter offer of ₦${amount.toLocaleString()} for ${property.title}`,
-          p_type: 'counter_offer'
-        });
-      }
-
-      await supabase
-        .from('conversations')
-        .update({
-          last_message: `Counter offer: ₦${amount.toLocaleString()}`,
-          last_message_time: new Date().toISOString(),
-        })
-        .eq('id', conversationId);
-
-      setCounterOfferAmount('');
-      setCounterDialogOpen(false);
-      setSelectedMessageId(null);
-      toast.success('Counter offer sent');
-    } catch (error) {
-      console.error('Error sending counter offer:', error);
-      toast.error('Failed to send counter offer');
+      // Remove from responding set on error
+      setRespondingMessages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(messageId);
+        return newSet;
+      });
     }
   };
 
@@ -705,7 +641,7 @@ export const ChatWithSeller = () => {
                       senderName={msg.sender_id === currentUserId ? 'You' : sellerName}
                       onAcceptOffer={handleAcceptOffer}
                       onRejectOffer={handleRejectOffer}
-                      onCounterOffer={handleCounterOffer}
+                      isResponding={respondingMessages.has(msg.id)}
                       isPaidOrConfirmed={
                         escrowStatus?.payment_verified_at != null || 
                         escrowStatus?.status === 'funded' || 
@@ -826,31 +762,6 @@ export const ChatWithSeller = () => {
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
-                
-                {/* Counter Offer Dialog */}
-                <Dialog open={counterDialogOpen} onOpenChange={setCounterDialogOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Counter Offer</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <Label htmlFor="counter-amount">Counter Offer Amount (₦)</Label>
-                        <Input
-                          id="counter-amount"
-                          type="number"
-                          value={counterOfferAmount}
-                          onChange={(e) => setCounterOfferAmount(e.target.value)}
-                          placeholder="Enter your counter offer"
-                          className="mt-1"
-                        />
-                      </div>
-                      <Button onClick={handleSendCounterOffer} className="w-full">
-                        Send Counter Offer
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
             </Card>
           </div>

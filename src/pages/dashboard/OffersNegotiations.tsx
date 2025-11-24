@@ -16,6 +16,7 @@ export const OffersNegotiations = () => {
   const { toast } = useToast();
   const [responseMessage, setResponseMessage] = useState('');
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [respondingOffers, setRespondingOffers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadOffers();
@@ -44,6 +45,9 @@ export const OffersNegotiations = () => {
   };
 
   const handleResponse = async (offerId: string, accept: boolean) => {
+    // Mark this offer as being responded to
+    setRespondingOffers(prev => new Set(prev).add(offerId));
+    
     try {
       const { error } = await supabase
         .from('escrow_transactions')
@@ -69,6 +73,12 @@ export const OffersNegotiations = () => {
         title: 'Error',
         description: 'Failed to respond to offer',
         variant: 'destructive',
+      });
+      // Remove from responding set on error
+      setRespondingOffers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(offerId);
+        return newSet;
       });
     }
   };
@@ -177,6 +187,7 @@ export const OffersNegotiations = () => {
                             variant="hero"
                             className="flex-1 gap-2 text-sm"
                             onClick={() => setSelectedOffer(offer)}
+                            disabled={respondingOffers.has(offer.id)}
                           >
                             <Check className="h-4 w-4" />
                             Accept Offer
@@ -210,6 +221,7 @@ export const OffersNegotiations = () => {
                             variant="outline"
                             className="flex-1 gap-2 text-sm"
                             onClick={() => setSelectedOffer(offer)}
+                            disabled={respondingOffers.has(offer.id)}
                           >
                             <X className="h-4 w-4" />
                             Reject
@@ -236,11 +248,6 @@ export const OffersNegotiations = () => {
                           </div>
                         </DialogContent>
                       </Dialog>
-
-                      <Button variant="outline" className="gap-2 flex-1 text-sm">
-                        <MessageSquare className="h-4 w-4" />
-                        Counter
-                      </Button>
                     </div>
                   )}
 

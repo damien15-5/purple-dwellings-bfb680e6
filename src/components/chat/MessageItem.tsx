@@ -23,8 +23,8 @@ type MessageItemProps = {
   senderName: string;
   onAcceptOffer?: (messageId: string, amount: number) => void;
   onRejectOffer?: (messageId: string) => void;
-  onCounterOffer?: (messageId: string, currentAmount: number) => void;
   isPaidOrConfirmed?: boolean;
+  isResponding?: boolean;
 };
 
 export const MessageItem = ({ 
@@ -33,8 +33,8 @@ export const MessageItem = ({
   senderName,
   onAcceptOffer,
   onRejectOffer,
-  onCounterOffer,
-  isPaidOrConfirmed = false
+  isPaidOrConfirmed = false,
+  isResponding = false
 }: MessageItemProps) => {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -103,23 +103,17 @@ export const MessageItem = ({
                 variant="default"
                 onClick={() => onAcceptOffer?.(message.id, message.offer_amount!)}
                 className="flex-1"
+                disabled={isResponding}
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
                 Accept
               </Button>
               <Button 
                 size="sm" 
-                variant="outline"
-                onClick={() => onCounterOffer?.(message.id, message.offer_amount!)}
-                className="flex-1"
-              >
-                Counter
-              </Button>
-              <Button 
-                size="sm" 
                 variant="destructive"
                 onClick={() => onRejectOffer?.(message.id)}
                 className="flex-1"
+                disabled={isResponding}
               >
                 <XCircle className="w-4 h-4 mr-1" />
                 Reject
