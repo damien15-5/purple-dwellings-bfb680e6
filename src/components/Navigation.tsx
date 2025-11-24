@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, Home, User, LogOut, LayoutDashboard, HelpCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import xavorianLogo from '@/assets/xavorian-logo.png';
+import { NotificationBell } from '@/components/NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,8 +101,12 @@ export const Navigation = () => {
             </span>
           </Link>
 
-          {/* Hamburger Dropdown Menu */}
-          <DropdownMenu>
+          {/* Notification Bell and Hamburger Menu */}
+          <div className="flex items-center gap-2">
+            {isLoggedIn && <NotificationBell />}
+            
+            {/* Hamburger Dropdown Menu */}
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 sm:h-10 sm:w-10">
                 <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -153,7 +158,8 @@ export const Navigation = () => {
                 </>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </nav>
