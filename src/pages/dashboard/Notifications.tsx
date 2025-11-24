@@ -1,4 +1,5 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,8 @@ import {
 export const Notifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadNotifications();
@@ -44,6 +47,31 @@ export const Notifications = () => {
       .eq('id', id);
 
     loadNotifications();
+  };
+
+  const getNotificationLink = (type: string) => {
+    const links: Record<string, string> = {
+      offer_accepted: '/dashboard/escrows',
+      counter_offer: '/dashboard/offers',
+      payment_escrow: '/dashboard/escrows',
+      document_verification: '/dashboard/verification',
+      funds_released: '/dashboard/escrows',
+      price_change: '/dashboard/saved',
+    };
+    return links[type] || null;
+  };
+
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+    const link = getNotificationLink(notification.type);
+    if (link) {
+      navigate(link);
+    } else {
+      // For system notifications, toggle expand
+      setExpandedId(expandedId === notification.id ? null : notification.id);
+    }
   };
 
   const markAllAsRead = async () => {
@@ -121,7 +149,7 @@ export const Notifications = () => {
                 className={`card-glow cursor-pointer transition-all hover:shadow-lg ${
                   !notification.read ? 'border-l-4 border-l-accent-purple' : ''
                 }`}
-                onClick={() => !notification.read && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
@@ -139,7 +167,9 @@ export const Notifications = () => {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className={`text-sm text-muted-foreground mb-2 ${
+                        expandedId === notification.id ? '' : 'line-clamp-2'
+                      }`}>
                         {notification.description}
                       </p>
                       <div className="flex items-center justify-between">
@@ -151,9 +181,19 @@ export const Notifications = () => {
                             minute: '2-digit'
                           })}
                         </span>
-                        <Button variant="ghost" size="sm" className="text-accent-purple hover:text-accent-purple">
-                          View Details
-                        </Button>
+                        {getNotificationLink(notification.type) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-accent-purple hover:text-accent-purple"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notification);
+                            }}
+                          >
+                            View
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

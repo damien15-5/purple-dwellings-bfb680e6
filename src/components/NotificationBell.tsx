@@ -65,11 +65,16 @@ export const NotificationBell = () => {
     }
   };
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const handleNotificationClick = (notification: any) => {
     markAsRead(notification.id);
     if (notification.link) {
       navigate(notification.link);
       setIsOpen(false);
+    } else {
+      // For system notifications without links, toggle expand
+      setExpandedId(expandedId === notification.id ? null : notification.id);
     }
   };
 
@@ -187,12 +192,30 @@ export const NotificationBell = () => {
                             <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1" />
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        <p className={cn(
+                          "text-xs text-muted-foreground mt-1",
+                          expandedId === notification.id ? "" : "line-clamp-2"
+                        )}>
                           {notification.message}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {formatTime(notification.timestamp)}
-                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            {formatTime(notification.timestamp)}
+                          </p>
+                          {notification.link && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs text-primary hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNotificationClick(notification);
+                              }}
+                            >
+                              View
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
