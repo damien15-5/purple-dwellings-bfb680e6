@@ -1,1 +1,4 @@
 project_id = "bmzjeamkuxeksbfjusui"
+
+[functions.gcs-upload]
+verify_jwt = false
