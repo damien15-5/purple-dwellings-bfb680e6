@@ -164,7 +164,20 @@ serve(async (req) => {
       throw new Error('GCS_SERVICE_ACCOUNT not configured');
     }
     
-    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
+    // Debug: log first 50 chars to see what format the secret is in
+    console.log('Secret starts with:', serviceAccountJson.substring(0, 50));
+    console.log('Secret length:', serviceAccountJson.length);
+    
+    let serviceAccount: ServiceAccount;
+    try {
+      serviceAccount = JSON.parse(serviceAccountJson);
+    } catch (parseError) {
+      // Try double-parsing in case it was stored as escaped JSON string
+      console.log('First parse failed, trying double-parse');
+      serviceAccount = JSON.parse(JSON.parse(serviceAccountJson));
+    }
+    
+    console.log('Service account project_id:', serviceAccount.project_id);
     const bucketName = 'xavorian'; // GCS bucket name
     
     // Parse multipart form data
