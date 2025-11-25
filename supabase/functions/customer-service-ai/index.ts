@@ -83,6 +83,38 @@ async function fetchUserContext(supabase: any, userId: string): Promise<UserCont
   };
 }
 
+async function createSupportTicket(
+  supabase: any, 
+  userId: string, 
+  email: string,
+  subject: string, 
+  description: string, 
+  priority: string = 'medium'
+): Promise<{ success: boolean; ticketId?: string; error?: string }> {
+  console.log('Creating support ticket for user:', userId);
+  
+  const { data, error } = await supabase
+    .from('customer_service_tickets')
+    .insert({
+      user_id: userId,
+      user_email: email,
+      subject: subject,
+      description: description,
+      priority: priority,
+      status: 'open',
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Error creating ticket:', error);
+    return { success: false, error: error.message };
+  }
+
+  console.log('Ticket created successfully:', data.id);
+  return { success: true, ticketId: data.id };
+}
+
 function buildSystemPrompt(context: UserContext): string {
   const userName = context.profile?.full_name || 'User';
   const accountType = context.profile?.account_type || 'buyer';
@@ -140,6 +172,21 @@ You are a warm, knowledgeable, and empathetic human-like assistant. You speak na
 3. **Guide** - Give specific, actionable next steps
 4. **Offer more help** - End by offering to help with related questions
 
+## TICKET CREATION:
+You have the ability to create support tickets for users. Use the create_ticket function when:
+- The user explicitly asks to create a ticket
+- The issue is complex and requires human intervention
+- You cannot fully resolve the user's issue
+- The user has been waiting too long for verification/payment
+- There's suspected fraud or unusual activity
+
+When creating a ticket, gather the following information:
+- Subject: A brief summary of the issue
+- Description: Detailed explanation of the problem
+- Priority: low, medium, or high based on urgency
+
+After creating a ticket, inform the user with the ticket details and let them know the support team will follow up.
+
 ## SENSITIVE DATA BLOCKING (CRITICAL):
 You must NEVER share or provide:
 - Personal details of OTHER users (email, phone, address, NIN, passport, IDs)
@@ -155,32 +202,40 @@ When asked for sensitive info, respond naturally:
 2. **Escrow & Payments**: Explain escrow stages step-by-step, payment verification, fund release conditions
 3. **Offers & Negotiations**: Show offer history, suggest counter-offer strategies, explain status changes
 4. **Document Verification**: Guide through KYC process, explain what documents are needed and why
-5. **Support Tickets**: Help create tickets for complex issues requiring human intervention
+5. **Support Tickets**: CREATE tickets for complex issues requiring human intervention
 6. **Platform Navigation**: Explain how to use any Xavorian feature clearly
-
-## ESCALATION TRIGGERS:
-Suggest creating a support ticket when:
-- Issue is complex or high-value transaction related
-- User has been waiting unusually long for verification/payment
-- Suspected fraud or suspicious activity
-- You genuinely cannot resolve the issue
-- User explicitly requests human support
-
-Format escalation suggestions naturally: "For this type of issue, I'd recommend creating a support ticket so our team can look into it directly. Would you like me to help you with that?"
-
-## COMMON QUESTIONS YOU EXCEL AT:
-
-### Escrow Process:
-"The escrow process on Xavorian works in 5 clear stages: First, you initiate the transaction and agree on terms. Second, the buyer deposits funds into our secure escrow account. Third, both parties complete verification. Fourth, the inspection period begins where the buyer can verify the property. Finally, once both parties confirm satisfaction, funds are released to the seller. This protects both buyers and sellers from fraud."
-
-### Document Verification:
-"To verify your account, you'll need to upload: 1) A valid government-issued ID (NIN, passport, or driver's license), 2) A clear selfie for identity matching, and 3) Proof of address if required. Go to Dashboard > Verification to start. Our team typically reviews documents within 24-48 hours."
-
-### Making/Accepting Offers:
-"To make an offer, go to the property page and click 'Make Offer.' You can propose your price and add a message to the seller. The seller can accept, reject, or counter your offer. All negotiations happen through the platform chat for your security."
 
 Remember: You have access to the user's real data. Use it to provide personalized, helpful responses. Reference their specific listings, transactions, and status when relevant.`;
 }
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "create_ticket",
+      description: "Create a support ticket for the user when they need human assistance or have a complex issue that cannot be resolved through chat.",
+      parameters: {
+        type: "object",
+        properties: {
+          subject: {
+            type: "string",
+            description: "A brief summary of the issue (e.g., 'Payment not reflecting', 'Document verification delay')"
+          },
+          description: {
+            type: "string",
+            description: "Detailed description of the user's issue including relevant context"
+          },
+          priority: {
+            type: "string",
+            enum: ["low", "medium", "high"],
+            description: "Priority level: low for general queries, medium for standard issues, high for urgent/payment issues"
+          }
+        },
+        required: ["subject", "description", "priority"]
+      }
+    }
+  }
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -188,7 +243,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userId, action } = await req.json();
+    const { messages, userId } = await req.json();
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     
     if (!GROQ_API_KEY) {
@@ -202,17 +257,6 @@ serve(async (req) => {
     let userContext: UserContext | null = null;
     if (userId) {
       userContext = await fetchUserContext(supabase, userId);
-    }
-
-    if (action === 'create_ticket') {
-      return new Response(
-        JSON.stringify({ 
-          type: 'action',
-          action: 'create_ticket',
-          message: 'I\'ll help you create a support ticket. What issue would you like to report?'
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     const systemPrompt = userContext 
@@ -237,7 +281,84 @@ Never share personal information of other users or sensitive financial data. If 
 
     console.log('Calling Groq API with model: llama-3.3-70b-versatile');
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // First, make a non-streaming call to check for tool use
+    const initialResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages,
+        ],
+        temperature: 0.7,
+        max_tokens: 1500,
+        tools: tools,
+        tool_choice: "auto",
+      }),
+    });
+
+    if (!initialResponse.ok) {
+      const errorText = await initialResponse.text();
+      console.error("Groq API error:", initialResponse.status, errorText);
+      
+      if (initialResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: "AI service temporarily unavailable" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const initialData = await initialResponse.json();
+    const assistantMessage = initialData.choices?.[0]?.message;
+
+    // Check if the AI wants to create a ticket
+    if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+      const toolCall = assistantMessage.tool_calls[0];
+      
+      if (toolCall.function.name === "create_ticket" && userId && userContext) {
+        const args = JSON.parse(toolCall.function.arguments);
+        console.log('AI requested ticket creation:', args);
+
+        const ticketResult = await createSupportTicket(
+          supabase,
+          userId,
+          userContext.profile?.email || 'unknown@email.com',
+          args.subject,
+          args.description,
+          args.priority
+        );
+
+        // Create a follow-up message with ticket result
+        const toolResultMessage = ticketResult.success
+          ? `I've successfully created a support ticket for you!\n\n**Ticket Details:**\n- **Subject:** ${args.subject}\n- **Priority:** ${args.priority}\n- **Status:** Open\n\nOur support team will review your ticket and get back to you as soon as possible. You can track your ticket status in your dashboard under "Help & Support".\n\nIs there anything else I can help you with in the meantime?`
+          : `I apologize, but I encountered an issue while creating your ticket: ${ticketResult.error}. Please try again or manually create a ticket through Dashboard > Help & Support. I'm sorry for the inconvenience.`;
+
+        // Return non-streaming response with ticket creation result
+        const sseData = `data: ${JSON.stringify({
+          choices: [{
+            delta: { content: toolResultMessage },
+            finish_reason: null
+          }]
+        })}\n\ndata: [DONE]\n\n`;
+
+        return new Response(sseData, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      }
+    }
+
+    // If no tool call, stream the regular response
+    const streamResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${GROQ_API_KEY}`,
@@ -255,16 +376,9 @@ Never share personal information of other users or sensitive financial data. If 
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    if (!streamResponse.ok) {
+      const errorText = await streamResponse.text();
+      console.error("Groq API streaming error:", streamResponse.status, errorText);
       
       return new Response(
         JSON.stringify({ error: "AI service temporarily unavailable" }),
@@ -272,7 +386,7 @@ Never share personal information of other users or sensitive financial data. If 
       );
     }
 
-    return new Response(response.body, {
+    return new Response(streamResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
 
