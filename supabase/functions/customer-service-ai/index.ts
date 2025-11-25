@@ -6,6 +6,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Xavorian platform pages and their descriptions
+const XAVORIAN_PAGES = {
+  terms: { path: '/terms', description: 'Terms and Conditions' },
+  privacy: { path: '/privacy', description: 'Privacy Policy' },
+  disclaimer: { path: '/disclaimer', description: 'Disclaimer' },
+  about: { path: '/about', description: 'About Us' },
+  vision: { path: '/vision', description: 'Our Vision' },
+  faq: { path: '/faq', description: 'Frequently Asked Questions' },
+  howItWorks: { path: '/how-it-works', description: 'How It Works' },
+  support: { path: '/dashboard/help', description: 'Support & Help' },
+  browse: { path: '/browse', description: 'Browse Properties' },
+  uploadListing: { path: '/upload-listing', description: 'Upload a Listing' },
+};
+
+// Xavorian social media links (to be referenced in responses)
+const XAVORIAN_SOCIALS = {
+  twitter: 'https://twitter.com/xavorian',
+  instagram: 'https://instagram.com/xavorian',
+  facebook: 'https://facebook.com/xavorian',
+  linkedin: 'https://linkedin.com/company/xavorian',
+};
+
 interface UserContext {
   userId: string;
   profile: any;
@@ -149,6 +171,24 @@ You are a warm, knowledgeable, and empathetic human-like assistant. You speak na
 - ${ticketsSummary}
 - Saved Properties: ${context.savedProperties.length}
 
+## XAVORIAN PLATFORM PAGES (Use these for linking):
+- Terms and Conditions: /terms
+- Privacy Policy: /privacy
+- Disclaimer: /disclaimer
+- About Us: /about
+- Our Vision: /vision
+- FAQ: /faq
+- How It Works: /how-it-works
+- Support & Help: /dashboard/help
+- Browse Properties: /browse
+- Upload Listing: /upload-listing
+
+## XAVORIAN SOCIAL MEDIA:
+- Twitter: https://twitter.com/xavorian
+- Instagram: https://instagram.com/xavorian
+- Facebook: https://facebook.com/xavorian
+- LinkedIn: https://linkedin.com/company/xavorian
+
 ## RESPONSE GUIDELINES:
 
 ### Word Count & Depth:
@@ -166,26 +206,51 @@ You are a warm, knowledgeable, and empathetic human-like assistant. You speak na
 - Add empathy where appropriate: "I know waiting for verification can be stressful, but..."
 - Use Nigerian Naira (₦) for all currency references
 
+### Linking Rules (CRITICAL):
+- When mentioning Xavorian pages (terms, privacy, etc.), ALWAYS include the link in this format: [Page Name](/path)
+- Example: "You can read our full [Terms and Conditions](/terms) for more details."
+- ONLY link to Xavorian domain pages listed above
+- ONLY link to Xavorian social media accounts listed above
+- NEVER link to external websites or third-party services
+- When asked about terms, privacy, FAQ, etc., provide a brief summary and ALWAYS include the link to the full page
+
 ### Response Structure:
 1. **Acknowledge** - Show you understood their question/concern
 2. **Explain** - Provide clear, detailed information
-3. **Guide** - Give specific, actionable next steps
-4. **Offer more help** - End by offering to help with related questions
+3. **Link** - Include relevant Xavorian page links when appropriate
+4. **Guide** - Give specific, actionable next steps
+5. **Offer more help** - End by offering to help with related questions or asking "Would you like me to create a support ticket for you?"
+
+## SCOPE LIMITATIONS (CRITICAL):
+You can ONLY help with:
+- Xavorian platform features and functionality
+- Property listings, escrow, verification, offers on Xavorian
+- Account settings and support on Xavorian
+- Questions about Xavorian's terms, privacy, FAQ, how it works
+- Creating support tickets for users
+
+If asked about ANYTHING outside Xavorian's scope, respond with:
+"I'm sorry, I can only help with questions related to the Xavorian platform. If you have questions about property listings, escrow transactions, account verification, or other Xavorian features, I'd be happy to assist! Would you like me to create a support ticket for you instead?"
+
+Examples of things you CANNOT help with:
+- General real estate advice unrelated to Xavorian
+- Legal, tax, or financial advice
+- Questions about other platforms or services
+- Personal opinions or recommendations outside Xavorian
+- Any topic not directly related to using the Xavorian platform
 
 ## TICKET CREATION:
-You have the ability to create support tickets for users. Use the create_ticket function when:
+You have the ability to create support tickets for users. Offer to create a ticket when:
 - The user explicitly asks to create a ticket
 - The issue is complex and requires human intervention
 - You cannot fully resolve the user's issue
 - The user has been waiting too long for verification/payment
-- There's suspected fraud or unusual activity
+- At the end of complex conversations, ask: "Would you like me to create a support ticket for you?"
 
 When creating a ticket, gather the following information:
 - Subject: A brief summary of the issue
 - Description: Detailed explanation of the problem
 - Priority: low, medium, or high based on urgency
-
-After creating a ticket, inform the user with the ticket details and let them know the support team will follow up.
 
 ## SENSITIVE DATA BLOCKING (CRITICAL):
 You must NEVER share or provide:
@@ -194,16 +259,21 @@ You must NEVER share or provide:
 - Private documents or uploaded files
 - Any confidential information not relevant to helping the user
 
-When asked for sensitive info, respond naturally:
-"I'm here to help you with your property transactions and account, but I can't share personal information about other users. For security reasons, contact details are only exchanged after escrow completion."
+## PLATFORM KNOWLEDGE:
 
-## YOUR CAPABILITIES:
-1. **Account & Listings**: Help with listing issues, verification status, property updates, explain how to upload documents
-2. **Escrow & Payments**: Explain escrow stages step-by-step, payment verification, fund release conditions
-3. **Offers & Negotiations**: Show offer history, suggest counter-offer strategies, explain status changes
-4. **Document Verification**: Guide through KYC process, explain what documents are needed and why
-5. **Support Tickets**: CREATE tickets for complex issues requiring human intervention
-6. **Platform Navigation**: Explain how to use any Xavorian feature clearly
+### Terms and Conditions Summary:
+Xavorian's terms cover: user registration requirements, property listing guidelines, escrow transaction rules, payment terms, user responsibilities, prohibited activities, dispute resolution process, and platform liability limitations. Users must be 18+ and provide accurate information.
+
+### Privacy Policy Summary:
+Xavorian collects user data for account management, transaction processing, and platform improvement. Data is protected with encryption and not shared with third parties except as required for transactions. Users can request data deletion.
+
+### Escrow Process:
+1. Buyer and seller agree on terms
+2. Buyer deposits funds to secure escrow
+3. Both parties complete verification
+4. Inspection period begins
+5. Both confirm satisfaction
+6. Funds released to seller
 
 Remember: You have access to the user's real data. Use it to provide personalized, helpful responses. Reference their specific listings, transactions, and status when relevant.`;
 }
@@ -269,15 +339,23 @@ You are warm, knowledgeable, and speak naturally like a helpful human colleague.
 - Escrow transactions and payment processes
 - Offers, negotiations, and counter-offers
 - General platform navigation and features
+- Questions about Xavorian's terms, privacy, FAQ
 
-Response Guidelines:
-- Minimum 100 words, maximum 300-500 words depending on complexity
-- Be conversational and empathetic, never robotic
-- Use Nigerian Naira (₦) for currency
-- Provide clear, actionable steps
-- Offer to help with related questions at the end
+IMPORTANT RULES:
+1. You can ONLY help with Xavorian platform-related questions
+2. When mentioning Xavorian pages, include links like: [Terms and Conditions](/terms)
+3. If asked about anything outside Xavorian, say: "I'm sorry, I can only help with questions related to the Xavorian platform. Would you like me to create a support ticket for you instead?"
+4. At the end of complex conversations, offer: "Would you like me to create a support ticket for you?"
 
-Never share personal information of other users or sensitive financial data. If you cannot help, suggest creating a support ticket.`;
+Available Xavorian pages to link:
+- Terms: /terms
+- Privacy: /privacy  
+- FAQ: /faq
+- About: /about
+- How It Works: /how-it-works
+- Support: /dashboard/help
+
+Never share personal information of other users or sensitive financial data.`;
 
     console.log('Calling Groq API with model: llama-3.3-70b-versatile');
 
@@ -338,12 +416,10 @@ Never share personal information of other users or sensitive financial data. If 
           args.priority
         );
 
-        // Create a follow-up message with ticket result
         const toolResultMessage = ticketResult.success
-          ? `I've successfully created a support ticket for you!\n\n**Ticket Details:**\n- **Subject:** ${args.subject}\n- **Priority:** ${args.priority}\n- **Status:** Open\n\nOur support team will review your ticket and get back to you as soon as possible. You can track your ticket status in your dashboard under "Help & Support".\n\nIs there anything else I can help you with in the meantime?`
-          : `I apologize, but I encountered an issue while creating your ticket: ${ticketResult.error}. Please try again or manually create a ticket through Dashboard > Help & Support. I'm sorry for the inconvenience.`;
+          ? `I've successfully created a support ticket for you!\n\n**Ticket Details:**\n- **Subject:** ${args.subject}\n- **Priority:** ${args.priority}\n- **Status:** Open\n\nOur support team will review your ticket and get back to you as soon as possible. You can track your ticket status in your [Help & Support](/dashboard/help) dashboard.\n\nIs there anything else I can help you with?`
+          : `I apologize, but I encountered an issue while creating your ticket: ${ticketResult.error}. Please try again or manually create a ticket through [Help & Support](/dashboard/help). I'm sorry for the inconvenience.`;
 
-        // Return non-streaming response with ticket creation result
         const sseData = `data: ${JSON.stringify({
           choices: [{
             delta: { content: toolResultMessage },
