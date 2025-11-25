@@ -209,6 +209,8 @@ How can I assist you today?`,
     return content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\[(.*?)\]\((\/[^\)]+)\)/g, '<a href="$2" class="text-primary underline hover:text-primary/80">$1</a>')
+      .replace(/\[(.*?)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80">$1</a>')
       .replace(/\n/g, '<br />');
   };
 
@@ -359,17 +361,16 @@ How can I assist you today?`,
         </Card>
 
         {/* Info Banner */}
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
           <Badge variant="secondary" className="gap-1">
             <Bot className="h-3 w-3" />
-            Powered by Groq AI
+            Xavorian AI
           </Badge>
-          <span>•</span>
           <button 
             onClick={handleCreateTicket}
             className="hover:text-primary hover:underline transition-colors cursor-pointer"
           >
-            Need human help? Create a support ticket
+            Need human help? Create a support ticket →
           </button>
         </div>
       </main>
