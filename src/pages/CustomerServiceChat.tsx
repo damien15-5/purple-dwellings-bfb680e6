@@ -1,15 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
   Send, 
-  Bot, 
   User, 
   ArrowLeft, 
   Loader2, 
@@ -22,8 +21,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Navigation } from '@/components/Navigation';
-import { Footer } from '@/components/Footer';
+import xavorianLogo from '@/assets/xavorian-logo.png';
 
 interface Message {
   id: string;
@@ -48,7 +46,7 @@ const CustomerServiceChat = () => {
     {
       id: '1',
       role: 'assistant',
-      content: `Hello! I'm **Xavi**, your Xavorian AI assistant. 👋
+      content: `Hello! I'm **Xavo**, your Xavorian AI assistant. 👋
 
 I can help you with:
 • Property listings and verification
@@ -216,8 +214,6 @@ How can I assist you today?`,
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navigation />
-      
       <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -231,13 +227,14 @@ How can I assist you today?`,
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 bg-primary">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  <Bot className="h-5 w-5" />
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={xavorianLogo} alt="Xavo" />
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  XA
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-lg font-semibold">Xavi - AI Support</h1>
+                <h1 className="text-lg font-semibold">Xavo - AI Support</h1>
                 <p className="text-sm text-muted-foreground">
                   {isLoading ? 'Typing...' : 'Online'}
                 </p>
@@ -256,7 +253,7 @@ How can I assist you today?`,
         </div>
 
         {/* Chat Container */}
-        <Card className="flex flex-col h-[calc(100vh-280px)] min-h-[500px]">
+        <Card className="flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
           {/* Messages */}
           <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
             <div className="space-y-4">
@@ -268,19 +265,20 @@ How can I assist you today?`,
                   }`}
                 >
                   <Avatar className={`h-8 w-8 shrink-0 ${
-                    message.role === 'assistant' ? 'bg-primary' : 'bg-muted'
+                    message.role === 'user' ? 'bg-muted' : ''
                   }`}>
-                    <AvatarFallback className={
-                      message.role === 'assistant' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted'
-                    }>
-                      {message.role === 'assistant' ? (
-                        <Bot className="h-4 w-4" />
-                      ) : (
+                    {message.role === 'assistant' ? (
+                      <>
+                        <AvatarImage src={xavorianLogo} alt="Xavo" />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          XA
+                        </AvatarFallback>
+                      </>
+                    ) : (
+                      <AvatarFallback className="bg-muted">
                         <User className="h-4 w-4" />
-                      )}
-                    </AvatarFallback>
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 ${
@@ -363,19 +361,17 @@ How can I assist you today?`,
         {/* Info Banner */}
         <div className="mt-4 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
           <Badge variant="secondary" className="gap-1">
-            <Bot className="h-3 w-3" />
+            <img src={xavorianLogo} alt="Xavorian" className="h-3 w-3" />
             Xavorian AI
           </Badge>
-          <button 
-            onClick={handleCreateTicket}
-            className="hover:text-primary hover:underline transition-colors cursor-pointer"
+          <Link 
+            to="/dashboard/help"
+            className="hover:text-primary hover:underline transition-colors"
           >
             Need human help? Create a support ticket →
-          </button>
+          </Link>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };
