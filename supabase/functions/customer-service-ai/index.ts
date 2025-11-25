@@ -20,14 +20,6 @@ const XAVORIAN_PAGES = {
   uploadListing: { path: '/upload-listing', description: 'Upload a Listing' },
 };
 
-// Xavorian social media links (to be referenced in responses)
-const XAVORIAN_SOCIALS = {
-  twitter: 'https://twitter.com/xavorian',
-  instagram: 'https://instagram.com/xavorian',
-  facebook: 'https://facebook.com/xavorian',
-  linkedin: 'https://linkedin.com/company/xavorian',
-};
-
 interface UserContext {
   userId: string;
   profile: any;
@@ -87,8 +79,8 @@ async function fetchUserContext(supabase: any, userId: string): Promise<UserCont
     .limit(10);
 
   const { data: supportTickets } = await supabase
-    .from('customer_service_tickets')
-    .select('id, subject, status, priority, created_at')
+    .from('ai_support_tickets')
+    .select('id, ticket_number, title, status, priority, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(5);
@@ -105,27 +97,63 @@ async function fetchUserContext(supabase: any, userId: string): Promise<UserCont
   };
 }
 
-async function createSupportTicket(
+async function createAISupportTicket(
   supabase: any, 
   userId: string, 
   email: string,
-  subject: string, 
+  title: string,
+  issue: string,
   description: string, 
   priority: string = 'medium'
-): Promise<{ success: boolean; ticketId?: string; error?: string }> {
-  console.log('Creating support ticket for user:', userId);
+): Promise<{ success: boolean; ticketNumber?: string; error?: string }> {
+  console.log('Creating AI support ticket for user:', userId);
   
+  // Generate ticket number
+  const { data: ticketNumData, error: ticketNumError } = await supabase
+    .rpc('generate_ticket_number');
+  
+  if (ticketNumError) {
+    console.error('Error generating ticket number:', ticketNumError);
+    // Fallback ticket number
+    const fallbackNum = 'XAV-' + Date.now().toString().slice(-6);
+    
+    const { data, error } = await supabase
+      .from('ai_support_tickets')
+      .insert({
+        ticket_number: fallbackNum,
+        user_id: userId,
+        user_email: email,
+        title: title,
+        issue: issue,
+        description: description,
+        priority: priority,
+        status: 'open',
+      })
+      .select('ticket_number')
+      .single();
+
+    if (error) {
+      console.error('Error creating ticket:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('Ticket created successfully:', data.ticket_number);
+    return { success: true, ticketNumber: data.ticket_number };
+  }
+
   const { data, error } = await supabase
-    .from('customer_service_tickets')
+    .from('ai_support_tickets')
     .insert({
+      ticket_number: ticketNumData,
       user_id: userId,
       user_email: email,
-      subject: subject,
+      title: title,
+      issue: issue,
       description: description,
       priority: priority,
       status: 'open',
     })
-    .select('id')
+    .select('ticket_number')
     .single();
 
   if (error) {
@@ -133,8 +161,8 @@ async function createSupportTicket(
     return { success: false, error: error.message };
   }
 
-  console.log('Ticket created successfully:', data.id);
-  return { success: true, ticketId: data.id };
+  console.log('Ticket created successfully:', data.ticket_number);
+  return { success: true, ticketNumber: data.ticket_number };
 }
 
 function buildSystemPrompt(context: UserContext): string {
@@ -154,13 +182,13 @@ function buildSystemPrompt(context: UserContext): string {
     : 'User has not submitted verification documents';
 
   const ticketsSummary = context.supportTickets.length > 0
-    ? `User has ${context.supportTickets.length} support tickets: ${context.supportTickets.map(t => `"${t.subject}" (${t.status})`).join(', ')}`
-    : 'User has no open support tickets';
+    ? `User has ${context.supportTickets.length} AI support tickets: ${context.supportTickets.map(t => `${t.ticket_number}: "${t.title}" (${t.status})`).join(', ')}`
+    : 'User has no AI support tickets';
 
-  return `You are Xavi, the Xavorian AI Customer Service Assistant for Xavorian, a Nigerian real estate platform.
+  return `You are Xavo, the Xavorian AI Customer Service Assistant for Xavorian, a Nigerian real estate platform.
 
 ## YOUR CORE IDENTITY:
-You are a warm, knowledgeable, and empathetic human-like assistant. You speak naturally and conversationally, never like a robot. You genuinely care about helping users succeed on the platform.
+You are a warm, knowledgeable, and empathetic human-like assistant named Xavo. You speak naturally and conversationally, never like a robot. You genuinely care about helping users succeed on the platform.
 
 ## USER CONTEXT:
 - Name: ${userName}
@@ -183,12 +211,6 @@ You are a warm, knowledgeable, and empathetic human-like assistant. You speak na
 - Browse Properties: /browse
 - Upload Listing: /upload-listing
 
-## XAVORIAN SOCIAL MEDIA:
-- Twitter: https://twitter.com/xavorian
-- Instagram: https://instagram.com/xavorian
-- Facebook: https://facebook.com/xavorian
-- LinkedIn: https://linkedin.com/company/xavorian
-
 ## RESPONSE GUIDELINES:
 
 ### Word Count & Depth:
@@ -210,7 +232,6 @@ You are a warm, knowledgeable, and empathetic human-like assistant. You speak na
 - When mentioning Xavorian pages (terms, privacy, etc.), ALWAYS include the link in this format: [Page Name](/path)
 - Example: "You can read our full [Terms and Conditions](/terms) for more details."
 - ONLY link to Xavorian domain pages listed above
-- ONLY link to Xavorian social media accounts listed above
 - NEVER link to external websites or third-party services
 - When asked about terms, privacy, FAQ, etc., provide a brief summary and ALWAYS include the link to the full page
 
@@ -232,25 +253,18 @@ You can ONLY help with:
 If asked about ANYTHING outside Xavorian's scope, respond with:
 "I'm sorry, I can only help with questions related to the Xavorian platform. If you have questions about property listings, escrow transactions, account verification, or other Xavorian features, I'd be happy to assist! Would you like me to create a support ticket for you instead?"
 
-Examples of things you CANNOT help with:
-- General real estate advice unrelated to Xavorian
-- Legal, tax, or financial advice
-- Questions about other platforms or services
-- Personal opinions or recommendations outside Xavorian
-- Any topic not directly related to using the Xavorian platform
-
 ## TICKET CREATION:
-You have the ability to create support tickets for users. Offer to create a ticket when:
+You have the ability to create support tickets for users. Use the create_ticket function when:
 - The user explicitly asks to create a ticket
 - The issue is complex and requires human intervention
 - You cannot fully resolve the user's issue
-- The user has been waiting too long for verification/payment
 - At the end of complex conversations, ask: "Would you like me to create a support ticket for you?"
 
-When creating a ticket, gather the following information:
-- Subject: A brief summary of the issue
-- Description: Detailed explanation of the problem
-- Priority: low, medium, or high based on urgency
+When creating a ticket, gather:
+- Title: Brief summary of the issue
+- Issue: Category/type of issue
+- Description: Detailed explanation
+- Priority: low, medium, or high
 
 ## SENSITIVE DATA BLOCKING (CRITICAL):
 You must NEVER share or provide:
@@ -275,7 +289,7 @@ Xavorian collects user data for account management, transaction processing, and 
 5. Both confirm satisfaction
 6. Funds released to seller
 
-Remember: You have access to the user's real data. Use it to provide personalized, helpful responses. Reference their specific listings, transactions, and status when relevant.`;
+Remember: You have access to the user's real data. Use it to provide personalized, helpful responses.`;
 }
 
 const tools = [
@@ -287,9 +301,13 @@ const tools = [
       parameters: {
         type: "object",
         properties: {
-          subject: {
+          title: {
             type: "string",
-            description: "A brief summary of the issue (e.g., 'Payment not reflecting', 'Document verification delay')"
+            description: "A brief title/summary of the issue (e.g., 'Payment not reflecting', 'Document verification delay')"
+          },
+          issue: {
+            type: "string",
+            description: "Category of the issue (e.g., 'Payment Issue', 'Verification Issue', 'Escrow Issue', 'Account Issue', 'Technical Issue', 'Other')"
           },
           description: {
             type: "string",
@@ -301,7 +319,7 @@ const tools = [
             description: "Priority level: low for general queries, medium for standard issues, high for urgent/payment issues"
           }
         },
-        required: ["subject", "description", "priority"]
+        required: ["title", "issue", "description", "priority"]
       }
     }
   }
@@ -331,7 +349,7 @@ serve(async (req) => {
 
     const systemPrompt = userContext 
       ? buildSystemPrompt(userContext)
-      : `You are Xavi, the Xavorian AI Customer Service Assistant for Xavorian, a Nigerian real estate platform.
+      : `You are Xavo, the Xavorian AI Customer Service Assistant for Xavorian, a Nigerian real estate platform.
 
 You are warm, knowledgeable, and speak naturally like a helpful human colleague. You help users with:
 - Property listings and how to upload them
@@ -407,17 +425,18 @@ Never share personal information of other users or sensitive financial data.`;
         const args = JSON.parse(toolCall.function.arguments);
         console.log('AI requested ticket creation:', args);
 
-        const ticketResult = await createSupportTicket(
+        const ticketResult = await createAISupportTicket(
           supabase,
           userId,
           userContext.profile?.email || 'unknown@email.com',
-          args.subject,
+          args.title,
+          args.issue,
           args.description,
           args.priority
         );
 
         const toolResultMessage = ticketResult.success
-          ? `I've successfully created a support ticket for you!\n\n**Ticket Details:**\n- **Subject:** ${args.subject}\n- **Priority:** ${args.priority}\n- **Status:** Open\n\nOur support team will review your ticket and get back to you as soon as possible. You can track your ticket status in your [Help & Support](/dashboard/help) dashboard.\n\nIs there anything else I can help you with?`
+          ? `I've successfully created a support ticket for you!\n\n**Ticket Details:**\n- **Ticket Number:** ${ticketResult.ticketNumber}\n- **Title:** ${args.title}\n- **Issue Type:** ${args.issue}\n- **Priority:** ${args.priority}\n- **Status:** Open\n\nOur support team will review your ticket and get back to you as soon as possible. You can track your ticket status in your [Help & Support](/dashboard/help) dashboard.\n\nIs there anything else I can help you with?`
           : `I apologize, but I encountered an issue while creating your ticket: ${ticketResult.error}. Please try again or manually create a ticket through [Help & Support](/dashboard/help). I'm sorry for the inconvenience.`;
 
         const sseData = `data: ${JSON.stringify({

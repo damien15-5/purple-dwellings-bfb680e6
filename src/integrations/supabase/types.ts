@@ -86,6 +86,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_support_tickets: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          issue: string
+          priority: string | null
+          resolved_at: string | null
+          status: string | null
+          ticket_number: string
+          title: string
+          updated_at: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          issue: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          ticket_number: string
+          title: string
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          issue?: string
+          priority?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          ticket_number?: string
+          title?: string
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -991,6 +1036,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      generate_ticket_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
