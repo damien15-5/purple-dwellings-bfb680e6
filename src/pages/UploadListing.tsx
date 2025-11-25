@@ -12,6 +12,7 @@ import { DocumentsUploadStep } from '@/components/upload/DocumentsUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
+import { uploadToGCS } from '@/utils/gcsUpload';
 
 export type UploadFormData = {
   // Basic details
@@ -221,7 +222,7 @@ export const UploadListing = () => {
       const imageFiles = images.filter(f => f.type.startsWith('image/'));
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
 
-      // Optimize and upload images with aggressive compression
+      // Optimize and upload images to GCS with aggressive compression
       setUploadProgress(`Compressing ${imageFiles.length} images to WebP...`);
       
       const imageUploads = imageFiles.map(async (image, index) => {
@@ -234,69 +235,60 @@ export const UploadListing = () => {
         
         console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
         
-        const fileName = `${userId}/${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`;
+        // Upload to Google Cloud Storage
+        const result = await uploadToGCS(
+          optimizedImage,
+          `property-images/${userId}`,
+          `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
+        );
         
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(fileName, optimizedImage, {
-            contentType: 'image/webp',
-            cacheControl: '31536000', // 1 year cache
-          });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(fileName);
-
-        return publicUrl;
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to upload image');
+        }
+        
+        return result.url!;
       });
 
-      setUploadProgress('Uploading images...');
+      setUploadProgress('Uploading images to cloud...');
       const imageUrls = await Promise.all(imageUploads);
 
-      // Upload videos (keep as-is, storage handles streaming)
+      // Upload videos to GCS
       let videoUrl: string | null = null;
       if (videoFiles.length > 0) {
-        setUploadProgress('Uploading video...');
+        setUploadProgress('Uploading video to cloud...');
         const video = videoFiles[0];
-        const videoFileName = `${userId}/videos/${Date.now()}_${video.name}`;
         
-        const { error: videoError } = await supabase.storage
-          .from('property-images')
-          .upload(videoFileName, video, {
-            contentType: video.type,
-            cacheControl: '31536000',
-          });
-
-        if (videoError) throw videoError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(videoFileName);
-
-        videoUrl = publicUrl;
+        const result = await uploadToGCS(
+          video,
+          `property-videos/${userId}`,
+          `${Date.now()}_${video.name}`
+        );
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to upload video');
+        }
+        
+        videoUrl = result.url!;
       }
 
-      // Upload documents in parallel (only for sale listings)
+      // Upload documents to GCS (only for sale listings)
       let documentData: any[] = [];
       if (formData.listingType === 'sale' && documents.length > 0) {
-        setUploadProgress('Uploading documents...');
+        setUploadProgress('Uploading documents to cloud...');
         const documentUploads = documents.map(async (doc) => {
-          const fileName = `${userId}/docs/${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${doc.file.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(fileName, doc.file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('property-images')
-            .getPublicUrl(fileName);
+          const result = await uploadToGCS(
+            doc.file,
+            `property-documents/${userId}`,
+            `${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${doc.file.name}`
+          );
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to upload document');
+          }
 
           return {
             type: doc.type,
-            url: publicUrl,
+            url: result.url,
             name: doc.file.name,
           };
         });
