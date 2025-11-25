@@ -249,6 +249,7 @@ export type Database = {
           resolved_at: string | null
           status: string | null
           subject: string
+          ticket_number: string | null
           updated_at: string | null
           user_email: string
           user_id: string
@@ -261,6 +262,7 @@ export type Database = {
           resolved_at?: string | null
           status?: string | null
           subject: string
+          ticket_number?: string | null
           updated_at?: string | null
           user_email: string
           user_id: string
@@ -273,6 +275,7 @@ export type Database = {
           resolved_at?: string | null
           status?: string | null
           subject?: string
+          ticket_number?: string | null
           updated_at?: string | null
           user_email?: string
           user_id?: string
@@ -1060,6 +1063,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      generate_cs_ticket_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       has_role: {
         Args: {
