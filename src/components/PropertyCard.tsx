@@ -4,12 +4,14 @@ import { MapPin, Heart } from 'lucide-react';
 import { useState, memo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface PropertyCardProps {
   property: Property;
+  priority?: boolean;
 }
 
-export const PropertyCard = memo(({ property }: PropertyCardProps) => {
+export const PropertyCard = memo(({ property, priority = false }: PropertyCardProps) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const { toast } = useToast();
 
@@ -43,7 +45,6 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (isFavorite) {
-      // Remove from saved
       localStorage.removeItem(localKey);
       if (user) {
         await supabase
@@ -55,7 +56,6 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
       setIsFavorite(false);
       toast({ description: 'Removed from saved properties' });
     } else {
-      // Add to saved
       localStorage.setItem(localKey, 'true');
       if (user) {
         await supabase
@@ -83,11 +83,12 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
     <div className="group cursor-pointer">
       <Link to={`/property/${property.id}`} className="block">
         <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-2">
-          <img
+          <OptimizedImage
             src={imageUrl}
             alt={property.title}
+            priority={priority}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
+            containerClassName="w-full h-full"
           />
           <button
             onClick={handleToggleSave}
@@ -115,3 +116,5 @@ export const PropertyCard = memo(({ property }: PropertyCardProps) => {
     </div>
   );
 });
+
+PropertyCard.displayName = 'PropertyCard';

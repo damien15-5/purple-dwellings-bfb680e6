@@ -62,12 +62,13 @@ export const FeaturedPropertiesSection = ({ properties, onPropertyView }: Featur
             className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {properties.map((property) => (
+            {properties.map((property, index) => (
               <PropertyCard
                 key={property.id}
                 {...property}
                 variant="large"
                 featured={true}
+                priority={index < 3} // Prioritize first 3 images
                 onView={() => onPropertyView(property.id)}
               />
             ))}
