@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import {
   CreditCard,
   MessageSquare,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import xavorianLogo from '@/assets/xavorian-logo.png';
@@ -31,6 +32,13 @@ interface Message {
   isTyping?: boolean;
 }
 
+interface StoredMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 const quickActions = [
   { icon: Home, label: 'My Listings', prompt: 'Show me the status of my property listings' },
   { icon: FileCheck, label: 'Verification', prompt: 'What is my account verification status?' },
@@ -40,13 +48,10 @@ const quickActions = [
   { icon: HelpCircle, label: 'How Escrow Works', prompt: 'Explain how the escrow process works on Xavorian' },
 ];
 
-const CustomerServiceChat = () => {
-  const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: `Hello! I'm **Xavo**, your Xavorian AI assistant. 👋
+const getWelcomeMessage = (): Message => ({
+  id: '1',
+  role: 'assistant',
+  content: `Hello! I'm **Xavo**, your Xavorian AI assistant. 👋
 
 I can help you with:
 • Property listings and verification
@@ -55,29 +60,114 @@ I can help you with:
 • Account settings and support
 
 How can I assist you today?`,
-      timestamp: new Date(),
-    },
-  ]);
+  timestamp: new Date(),
+});
+
+const CustomerServiceChat = () => {
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState<Message[]>([getWelcomeMessage()]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load user and existing conversation on mount
   useEffect(() => {
-    checkAuth();
+    const initChat = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        await loadConversation(user.id);
+      }
+      setIsLoadingConversation(false);
+    };
+    initChat();
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
+  // Load existing conversation from database
+  const loadConversation = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_chat_conversations')
+        .select('*')
+        .eq('user_id', uid)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading conversation:', error);
+        return;
+      }
+
+      if (data && data.messages) {
+        const storedMessages = data.messages as unknown as StoredMessage[];
+        if (Array.isArray(storedMessages) && storedMessages.length > 0) {
+          const loadedMessages: Message[] = storedMessages.map(m => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          }));
+          setMessages(loadedMessages);
+          setConversationId(data.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
     }
   };
+
+  // Save conversation to database
+  const saveConversation = useCallback(async (messagesToSave: Message[]) => {
+    if (!userId) return;
+
+    const storedMessages: StoredMessage[] = messagesToSave
+      .filter(m => !m.isTyping)
+      .map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp.toISOString(),
+      }));
+
+    try {
+      // Convert to JSON-safe format
+      const messagesJson = JSON.parse(JSON.stringify(storedMessages));
+      
+      if (conversationId) {
+        // Update existing conversation
+        await supabase
+          .from('ai_chat_conversations')
+          .update({ 
+            messages: messagesJson,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversationId);
+      } else {
+        // Create new conversation
+        const { data, error } = await supabase
+          .from('ai_chat_conversations')
+          .insert([{
+            user_id: userId,
+            messages: messagesJson,
+          }])
+          .select()
+          .single();
+
+        if (!error && data) {
+          setConversationId(data.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+    }
+  }, [userId, conversationId]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -99,7 +189,8 @@ How can I assist you today?`,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
@@ -143,15 +234,17 @@ How can I assist you today?`,
       const decoder = new TextDecoder();
       let assistantContent = '';
 
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+
       // Remove typing indicator and add empty assistant message
       setMessages(prev => {
         const filtered = prev.filter(m => m.id !== 'typing');
-        return [...filtered, {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-        }];
+        return [...filtered, assistantMessage];
       });
 
       if (reader) {
@@ -189,6 +282,10 @@ How can I assist you today?`,
         }
       }
 
+      // Save conversation after receiving complete response
+      const finalMessages = [...newMessages, { ...assistantMessage, content: assistantContent }];
+      await saveConversation(finalMessages);
+
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(prev => prev.filter(m => m.id !== 'typing'));
@@ -199,18 +296,117 @@ How can I assist you today?`,
     }
   };
 
+  const handleClearConversation = async () => {
+    if (!userId) return;
+    
+    const welcomeMsg = getWelcomeMessage();
+    setMessages([welcomeMsg]);
+    
+    if (conversationId) {
+      await supabase
+        .from('ai_chat_conversations')
+        .delete()
+        .eq('id', conversationId);
+      setConversationId(null);
+    }
+    
+    toast.success('Conversation cleared');
+  };
+
   const handleCreateTicket = () => {
     navigate('/dashboard/help');
   };
 
+  // Safe text formatting without dangerouslySetInnerHTML
   const formatMessage = (content: string) => {
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\[(.*?)\]\((\/[^\)]+)\)/g, '<a href="$2" class="text-primary underline hover:text-primary/80">$1</a>')
-      .replace(/\[(.*?)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80">$1</a>')
-      .replace(/\n/g, '<br />');
+    const parts: React.ReactNode[] = [];
+    let remaining = content;
+    let key = 0;
+
+    // Process the text piece by piece
+    while (remaining.length > 0) {
+      // Check for bold **text**
+      const boldMatch = remaining.match(/^\*\*(.*?)\*\*/);
+      if (boldMatch) {
+        parts.push(<strong key={key++}>{boldMatch[1]}</strong>);
+        remaining = remaining.slice(boldMatch[0].length);
+        continue;
+      }
+
+      // Check for italic *text*
+      const italicMatch = remaining.match(/^\*(.*?)\*/);
+      if (italicMatch) {
+        parts.push(<em key={key++}>{italicMatch[1]}</em>);
+        remaining = remaining.slice(italicMatch[0].length);
+        continue;
+      }
+
+      // Check for internal links [text](/path)
+      const internalLinkMatch = remaining.match(/^\[(.*?)\]\((\/[^\)]+)\)/);
+      if (internalLinkMatch) {
+        parts.push(
+          <Link 
+            key={key++} 
+            to={internalLinkMatch[2]} 
+            className="text-primary underline hover:text-primary/80"
+          >
+            {internalLinkMatch[1]}
+          </Link>
+        );
+        remaining = remaining.slice(internalLinkMatch[0].length);
+        continue;
+      }
+
+      // Check for external links [text](https://...)
+      const externalLinkMatch = remaining.match(/^\[(.*?)\]\((https?:\/\/[^\)]+)\)/);
+      if (externalLinkMatch) {
+        parts.push(
+          <a 
+            key={key++} 
+            href={externalLinkMatch[2]} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80"
+          >
+            {externalLinkMatch[1]}
+          </a>
+        );
+        remaining = remaining.slice(externalLinkMatch[0].length);
+        continue;
+      }
+
+      // Check for newline
+      if (remaining.startsWith('\n')) {
+        parts.push(<br key={key++} />);
+        remaining = remaining.slice(1);
+        continue;
+      }
+
+      // Find the next special character or add text up to it
+      const nextSpecial = remaining.search(/(\*\*|\*|\[|\n)/);
+      if (nextSpecial === -1) {
+        parts.push(remaining);
+        break;
+      } else if (nextSpecial === 0) {
+        // If we're at a special character but didn't match it, just add it
+        parts.push(remaining[0]);
+        remaining = remaining.slice(1);
+      } else {
+        parts.push(remaining.slice(0, nextSpecial));
+        remaining = remaining.slice(nextSpecial);
+      }
+    }
+
+    return parts;
   };
+
+  if (isLoadingConversation) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -241,15 +437,28 @@ How can I assist you today?`,
               </div>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleCreateTicket}
-            className="gap-2"
-          >
-            <TicketPlus className="h-4 w-4" />
-            Create Ticket
-          </Button>
+          <div className="flex items-center gap-2">
+            {messages.length > 1 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleClearConversation}
+                className="gap-2 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleCreateTicket}
+              className="gap-2"
+            >
+              <TicketPlus className="h-4 w-4" />
+              Create Ticket
+            </Button>
+          </div>
         </div>
 
         {/* Chat Container */}
@@ -294,10 +503,9 @@ How can I assist you today?`,
                         <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     ) : (
-                      <div 
-                        className="text-sm whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
-                      />
+                      <div className="text-sm whitespace-pre-wrap">
+                        {formatMessage(message.content)}
+                      </div>
                     )}
                     <span className="text-xs opacity-60 mt-1 block">
                       {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -346,6 +554,7 @@ How can I assist you today?`,
                 placeholder="Type your message..."
                 disabled={isLoading}
                 className="flex-1"
+                maxLength={2000}
               />
               <Button type="submit" disabled={isLoading || !input.trim()}>
                 {isLoading ? (
