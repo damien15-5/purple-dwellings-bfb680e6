@@ -48,7 +48,7 @@ const AboutUs = lazy(() => import("./pages/AboutUs").then(m => ({ default: m.Abo
 const OurVision = lazy(() => import("./pages/OurVision").then(m => ({ default: m.OurVision })));
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions").then(m => ({ default: m.TermsAndConditions })));
 const FAQ = lazy(() => import("./pages/FAQ").then(m => ({ default: m.FAQ })));
-const MyChats = lazy(() => import("./pages/MyChats").then(m => ({ default: m.MyChats })));
+
 const Chat = lazy(() => import("./pages/Chat").then(m => ({ default: m.Chat })));
 const AccountSettings = lazy(() => import("./pages/AccountSettings").then(m => ({ default: m.AccountSettings })));
 const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })));
@@ -116,7 +116,7 @@ const App = () => (
             <Route path="help" element={<HelpSupport />} />
           </Route>
               <Route path="/dashboard/favorites" element={<Browse />} />
-              <Route path="/dashboard/chats" element={<MyChats />} />
+              <Route path="/dashboard/chats" element={<Navigate to="/dashboard/messages" replace />} />
               <Route path="/dashboard/escrow" element={<MyEscrow />} />
               <Route path="/dashboard/listings" element={<MyListings />} />
               <Route path="/dashboard/settings" element={<AccountSettings />} />
@@ -130,7 +130,7 @@ const App = () => (
               <Route path="/my-escrow" element={<MyEscrow />} />
               <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
               <Route path="/dashboard/escrows" element={<MyEscrows />} />
-              <Route path="/my-chats" element={<MyChats />} />
+              <Route path="/my-chats" element={<Navigate to="/dashboard/messages" replace />} />
               <Route path="/account-settings" element={<AccountSettings />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/disclaimer" element={<Disclaimer />} />

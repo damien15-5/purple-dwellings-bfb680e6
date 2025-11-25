@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Bot, MessageSquare, Ticket } from 'lucide-react';
+import { X, Bot, MessageSquare, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MenuItem {
   icon: React.ReactNode;
   label: string;
   path: string;
-  angle: number; // degrees from horizontal left (0 = left, 45 = top-left, -45 = bottom-left)
+  angle: number; // degrees from horizontal left (0 = left, positive = upward)
 }
 
 export const FloatingMenu = () => {
@@ -19,19 +19,19 @@ export const FloatingMenu = () => {
       icon: <Ticket className="h-5 w-5 text-primary" />,
       label: 'Create Ticket',
       path: '/dashboard/help',
-      angle: 45, // top-left diagonal
+      angle: 70, // upper diagonal
     },
     {
       icon: <MessageSquare className="h-5 w-5 text-primary" />,
       label: 'Messages',
-      path: '/my-chats',
-      angle: 0, // directly left
+      path: '/dashboard/messages',
+      angle: 45, // mid diagonal
     },
     {
       icon: <Bot className="h-5 w-5 text-primary" />,
       label: 'AI Support',
       path: '/ai-support',
-      angle: -45, // bottom-left diagonal
+      angle: 20, // lower diagonal (but still above horizontal)
     },
   ];
 
@@ -40,16 +40,16 @@ export const FloatingMenu = () => {
     navigate(path);
   };
 
-  // Calculate position based on angle
-  const getItemPosition = (angle: number, distance: number = 80) => {
+  // Calculate position based on angle - all items go left and upward
+  const getItemPosition = (angle: number, distance: number = 70) => {
     const radians = (angle * Math.PI) / 180;
-    const x = -Math.cos(radians) * distance; // negative because we want left side
-    const y = -Math.sin(radians) * distance; // negative because CSS y is inverted
+    const x = -Math.cos(radians) * distance; // negative for left
+    const y = -Math.sin(radians) * distance; // negative for upward in CSS
     return { x, y };
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-24 right-6 z-50">
       {/* Backdrop */}
       {isOpen && (
         <div
@@ -58,7 +58,7 @@ export const FloatingMenu = () => {
         />
       )}
 
-      {/* Menu Items - Radial Layout */}
+      {/* Menu Items - Fan Layout (all upward-left) */}
       {menuItems.map((item, index) => {
         const pos = getItemPosition(item.angle);
         return (
