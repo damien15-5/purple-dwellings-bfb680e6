@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Bed, Eye, Heart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MapPin, Eye, Heart } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 type PropertyCardProps = {
   id: string;
@@ -19,10 +19,11 @@ type PropertyCardProps = {
   views?: number;
   variant?: 'large' | 'medium' | 'small';
   featured?: boolean;
+  priority?: boolean; // For above-the-fold images
   onView?: () => void;
 };
 
-export const PropertyCard = ({
+export const PropertyCard = memo(({
   id,
   image,
   price,
@@ -34,31 +35,11 @@ export const PropertyCard = ({
   views,
   variant = 'medium',
   featured = false,
+  priority = false,
   onView
 }: PropertyCardProps) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [isIntersecting, setIsIntersecting] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
   const [isSaved, setIsSaved] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsIntersecting(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '50px' }
-    );
-
-    if (cardRef.current) {
-      observer.observe(cardRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const checkSaved = async () => {
@@ -84,6 +65,7 @@ export const PropertyCard = ({
   }, [id]);
 
   const handleToggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     
     const localKey = `saved_${id}`;
@@ -142,7 +124,6 @@ export const PropertyCard = ({
   };
 
   const handleCardClick = async () => {
-    // Track view in database
     try {
       const { data: property } = await supabase
         .from('properties')
@@ -169,70 +150,62 @@ export const PropertyCard = ({
   return (
     <Link to={`/property/${id}`} onClick={handleCardClick}>
       <Card
-        ref={cardRef}
         className={`${sizes[variant].card} ${variant === 'small' ? '' : 'flex-shrink-0'} overflow-hidden cursor-pointer group relative border-0 shadow-none bg-transparent`}
       >
-      <div className={`relative ${sizes[variant].container} overflow-hidden bg-muted rounded-xl mb-2`}>
-        {isIntersecting && (
-          <img
+        <div className={`relative ${sizes[variant].container} overflow-hidden rounded-xl mb-2`}>
+          <OptimizedImage
             src={image}
             alt={title}
-            loading="lazy"
-            className={`w-full h-full object-cover transition-all duration-300 ${
-              imageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
-            } group-hover:scale-105`}
-            onLoad={() => setImageLoaded(true)}
+            priority={priority}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            containerClassName="w-full h-full"
           />
-        )}
-        
-        {!imageLoaded && isIntersecting && (
-          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted-foreground/10 to-muted" />
-        )}
 
-        {featured && (
-          <div className="absolute top-2 left-2">
-            <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5">
-              Guest favorite
-            </Badge>
+          {featured && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5">
+                Guest favorite
+              </Badge>
+            </div>
+          )}
+
+          <button
+            onClick={handleToggleSave}
+            className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-all hover:scale-110 shadow-sm z-10"
+          >
+            <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
+          </button>
+
+          {views && views > 0 && (
+            <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs flex items-center gap-1 z-10">
+              <Eye className="h-3 w-3" />
+              <span>{views} views</span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className={`${sizes[variant].title} font-semibold text-foreground line-clamp-1`}>
+              {title}
+            </h3>
           </div>
-        )}
 
-        <button
-          onClick={handleToggleSave}
-          className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-all hover:scale-110 shadow-sm z-10"
-        >
-          <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
-        </button>
-
-        {views && (
-          <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
-            <Eye className="h-3 w-3" />
-            <span>{views} views</span>
+          <div className="flex items-center text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+            <span className="line-clamp-1">{location}</span>
           </div>
-        )}
 
-      </div>
-
-      <div className="space-y-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className={`${sizes[variant].title} font-semibold text-foreground line-clamp-1`}>
-            {title}
-          </h3>
+          <div className="flex items-baseline gap-1 pt-0.5">
+            <span className={`${sizes[variant].price} font-semibold text-foreground`}>
+              {formatPrice(price)}
+            </span>
+            <span className="text-xs text-muted-foreground">total</span>
+          </div>
         </div>
-
-        <div className="flex items-center text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-          <span className="line-clamp-1">{location}</span>
-        </div>
-
-        <div className="flex items-baseline gap-1 pt-0.5">
-          <span className={`${sizes[variant].price} font-semibold text-foreground`}>
-            {formatPrice(price)}
-          </span>
-          <span className="text-xs text-muted-foreground">total</span>
-        </div>
-      </div>
-    </Card>
+      </Card>
     </Link>
   );
-};
+});
+
+PropertyCard.displayName = 'PropertyCard';

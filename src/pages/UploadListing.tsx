@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { BasicDetails } from '@/components/upload/BasicDetails';
 import { AmenitiesStep } from '@/components/upload/AmenitiesStep';
 import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
 import { DocumentsUploadStep } from '@/components/upload/DocumentsUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
-import imageCompression from 'browser-image-compression';
+import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
+import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 
 export type UploadFormData = {
   // Basic details
@@ -79,6 +80,7 @@ export const UploadListing = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   
   const [formData, setFormData] = useState<UploadFormData>({
     propertyType: '',
@@ -148,7 +150,7 @@ export const UploadListing = () => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // Validation for each step
     if (currentStep === 1) {
       const required = ['propertyType', 'listingType', 'state', 'city', 'price', 'size', 'description'];
@@ -167,9 +169,20 @@ export const UploadListing = () => {
     
     if (currentStep === 3) {
       const imageCount = images.filter(f => f.type.startsWith('image/')).length;
+      const videoFiles = images.filter(f => f.type.startsWith('video/'));
+      
       if (imageCount < 3) {
         toast.error('Please upload at least 3 images');
         return;
+      }
+
+      // Validate video files
+      for (const video of videoFiles) {
+        const validation = await validateVideo(video);
+        if (!validation.valid) {
+          toast.error(validation.message || 'Invalid video file');
+          return;
+        }
       }
     }
     
@@ -201,25 +214,34 @@ export const UploadListing = () => {
     }
 
     setUploading(true);
+    setUploadProgress('Optimizing images...');
 
     try {
-      // Compress and upload images in parallel
-      const imageUploads = images.map(async (image) => {
-        // Compress image
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1500,
-          useWebWorker: true,
-          fileType: 'image/webp',
-          initialQuality: 0.7,
-        };
+      // Separate images and videos
+      const imageFiles = images.filter(f => f.type.startsWith('image/'));
+      const videoFiles = images.filter(f => f.type.startsWith('video/'));
+
+      // Optimize and upload images with aggressive compression
+      setUploadProgress(`Compressing ${imageFiles.length} images to WebP...`);
+      
+      const imageUploads = imageFiles.map(async (image, index) => {
+        // Aggressive WebP compression for small file sizes
+        const optimizedImage = await optimizeImageForWeb(image, {
+          maxSizeMB: 0.1, // Target ~100KB per image
+          maxWidthOrHeight: 1200,
+          quality: 0.6,
+        });
         
-        const compressedImage = await imageCompression(image, options);
-        const fileName = `${userId}/${Date.now()}_${Math.random()}_${image.name.replace(/\.[^/.]+$/, '')}.webp`;
+        console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
+        
+        const fileName = `${userId}/${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`;
         
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(fileName, compressedImage);
+          .upload(fileName, optimizedImage, {
+            contentType: 'image/webp',
+            cacheControl: '31536000', // 1 year cache
+          });
 
         if (uploadError) throw uploadError;
 
@@ -230,13 +252,38 @@ export const UploadListing = () => {
         return publicUrl;
       });
 
+      setUploadProgress('Uploading images...');
       const imageUrls = await Promise.all(imageUploads);
+
+      // Upload videos (keep as-is, storage handles streaming)
+      let videoUrl: string | null = null;
+      if (videoFiles.length > 0) {
+        setUploadProgress('Uploading video...');
+        const video = videoFiles[0];
+        const videoFileName = `${userId}/videos/${Date.now()}_${video.name}`;
+        
+        const { error: videoError } = await supabase.storage
+          .from('property-images')
+          .upload(videoFileName, video, {
+            contentType: video.type,
+            cacheControl: '31536000',
+          });
+
+        if (videoError) throw videoError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(videoFileName);
+
+        videoUrl = publicUrl;
+      }
 
       // Upload documents in parallel (only for sale listings)
       let documentData: any[] = [];
       if (formData.listingType === 'sale' && documents.length > 0) {
+        setUploadProgress('Uploading documents...');
         const documentUploads = documents.map(async (doc) => {
-          const fileName = `${userId}/docs/${Date.now()}_${Math.random()}_${doc.file.name}`;
+          const fileName = `${userId}/docs/${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${doc.file.name}`;
           const { error: uploadError } = await supabase.storage
             .from('property-images')
             .upload(fileName, doc.file);
@@ -256,6 +303,8 @@ export const UploadListing = () => {
 
         documentData = await Promise.all(documentUploads);
       }
+
+      setUploadProgress('Publishing listing...');
 
       // Insert property
       const { error: insertError } = await supabase
@@ -309,6 +358,7 @@ export const UploadListing = () => {
           land_size: formData.landSize ? parseFloat(formData.landSize) : null,
           has_receipt: hasReceipt,
           images: imageUrls,
+          video_url: videoUrl,
           documents: documentData,
           status: 'published',
         });
@@ -322,6 +372,7 @@ export const UploadListing = () => {
       toast.error(error.message || 'Failed to upload property');
     } finally {
       setUploading(false);
+      setUploadProgress('');
     }
   };
 
@@ -431,8 +482,16 @@ export const UploadListing = () => {
             Back
           </Button>
           
-          <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
-            Step {currentStep} of {STEPS.length}
+          <div className="text-center">
+            <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
+              Step {currentStep} of {STEPS.length}
+            </div>
+            {uploadProgress && (
+              <p className="text-xs text-primary mt-2 flex items-center justify-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {uploadProgress}
+              </p>
+            )}
           </div>
 
           {currentStep < STEPS.length ? (
@@ -449,7 +508,14 @@ export const UploadListing = () => {
               disabled={uploading} 
               className="px-10 h-12 text-base font-semibold bg-gradient-to-r from-primary via-accent-purple to-primary-light hover:shadow-primary shadow-lg"
             >
-              {uploading ? 'Publishing...' : 'Publish Listing 🚀'}
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                'Publish Listing 🚀'
+              )}
             </Button>
           )}
         </div>

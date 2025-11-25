@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { ExploreMoreSection } from '@/components/home/ExploreMoreSection';
 import { RecommendationsSection } from '@/components/home/RecommendationsSection';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useImagePreloader } from '@/components/ui/OptimizedImage';
 
 type Property = {
   id: string;
@@ -30,6 +32,20 @@ type Property = {
   state?: string;
   address?: string;
 };
+
+// Loading skeleton for property sections
+const PropertySkeleton = () => (
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    {Array.from({ length: 8 }).map((_, i) => (
+      <div key={i} className="space-y-2">
+        <Skeleton className="aspect-[4/3] rounded-xl" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-4 w-1/3" />
+      </div>
+    ))}
+  </div>
+);
 
 export const Home = () => {
   const [priceRange, setPriceRange] = useState([0, 200000000]);
@@ -68,9 +84,10 @@ export const Home = () => {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('*')
+        .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks')
         .eq('status', 'published')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit initial load for performance
 
       if (error) throw error;
 
@@ -101,6 +118,13 @@ export const Home = () => {
     }
   };
 
+  // Preload first 6 images for instant display
+  const imagesToPreload = useMemo(() => 
+    allProperties.slice(0, 6).map(p => p.image).filter(Boolean),
+    [allProperties]
+  );
+  useImagePreloader(imagesToPreload);
+
   const handleReset = () => {
     setPriceRange([0, 200000000]);
     setLocation('');
@@ -115,7 +139,6 @@ export const Home = () => {
 
   const handlePropertyView = async (id: string) => {
     try {
-      // Get current view count
       const { data: property } = await supabase
         .from('properties')
         .select('views, clicks')
@@ -123,7 +146,6 @@ export const Home = () => {
         .single();
       
       if (property) {
-        // Increment views in database
         const { error } = await supabase
           .from('properties')
           .update({ 
@@ -134,7 +156,6 @@ export const Home = () => {
         
         if (error) throw error;
 
-        // Update local state
         setAllProperties(prev => 
           prev.map(p => p.id === id ? { ...p, views: p.views + 1, clicks: p.clicks + 1 } : p)
         );
@@ -153,7 +174,7 @@ export const Home = () => {
     }).format(price);
   };
 
-  const filteredProperties = allProperties.filter(property => {
+  const filteredProperties = useMemo(() => allProperties.filter(property => {
     const matchesPrice = property.price >= priceRange[0] && property.price <= priceRange[1];
     const matchesLocation = !location || property.location.toLowerCase().includes(location.toLowerCase());
     const matchesType = !propertyType || property.type === propertyType;
@@ -167,34 +188,34 @@ export const Home = () => {
     const matchesTown = !town || property.city?.toLowerCase().includes(town.toLowerCase());
     
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
-  });
+  }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
-  const featuredProperties = [...filteredProperties]
-    .sort((a, b) => b.clicks - a.clicks)
-    .slice(0, 6);
+  const featuredProperties = useMemo(() => 
+    [...filteredProperties].sort((a, b) => b.clicks - a.clicks).slice(0, 6),
+    [filteredProperties]
+  );
 
-  const localityProperties = filteredProperties
-    .filter(p => {
-      if (!userLocation) return true;
-      return p.city?.toLowerCase().includes(userLocation.toLowerCase()) || 
-             p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
-             p.location.toLowerCase().includes(userLocation.toLowerCase());
-    })
-    .slice(0, 8);
+  const localityProperties = useMemo(() => 
+    filteredProperties
+      .filter(p => {
+        if (!userLocation) return true;
+        return p.city?.toLowerCase().includes(userLocation.toLowerCase()) || 
+               p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
+               p.location.toLowerCase().includes(userLocation.toLowerCase());
+      })
+      .slice(0, 8),
+    [filteredProperties, userLocation]
+  );
 
-  const exploreMoreProperties = filteredProperties.slice(0, 9);
+  const exploreMoreProperties = useMemo(() => 
+    filteredProperties.slice(0, 9),
+    [filteredProperties]
+  );
 
-  const recommendedProperties = [...filteredProperties]
-    .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-    .slice(0, 8);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  const recommendedProperties = useMemo(() => 
+    [...filteredProperties].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)).slice(0, 8),
+    [filteredProperties]
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,6 +225,8 @@ export const Home = () => {
             src={heroImage} 
             alt="Hero" 
             className="w-full h-full object-cover blur-sm scale-110"
+            loading="eager"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-black/50" />
         </div>
@@ -349,47 +372,56 @@ export const Home = () => {
         </div>
       </section>
 
-      {featuredProperties.length > 0 && (
-        <FeaturedPropertiesSection 
-          properties={featuredProperties}
-          onPropertyView={handlePropertyView}
-        />
-      )}
-
-      {localityProperties.length > 0 && (
-        <LocalitySection 
-          properties={localityProperties}
-          userLocation={userLocation || 'your area'}
-          onPropertyView={handlePropertyView}
-        />
-      )}
-
-      {recommendedProperties.length > 0 && (
-        <RecommendationsSection 
-          properties={recommendedProperties}
-          onPropertyView={handlePropertyView}
-        />
-      )}
-
-      {exploreMoreProperties.length > 0 && (
-        <ExploreMoreSection 
-          properties={exploreMoreProperties}
-          onPropertyView={handlePropertyView}
-        />
-      )}
-
-      {allProperties.length === 0 && (
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-2xl font-bold text-muted-foreground mb-4">
-            No Properties Available Yet
-          </h2>
-          <p className="text-muted-foreground mb-8">
-            Be the first to list a property on our platform
-          </p>
-          <Link to="/upload-listing">
-            <Button size="lg">List Your Property</Button>
-          </Link>
+      {loading ? (
+        <div className="container mx-auto px-4 py-12">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <PropertySkeleton />
         </div>
+      ) : (
+        <>
+          {featuredProperties.length > 0 && (
+            <FeaturedPropertiesSection 
+              properties={featuredProperties}
+              onPropertyView={handlePropertyView}
+            />
+          )}
+
+          {localityProperties.length > 0 && (
+            <LocalitySection 
+              properties={localityProperties}
+              userLocation={userLocation || 'your area'}
+              onPropertyView={handlePropertyView}
+            />
+          )}
+
+          {recommendedProperties.length > 0 && (
+            <RecommendationsSection 
+              properties={recommendedProperties}
+              onPropertyView={handlePropertyView}
+            />
+          )}
+
+          {exploreMoreProperties.length > 0 && (
+            <ExploreMoreSection 
+              properties={exploreMoreProperties}
+              onPropertyView={handlePropertyView}
+            />
+          )}
+
+          {allProperties.length === 0 && (
+            <div className="container mx-auto px-4 py-20 text-center">
+              <h2 className="text-2xl font-bold text-muted-foreground mb-4">
+                No Properties Available Yet
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Be the first to list a property on our platform
+              </p>
+              <Link to="/upload-listing">
+                <Button size="lg">List Your Property</Button>
+              </Link>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
