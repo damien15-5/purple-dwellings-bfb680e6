@@ -63,13 +63,38 @@ export const HelpSupport = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    // Load from customer_service_tickets
+    const { data: csTickets } = await supabase
       .from('customer_service_tickets')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    setTickets(data || []);
+    // Load from ai_support_tickets
+    const { data: aiTickets } = await supabase
+      .from('ai_support_tickets')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    // Combine and normalize tickets
+    const normalizedCsTickets = (csTickets || []).map(t => ({
+      ...t,
+      title: t.subject,
+      source: 'dashboard'
+    }));
+
+    const normalizedAiTickets = (aiTickets || []).map(t => ({
+      ...t,
+      subject: t.title,
+      source: 'ai'
+    }));
+
+    // Combine and sort by created_at
+    const allTickets = [...normalizedCsTickets, ...normalizedAiTickets]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    setTickets(allTickets);
   };
 
   const handleSubmit = async () => {
@@ -249,9 +274,20 @@ export const HelpSupport = () => {
             {tickets.map((ticket) => (
               <div key={ticket.id} className="p-4 border border-border rounded-lg">
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-semibold">{ticket.subject}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold">{ticket.subject || ticket.title}</h4>
+                    {ticket.ticket_number && (
+                      <Badge variant="outline" className="text-xs">{ticket.ticket_number}</Badge>
+                    )}
+                    {ticket.source === 'ai' && (
+                      <Badge variant="secondary" className="text-xs">AI Created</Badge>
+                    )}
+                  </div>
                   {getStatusBadge(ticket.status)}
                 </div>
+                {ticket.issue && (
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Issue: {ticket.issue}</p>
+                )}
                 <p className="text-sm text-muted-foreground mb-2">{ticket.description}</p>
                 <p className="text-xs text-muted-foreground">
                   Created: {new Date(ticket.created_at).toLocaleDateString()}
