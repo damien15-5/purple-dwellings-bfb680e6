@@ -185,15 +185,27 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [userId]);
 
-  // Track login events
+  // Track login events - only show notification on actual login, not session restoration
   useEffect(() => {
+    // Check if this is a fresh login vs session restoration
+    const sessionKey = 'xavorian_session_active';
+    const wasAlreadyLoggedIn = sessionStorage.getItem(sessionKey) === 'true';
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        addNotification({
-          type: 'login',
-          title: 'Welcome Back!',
-          message: `Logged in at ${new Date().toLocaleTimeString()}`
-        });
+        // Only show notification if user wasn't already logged in (fresh login)
+        if (!wasAlreadyLoggedIn) {
+          addNotification({
+            type: 'login',
+            title: 'Welcome Back!',
+            message: `Logged in at ${new Date().toLocaleTimeString()}`
+          });
+        }
+        // Mark session as active
+        sessionStorage.setItem(sessionKey, 'true');
+      } else if (event === 'SIGNED_OUT') {
+        // Clear session marker on logout
+        sessionStorage.removeItem(sessionKey);
       }
     });
 
