@@ -53,6 +53,7 @@ const Chat = lazy(() => import("./pages/Chat").then(m => ({ default: m.Chat })))
 const AccountSettings = lazy(() => import("./pages/AccountSettings").then(m => ({ default: m.AccountSettings })));
 const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })));
 const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
+const CustomerServiceChat = lazy(() => import("./pages/CustomerServiceChat"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Admin pages
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="/blog" element={<BlogRedirect />} />
               <Route path="/support" element={<Support />} />
               <Route path="/customer-service" element={<CustomerServiceDashboard />} />
+              <Route path="/ai-support" element={<CustomerServiceChat />} />
               
               {/* Hidden Admin Routes */}
               <Route path="/damienxavorianezeani" element={<AdminLogin />} />

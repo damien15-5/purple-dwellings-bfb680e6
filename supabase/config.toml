@@ -2,3 +2,9 @@ project_id = "bmzjeamkuxeksbfjusui"
 
 [functions.gcs-upload]
 verify_jwt = false
+
+[functions.customer-service-ai]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
