@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 import { AdminProvider, useAdmin } from "@/contexts/AdminContext";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { FloatingAIButton } from "@/components/FloatingAIButton";
+import { FloatingMenu } from "@/components/FloatingMenu";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 // Lazy load all pages
@@ -38,7 +38,7 @@ const ChatWithSeller = lazy(() => import("./pages/ChatWithSeller").then(m => ({ 
 const StartEscrow = lazy(() => import("./pages/StartEscrow").then(m => ({ default: m.StartEscrow })));
 const UploadDocuments = lazy(() => import("./pages/UploadDocuments").then(m => ({ default: m.UploadDocuments })));
 const UploadListing = lazy(() => import("./pages/UploadListing").then(m => ({ default: m.UploadListing })));
-const Contact = lazy(() => import("./pages/Contact").then(m => ({ default: m.Contact })));
+
 const MyEscrow = lazy(() => import("./pages/MyEscrow").then(m => ({ default: m.MyEscrow })));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation").then(m => ({ default: m.PaymentConfirmation })));
 const MyEscrows = lazy(() => import("./pages/MyEscrows").then(m => ({ default: m.MyEscrows })));
@@ -89,7 +89,7 @@ const App = () => (
         <BrowserRouter>
         <div className="flex flex-col min-h-screen">
           <Navigation />
-          <FloatingAIButton />
+          <FloatingMenu />
           <main className="flex-grow">
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
@@ -125,7 +125,7 @@ const App = () => (
               <Route path="/start-escrow/:id" element={<StartEscrow />} />
               <Route path="/upload-documents/:id" element={<UploadDocuments />} />
               <Route path="/upload-listing" element={<UploadListing />} />
-              <Route path="/contact" element={<Contact />} />
+              
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/my-escrow" element={<MyEscrow />} />
               <Route path="/payment-confirmation" element={<PaymentConfirmation />} />

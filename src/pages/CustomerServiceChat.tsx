@@ -365,7 +365,12 @@ How can I assist you today?`,
             Powered by Groq AI
           </Badge>
           <span>•</span>
-          <span>Need human help? Create a support ticket</span>
+          <button 
+            onClick={handleCreateTicket}
+            className="hover:text-primary hover:underline transition-colors cursor-pointer"
+          >
+            Need human help? Create a support ticket
+          </button>
         </div>
       </main>
 
