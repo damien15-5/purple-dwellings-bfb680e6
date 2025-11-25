@@ -165,7 +165,7 @@ serve(async (req) => {
     }
     
     const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
-    const bucketName = 'xavorian-uploads'; // GCS bucket name
+    const bucketName = 'xavorian'; // GCS bucket name
     
     // Parse multipart form data
     const formData = await req.formData();
