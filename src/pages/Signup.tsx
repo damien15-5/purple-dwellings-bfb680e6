@@ -81,7 +81,7 @@ export const Signup = () => {
             age: ageNum,
             account_type: accountType,
           },
-          emailRedirectTo: `${window.location.origin}/verified`,
+          emailRedirectTo: 'https://xavorian-demo.vercel.app/verified',
         },
       });
 
@@ -167,7 +167,7 @@ export const Signup = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: 'https://xavorian-demo.vercel.app/dashboard',
         },
       });
 
