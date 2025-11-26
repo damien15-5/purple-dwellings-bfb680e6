@@ -9,6 +9,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { FloatingMenu } from "@/components/FloatingMenu";
 import { LoadingFallback } from "@/components/LoadingFallback";
+import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 
 // Lazy load all pages
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -87,6 +88,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+        <AuthRedirectHandler />
         <div className="flex flex-col min-h-screen">
           <Navigation />
           <FloatingMenu />
