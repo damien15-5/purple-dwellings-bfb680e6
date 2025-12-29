@@ -88,19 +88,7 @@ export const Signup = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            full_name: fullName,
-            email,
-            age: ageNum,
-            account_type: accountType,
-          });
-
-        if (profileError) throw profileError;
-
+        // Profile is automatically created by database trigger
         // Move to KYC step
         setStep(2);
         toast({
