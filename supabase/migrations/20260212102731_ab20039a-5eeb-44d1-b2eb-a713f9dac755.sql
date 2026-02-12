@@ -1,0 +1,2 @@
+ALTER TABLE public.kyc_documents DROP CONSTRAINT kyc_documents_identity_type_check;
+ALTER TABLE public.kyc_documents ADD CONSTRAINT kyc_documents_identity_type_check CHECK (identity_type = ANY (ARRAY['nin'::text, 'national_id'::text, 'passport'::text, 'drivers_license'::text, 'voters_card'::text]));
