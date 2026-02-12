@@ -148,25 +148,28 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
 
   const showVideo = phase === 'camera' || phase === 'challenge' || phase === 'capturing';
 
+  // Attach stream to video element whenever video mounts and stream exists
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (showVideo && video && stream && !video.srcObject) {
+      video.srcObject = stream;
+      video.play().then(() => {
+        setCameraReady(true);
+      }).catch(console.error);
+    }
+  }, [showVideo, phase]);
+
   // Start camera - called directly from button click
   const startCamera = useCallback(async () => {
     try {
+      // getUserMedia called directly in click handler
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       });
       streamRef.current = stream;
-      
-      // Wait for next frame so video element is visible
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().then(() => {
-            setCameraReady(true);
-          }).catch(console.error);
-        }
-      });
-      
+      // Set phase to render video element, the useEffect above will attach the stream
       setPhase('camera');
     } catch (err) {
       console.error('Camera error:', err);
