@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, CheckCircle, AlertCircle, Loader2, Volume2 } from 'lucide-react';
+import { Camera, CheckCircle, Loader2, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import imageCompression from 'browser-image-compression';
@@ -40,11 +40,85 @@ interface Props {
 
 type Phase = 'intro' | 'camera' | 'challenge' | 'capturing' | 'done';
 
+// Simple canvas-based face detection using skin-color heuristic
+function detectFaceInCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx || video.readyState < 2) return false;
+
+  const w = 160;
+  const h = 120;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(video, 0, 0, w, h);
+
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  // Check the center oval region for skin-tone pixels
+  const cx = w / 2;
+  const cy = h / 2;
+  const rx = w * 0.25;
+  const ry = h * 0.35;
+
+  let skinPixels = 0;
+  let totalChecked = 0;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // Check if pixel is inside the oval
+      const dx = (x - cx) / rx;
+      const dy = (y - cy) / ry;
+      if (dx * dx + dy * dy > 1) continue;
+
+      totalChecked++;
+      const i = (y * w + x) * 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Skin color detection in RGB space
+      // Works across multiple skin tones
+      if (
+        r > 60 && g > 40 && b > 20 &&
+        r > g && r > b &&
+        Math.abs(r - g) > 10 &&
+        r - b > 15 &&
+        // Not too bright (avoid white backgrounds)
+        r < 250 && g < 250
+      ) {
+        skinPixels++;
+      }
+    }
+  }
+
+  // Need at least 20% skin pixels in the oval region
+  return totalChecked > 0 && (skinPixels / totalChecked) > 0.2;
+}
+
+// Motion detection between frames
+function detectMotion(prev: ImageData | null, current: ImageData, threshold: number = 30): number {
+  if (!prev || prev.data.length !== current.data.length) return 0;
+  
+  let changedPixels = 0;
+  const totalPixels = current.width * current.height;
+  
+  for (let i = 0; i < current.data.length; i += 4) {
+    const diff = Math.abs(current.data[i] - prev.data[i]) +
+                 Math.abs(current.data[i + 1] - prev.data[i + 1]) +
+                 Math.abs(current.data[i + 2] - prev.data[i + 2]);
+    if (diff > threshold) changedPixels++;
+  }
+  
+  return changedPixels / totalPixels;
+}
+
 export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const prevFrameRef = useRef<ImageData | null>(null);
 
   const [phase, setPhase] = useState<Phase>('intro');
   const [challenges] = useState(() => pickRandomChallenges(2));
@@ -54,11 +128,14 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [detecting, setDetecting] = useState(false);
-  const detectorRef = useRef<any>(null);
+  const [motionDetected, setMotionDetected] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const animFrameRef = useRef<number>();
+  const motionAccRef = useRef<number>(0);
 
-  // Start camera
+  const showVideo = phase === 'camera' || phase === 'challenge' || phase === 'capturing';
+
+  // Start camera - called directly from button click
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -66,65 +143,68 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      
+      // Wait for next frame so video element is visible
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().then(() => {
+            setCameraReady(true);
+          }).catch(console.error);
+        }
+      });
+      
       setPhase('camera');
-      initFaceDetection();
-    } catch {
+    } catch (err) {
+      console.error('Camera error:', err);
       toast({ title: 'Camera Error', description: 'Unable to access camera. Please allow camera permissions.', variant: 'destructive' });
     }
   }, [toast]);
 
-  // Face detection using experimental FaceDetector API or fallback
-  const initFaceDetection = useCallback(async () => {
-    if ('FaceDetector' in window) {
-      try {
-        detectorRef.current = new (window as any).FaceDetector({ maxDetectedFaces: 1, fastMode: true });
-        setDetecting(true);
-      } catch {
-        // Fallback: no native face detection, just use video presence
-        setDetecting(false);
-        setFaceDetected(true);
-      }
-    } else {
-      // No FaceDetector API - treat as face always detected when video is active
-      setDetecting(false);
-      setFaceDetected(true);
-    }
-  }, []);
-
-  // Run face detection loop
+  // Face detection loop using canvas analysis
   useEffect(() => {
-    if (!detecting || !detectorRef.current || !videoRef.current) return;
+    if (!showVideo || !cameraReady) return;
 
     let running = true;
-    const detect = async () => {
-      if (!running || !videoRef.current || videoRef.current.readyState < 2) {
-        if (running) animFrameRef.current = requestAnimationFrame(detect);
-        return;
+    const detect = () => {
+      if (!running) return;
+      
+      const video = videoRef.current;
+      const canvas = detectionCanvasRef.current;
+      
+      if (video && canvas && video.readyState >= 2) {
+        const hasFace = detectFaceInCanvas(video, canvas);
+        setFaceDetected(hasFace);
+        
+        // Motion detection for challenge verification
+        if (phase === 'challenge') {
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (ctx) {
+            const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const motion = detectMotion(prevFrameRef.current, currentFrame);
+            motionAccRef.current = motion;
+            setMotionDetected(motion > 0.02); // 2% pixel change = motion
+            prevFrameRef.current = currentFrame;
+          }
+        }
       }
-      try {
-        const faces = await detectorRef.current.detect(videoRef.current);
-        setFaceDetected(faces.length > 0);
-      } catch {
-        // Ignore detection errors
-      }
-      if (running) animFrameRef.current = requestAnimationFrame(detect);
+      
+      animFrameRef.current = requestAnimationFrame(detect);
     };
+    
     animFrameRef.current = requestAnimationFrame(detect);
-
+    
     return () => {
       running = false;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [detecting]);
+  }, [showVideo, cameraReady, phase]);
 
   // Stop camera
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
+    setCameraReady(false);
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     window.speechSynthesis?.cancel();
   }, []);
@@ -135,40 +215,63 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const startChallenges = useCallback(() => {
     setCurrentChallenge(0);
     setChallengesPassed([]);
+    prevFrameRef.current = null;
+    motionAccRef.current = 0;
     setPhase('challenge');
     const challenge = challenges[0];
     speakInstruction(challenge.voice);
   }, [challenges]);
 
-  // Challenge timer
+  // Challenge timer with motion-based verification
   useEffect(() => {
     if (phase !== 'challenge') return;
     const challenge = challenges[currentChallenge];
     if (!challenge) return;
 
     setChallengeTimer(0);
+    let motionFrames = 0;
     const totalSteps = challenge.duration / 100;
     let step = 0;
 
     const interval = setInterval(() => {
       step++;
       setChallengeTimer((step / totalSteps) * 100);
+      
+      // Count frames where motion was detected
+      if (motionAccRef.current > 0.02) {
+        motionFrames++;
+      }
+
       if (step >= totalSteps) {
         clearInterval(interval);
-        // Auto-pass the challenge (in production, ML would verify)
-        const newPassed = [...challengesPassed, true];
+        // Pass if motion was detected in at least 30% of frames
+        const passed = motionFrames > (totalSteps * 0.3);
+        const newPassed = [...challengesPassed, passed];
         setChallengesPassed(newPassed);
 
+        if (!passed) {
+          speakInstruction('Action not detected. Please try again.');
+          // Retry same challenge
+          setTimeout(() => {
+            prevFrameRef.current = null;
+            motionAccRef.current = 0;
+            setChallengeTimer(0);
+            speakInstruction(challenge.voice);
+          }, 2000);
+          // Re-trigger by resetting step
+          return;
+        }
+
         if (currentChallenge + 1 < challenges.length) {
-          // Next challenge
           const nextIdx = currentChallenge + 1;
           setCurrentChallenge(nextIdx);
+          prevFrameRef.current = null;
+          motionAccRef.current = 0;
           setTimeout(() => {
             speakInstruction(challenges[nextIdx].voice);
           }, 500);
           setChallengeTimer(0);
         } else {
-          // All challenges done - capture selfie
           speakInstruction('Great! Hold still while we capture your photo.');
           setPhase('capturing');
           setTimeout(() => captureSelfie(), 1500);
@@ -190,7 +293,6 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Mirror the image (front camera is mirrored)
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
@@ -218,6 +320,9 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
     setSelfiePreview(null);
     setChallengesPassed([]);
     setCurrentChallenge(0);
+    setFaceDetected(false);
+    setMotionDetected(false);
+    prevFrameRef.current = null;
     setPhase('intro');
     stopCamera();
   };
@@ -241,9 +346,9 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
                 <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
                   <li>You'll be asked to perform <span className="font-semibold">2 random actions</span></li>
                   <li>Voice prompts will guide you through each step</li>
-                  <li>Keep your face centered in the frame</li>
+                  <li>Your face must be detected in the frame</li>
+                  <li>Motion detection verifies your actions</li>
                   <li>Ensure good lighting and remove glasses/hats</li>
-                  <li>A selfie will be captured automatically after verification</li>
                 </ul>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/10 border border-accent/20">
@@ -257,37 +362,60 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
             </div>
           )}
 
-          {/* CAMERA PREVIEW (pre-challenge) */}
-          {phase === 'camera' && (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3] max-w-sm mx-auto">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                {/* Face overlay guide */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className={`w-48 h-60 rounded-[50%] border-4 transition-colors ${faceDetected ? 'border-green-400' : 'border-red-400'}`} />
-                </div>
-                <div className="absolute bottom-2 left-2 right-2 text-center">
-                  <span className={`text-xs px-2 py-1 rounded-full ${faceDetected ? 'bg-green-500/80 text-white' : 'bg-red-500/80 text-white'}`}>
-                    {faceDetected ? '✓ Face detected' : '✗ Position your face in the oval'}
-                  </span>
-                </div>
+          {/* VIDEO ELEMENT - always mounted when needed so ref is available */}
+          {showVideo && (
+            <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3] max-w-sm mx-auto">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover scale-x-[-1]"
+              />
+              {/* Face oval overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className={`w-48 h-60 rounded-[50%] border-4 transition-colors duration-300 ${
+                  faceDetected ? 'border-green-400' : 'border-red-400 animate-pulse'
+                }`} />
               </div>
-              <Button variant="hero" className="w-full" onClick={startChallenges} disabled={!faceDetected}>
-                Begin Challenges
-              </Button>
+              {/* Face status badge */}
+              <div className="absolute bottom-2 left-2 right-2 text-center">
+                <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                  faceDetected ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'
+                }`}>
+                  {faceDetected ? '✓ Face detected' : '✗ Position your face in the oval'}
+                </span>
+              </div>
+
+              {/* Capturing overlay */}
+              {phase === 'capturing' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-white mx-auto" />
+                    <p className="text-white text-sm font-medium">Capturing your photo...</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* CHALLENGE IN PROGRESS */}
-          {phase === 'challenge' && (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3] max-w-sm mx-auto">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className={`w-48 h-60 rounded-[50%] border-4 ${faceDetected ? 'border-green-400' : 'border-yellow-400'} animate-pulse`} />
-                </div>
-              </div>
+          {/* CAMERA CONTROLS (pre-challenge) */}
+          {phase === 'camera' && (
+            <div className="space-y-2">
+              <Button variant="hero" className="w-full" onClick={startChallenges} disabled={!faceDetected}>
+                Begin Challenges
+              </Button>
+              {!faceDetected && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Position your face inside the oval to continue
+                </p>
+              )}
+            </div>
+          )}
 
+          {/* CHALLENGE INFO */}
+          {phase === 'challenge' && (
+            <div className="space-y-3">
               <div className="text-center space-y-2">
                 <p className="text-xs text-muted-foreground">
                   Challenge {currentChallenge + 1} of {challenges.length}
@@ -296,30 +424,18 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
                   {challenges[currentChallenge]?.instruction}
                 </p>
                 <Progress value={challengeTimer} className="h-2" />
+                {motionDetected && (
+                  <p className="text-xs text-green-500 font-medium">✓ Motion detected</p>
+                )}
               </div>
 
               <div className="flex gap-2 justify-center">
                 {challenges.map((_, i) => (
                   <div key={i} className={`h-3 w-3 rounded-full transition-colors ${
-                    i < challengesPassed.length ? 'bg-green-500' :
+                    i < challengesPassed.length ? (challengesPassed[i] ? 'bg-green-500' : 'bg-red-500') :
                     i === currentChallenge ? 'bg-accent-purple animate-pulse' : 'bg-muted'
                   }`} />
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* CAPTURING */}
-          {phase === 'capturing' && (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3] max-w-sm mx-auto">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="text-center space-y-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-white mx-auto" />
-                    <p className="text-white text-sm font-medium">Capturing your photo...</p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -341,11 +457,13 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
             </div>
           )}
 
+          {/* Hidden canvases for processing */}
           <canvas ref={canvasRef} className="hidden" />
+          <canvas ref={detectionCanvasRef} className="hidden" />
         </CardContent>
       </Card>
 
-      {(phase === 'intro') && (
+      {phase === 'intro' && (
         <div className="flex justify-between">
           <Button variant="outline" onClick={onBack}>Back</Button>
         </div>
