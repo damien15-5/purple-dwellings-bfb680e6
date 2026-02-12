@@ -713,41 +713,74 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_name: string | null
+          account_number: string | null
           account_type: Database["public"]["Enums"]["account_type"] | null
           age: number | null
           avatar_url: string | null
+          bank_name: string | null
+          bank_verified: boolean | null
           company_name: string | null
           created_at: string | null
           email: string
           full_name: string
           id: string
+          notification_email: boolean | null
+          notification_messages: boolean | null
+          notification_offers: boolean | null
+          notification_push: boolean | null
+          notification_telegram: boolean | null
+          paystack_subaccount_code: string | null
           phone: string | null
+          telegram_username: string | null
           updated_at: string | null
           whatsapp: string | null
         }
         Insert: {
+          account_name?: string | null
+          account_number?: string | null
           account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
           avatar_url?: string | null
+          bank_name?: string | null
+          bank_verified?: boolean | null
           company_name?: string | null
           created_at?: string | null
           email: string
           full_name: string
           id: string
+          notification_email?: boolean | null
+          notification_messages?: boolean | null
+          notification_offers?: boolean | null
+          notification_push?: boolean | null
+          notification_telegram?: boolean | null
+          paystack_subaccount_code?: string | null
           phone?: string | null
+          telegram_username?: string | null
           updated_at?: string | null
           whatsapp?: string | null
         }
         Update: {
+          account_name?: string | null
+          account_number?: string | null
           account_type?: Database["public"]["Enums"]["account_type"] | null
           age?: number | null
           avatar_url?: string | null
+          bank_name?: string | null
+          bank_verified?: boolean | null
           company_name?: string | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
+          notification_email?: boolean | null
+          notification_messages?: boolean | null
+          notification_offers?: boolean | null
+          notification_push?: boolean | null
+          notification_telegram?: boolean | null
+          paystack_subaccount_code?: string | null
           phone?: string | null
+          telegram_username?: string | null
           updated_at?: string | null
           whatsapp?: string | null
         }
