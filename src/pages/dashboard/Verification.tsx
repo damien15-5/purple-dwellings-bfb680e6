@@ -85,11 +85,12 @@ export const Verification = () => {
 
       const reference = `KYC-NG-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
 
-      const { error } = await supabase.from('kyc_documents').insert({
+      // Insert KYC record first
+      const { data: kycRecord, error } = await supabase.from('kyc_documents').insert({
         user_id: user.id,
         identity_type: docType,
         identity_number: verifiedData.documentNumber,
-        status: 'pending',
+        status: 'verifying',
         full_name: personalInfo.full_name,
         date_of_birth: personalInfo.date_of_birth || null,
         gender: personalInfo.gender,
@@ -102,12 +103,49 @@ export const Verification = () => {
         selfie_url: selfieFileName,
         extracted_data: { ...ocrData, raw_text: ocrRawText },
         kyc_reference: reference,
-      } as any);
+      } as any).select().single();
 
       if (error) throw error;
 
+      // Auto-verify via edge function
+      toast({ title: 'Verifying...', description: 'AI is analyzing your documents. Please wait.' });
+
+      const { data: session } = await supabase.auth.getSession();
+      const verifyRes = await supabase.functions.invoke('verify-kyc', {
+        body: {
+          kyc_id: kycRecord.id,
+          personal_info: {
+            full_name: personalInfo.full_name,
+            date_of_birth: personalInfo.date_of_birth,
+            gender: personalInfo.gender,
+            phone: personalInfo.phone,
+          },
+          ocr_data: ocrData,
+          doc_type: docType,
+          document_image_path: docFileName,
+          selfie_path: selfieFileName,
+        },
+      });
+
+      if (verifyRes.error) {
+        console.error('Auto-verify error:', verifyRes.error);
+        // Fallback to pending if auto-verify fails
+        await supabase.from('kyc_documents').update({ status: 'pending' } as any).eq('id', kycRecord.id);
+      }
+
+      const verifyResult = verifyRes.data;
+      
+      if (verifyResult?.status === 'verified') {
+        toast({ title: '✅ Verified!', description: `Identity verified automatically with ${verifyResult.confidence}% confidence.` });
+      } else if (verifyResult?.status === 'rejected') {
+        const reasons = verifyResult.details?.ai_analysis?.rejection_reasons?.join(', ') || 'Document could not be verified';
+        toast({ title: '❌ Verification Failed', description: reasons, variant: 'destructive' });
+      } else {
+        toast({ title: '⏳ Under Review', description: 'Your submission needs manual review. Usually 24-48 hours.' });
+      }
+
       setKycReference(reference);
-      setStep(7); // success
+      setStep(7);
     } catch (error: any) {
       toast({ title: 'Submission Failed', description: error.message || 'Please try again', variant: 'destructive' });
     } finally {
