@@ -547,30 +547,66 @@ export type Database = {
       }
       kyc_documents: {
         Row: {
+          address: string | null
           created_at: string | null
+          date_of_birth: string | null
+          document_image_url: string | null
+          extracted_data: Json | null
+          full_name: string | null
+          gender: string | null
           id: string
           identity_number: string | null
           identity_type: string | null
+          kyc_reference: string | null
+          lga: string | null
+          nationality: string | null
+          phone: string | null
+          selfie_url: string | null
+          state: string | null
           status: string | null
           submitted_at: string | null
           user_id: string
           verified_at: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
+          document_image_url?: string | null
+          extracted_data?: Json | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
           identity_number?: string | null
           identity_type?: string | null
+          kyc_reference?: string | null
+          lga?: string | null
+          nationality?: string | null
+          phone?: string | null
+          selfie_url?: string | null
+          state?: string | null
           status?: string | null
           submitted_at?: string | null
           user_id: string
           verified_at?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
+          document_image_url?: string | null
+          extracted_data?: Json | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
           identity_number?: string | null
           identity_type?: string | null
+          kyc_reference?: string | null
+          lga?: string | null
+          nationality?: string | null
+          phone?: string | null
+          selfie_url?: string | null
+          state?: string | null
           status?: string | null
           submitted_at?: string | null
           user_id?: string
