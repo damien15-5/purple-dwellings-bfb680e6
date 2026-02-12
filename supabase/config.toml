@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.verify-bank-account]
+verify_jwt = false
+
+[functions.create-split-account]
+verify_jwt = false
