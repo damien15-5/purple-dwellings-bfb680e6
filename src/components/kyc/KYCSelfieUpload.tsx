@@ -95,21 +95,34 @@ function detectFaceInCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement):
   return totalChecked > 0 && (skinPixels / totalChecked) > 0.2;
 }
 
-// Motion detection between frames
-function detectMotion(prev: ImageData | null, current: ImageData, threshold: number = 30): number {
+// Motion detection between frames - uses center region for better sensitivity
+function detectMotion(prev: ImageData | null, current: ImageData): number {
   if (!prev || prev.data.length !== current.data.length) return 0;
   
+  const w = current.width;
+  const h = current.height;
   let changedPixels = 0;
-  const totalPixels = current.width * current.height;
+  let totalChecked = 0;
   
-  for (let i = 0; i < current.data.length; i += 4) {
-    const diff = Math.abs(current.data[i] - prev.data[i]) +
-                 Math.abs(current.data[i + 1] - prev.data[i + 1]) +
-                 Math.abs(current.data[i + 2] - prev.data[i + 2]);
-    if (diff > threshold) changedPixels++;
+  // Only check center 60% of frame where the face is
+  const startX = Math.floor(w * 0.2);
+  const endX = Math.floor(w * 0.8);
+  const startY = Math.floor(h * 0.1);
+  const endY = Math.floor(h * 0.9);
+  
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      const i = (y * w + x) * 4;
+      totalChecked++;
+      const diff = Math.abs(current.data[i] - prev.data[i]) +
+                   Math.abs(current.data[i + 1] - prev.data[i + 1]) +
+                   Math.abs(current.data[i + 2] - prev.data[i + 2]);
+      // Lower threshold (15) to catch subtle movements like blinks
+      if (diff > 15) changedPixels++;
+    }
   }
   
-  return changedPixels / totalPixels;
+  return totalChecked > 0 ? changedPixels / totalChecked : 0;
 }
 
 export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
@@ -182,8 +195,8 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
           if (ctx) {
             const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const motion = detectMotion(prevFrameRef.current, currentFrame);
-            motionAccRef.current = motion;
-            setMotionDetected(motion > 0.02); // 2% pixel change = motion
+            motionAccRef.current = Math.max(motionAccRef.current, motion); // keep peak motion
+            setMotionDetected(motion > 0.005); // 0.5% = very sensitive to any movement
             prevFrameRef.current = currentFrame;
           }
         }
@@ -237,40 +250,46 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
       step++;
       setChallengeTimer((step / totalSteps) * 100);
       
-      // Count frames where motion was detected
-      if (motionAccRef.current > 0.02) {
+      // Count frames where any motion was detected (very low threshold)
+      if (motionAccRef.current > 0.005) {
         motionFrames++;
+        // Reset peak so we measure ongoing motion
+        motionAccRef.current = 0;
       }
 
       if (step >= totalSteps) {
         clearInterval(interval);
-        // Pass if motion was detected in at least 30% of frames
-        const passed = motionFrames > (totalSteps * 0.3);
-        const newPassed = [...challengesPassed, passed];
-        setChallengesPassed(newPassed);
+        // Pass if motion was detected in at least 15% of frames (very lenient)
+        const passed = motionFrames > (totalSteps * 0.15);
+        console.log(`Challenge "${challenge.id}": motionFrames=${motionFrames}/${totalSteps}, passed=${passed}`);
 
         if (!passed) {
           speakInstruction('Action not detected. Please try again.');
-          // Retry same challenge
+          // Reset and re-run by bumping a retry counter
           setTimeout(() => {
             prevFrameRef.current = null;
             motionAccRef.current = 0;
-            setChallengeTimer(0);
-            speakInstruction(challenge.voice);
+            // Force re-trigger useEffect by toggling challenge index
+            setCurrentChallenge(-1);
+            setTimeout(() => {
+              setCurrentChallenge(currentChallenge);
+              speakInstruction(challenge.voice);
+            }, 100);
           }, 2000);
-          // Re-trigger by resetting step
           return;
         }
 
+        const newPassed = [...challengesPassed, true];
+        setChallengesPassed(newPassed);
+
         if (currentChallenge + 1 < challenges.length) {
           const nextIdx = currentChallenge + 1;
-          setCurrentChallenge(nextIdx);
           prevFrameRef.current = null;
           motionAccRef.current = 0;
+          setCurrentChallenge(nextIdx);
           setTimeout(() => {
             speakInstruction(challenges[nextIdx].voice);
           }, 500);
-          setChallengeTimer(0);
         } else {
           speakInstruction('Great! Hold still while we capture your photo.');
           setPhase('capturing');
