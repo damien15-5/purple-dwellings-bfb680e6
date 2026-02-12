@@ -44,13 +44,11 @@ export const NotificationPrefsSection = ({ notifications, setNotifications, user
   };
 
   const items = [
-    { key: 'email', label: 'Email Notifications', desc: 'Receive notifications via email' },
-    { key: 'push', label: 'Push Notifications', desc: 'Receive push notifications' },
-    { key: 'offers', label: 'Offer Notifications', desc: 'Get notified about new offers' },
-    { key: 'messages', label: 'Message Notifications', desc: 'Get notified about new messages' },
-    ...(hasTelegram
-      ? [{ key: 'telegram', label: 'Telegram Notifications', desc: 'Get notified via Telegram' }]
-      : []),
+    { key: 'email', label: 'Email Notifications', desc: 'Receive notifications via email', disabled: false },
+    { key: 'push', label: 'Push Notifications', desc: 'Receive push notifications', disabled: false },
+    { key: 'offers', label: 'Offer Notifications', desc: 'Get notified about new offers', disabled: false },
+    { key: 'messages', label: 'Message Notifications', desc: 'Get notified about new messages', disabled: false },
+    { key: 'telegram', label: 'Telegram Notifications', desc: hasTelegram ? 'Get notified via Telegram' : 'Connect Telegram first to enable', disabled: !hasTelegram },
   ];
 
   return (
@@ -62,8 +60,8 @@ export const NotificationPrefsSection = ({ notifications, setNotifications, user
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {items.map(({ key, label, desc }) => (
-          <div key={key} className="flex items-center justify-between">
+        {items.map(({ key, label, desc, disabled }) => (
+          <div key={key} className={`flex items-center justify-between ${disabled ? 'opacity-50' : ''}`}>
             <div>
               <p className="font-medium">{label}</p>
               <p className="text-sm text-muted-foreground">{desc}</p>
@@ -71,6 +69,7 @@ export const NotificationPrefsSection = ({ notifications, setNotifications, user
             <Switch
               checked={(notifications as any)[key]}
               onCheckedChange={(checked) => handleToggle(key, checked)}
+              disabled={disabled}
             />
           </div>
         ))}

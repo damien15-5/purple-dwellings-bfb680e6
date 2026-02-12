@@ -20,9 +20,10 @@ interface ProfileInfoProps {
   };
   setProfile: (p: any) => void;
   userId: string | null;
+  nameSaved: boolean;
 }
 
-export const ProfileInfoSection = ({ profile, setProfile, userId }: ProfileInfoProps) => {
+export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: ProfileInfoProps) => {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -152,7 +153,8 @@ export const ProfileInfoSection = ({ profile, setProfile, userId }: ProfileInfoP
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="full_name">Full Name</Label>
-            <Input id="full_name" value={profile.full_name} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} placeholder="Enter your full name" />
+            <Input id="full_name" value={profile.full_name} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} placeholder="Enter your full name" disabled={nameSaved} className={nameSaved ? 'bg-muted' : ''} />
+            {nameSaved && <p className="text-xs text-muted-foreground">Name cannot be edited once saved</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="company_name">Company Name</Label>

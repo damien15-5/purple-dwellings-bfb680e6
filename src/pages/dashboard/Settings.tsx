@@ -7,6 +7,7 @@ import { BankAccountSection } from '@/components/settings/BankAccountSection';
 
 export const Settings = () => {
   const [userId, setUserId] = useState<string | null>(null);
+  const [nameSaved, setNameSaved] = useState(false);
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
@@ -56,6 +57,7 @@ export const Settings = () => {
         avatar_url: data.avatar_url || '',
         telegram_username: (data as any).telegram_username || '',
       });
+      setNameSaved(!!data.full_name);
       setNotifications({
         email: (data as any).notification_email ?? true,
         push: (data as any).notification_push ?? true,
@@ -80,7 +82,7 @@ export const Settings = () => {
         <p className="text-muted-foreground">Manage your account settings and preferences</p>
       </div>
 
-      <ProfileInfoSection profile={profile} setProfile={setProfile} userId={userId} />
+      <ProfileInfoSection profile={profile} setProfile={setProfile} userId={userId} nameSaved={nameSaved} />
       <ChangePasswordSection />
       <NotificationPrefsSection
         notifications={notifications}

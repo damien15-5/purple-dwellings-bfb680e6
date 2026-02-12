@@ -10,11 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 export const ChangePasswordSection = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleUpdatePassword = async () => {
-    if (!newPassword || !confirmPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       toast({ title: 'Error', description: 'Please fill in all password fields', variant: 'destructive' });
       return;
     }
@@ -29,9 +30,24 @@ export const ChangePasswordSection = () => {
 
     setLoading(true);
     try {
+      // Verify current password by re-authenticating
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error('User not found');
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        toast({ title: 'Error', description: 'Current password is incorrect', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       toast({ title: 'Success', description: 'Password updated successfully' });
@@ -51,6 +67,16 @@ export const ChangePasswordSection = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="current_password">Current Password</Label>
+          <Input
+            id="current_password"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Enter current password"
+          />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="new_password">New Password</Label>
           <Input
