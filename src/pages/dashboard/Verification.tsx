@@ -58,7 +58,7 @@ export const Verification = () => {
       }));
     }
 
-    const { data: kyc } = await supabase.from('kyc_documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+    const { data: kyc } = await supabase.from('kyc_documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (kyc) {
       setKycStatus(kyc.status);
       if (kyc.status === 'verified') setStep(-1); // show verified state
