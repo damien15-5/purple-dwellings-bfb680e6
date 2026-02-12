@@ -59,11 +59,40 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
     setProgressText('Initializing OCR engine...');
 
     try {
+      // Convert file to a canvas for better OCR results
+      const img = new Image();
+      img.src = imagePreview;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Draw and apply preprocessing for better OCR
+      ctx.drawImage(img, 0, 0);
+      // Convert to grayscale for better text recognition
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+        // Apply contrast enhancement
+        const enhanced = gray > 128 ? Math.min(255, gray * 1.2) : Math.max(0, gray * 0.8);
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = enhanced;
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      setProgress(20);
+      setProgressText('Loading OCR engine...');
+
       const worker = await createWorker('eng', 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const p = Math.round((m.progress || 0) * 100);
-            setProgress(10 + p * 0.8);
+            setProgress(20 + p * 0.7);
             if (p < 30) setProgressText('Detecting text...');
             else if (p < 60) setProgressText('Reading data...');
             else if (p < 90) setProgressText('Validating...');
@@ -72,19 +101,28 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
         },
       });
 
-      const { data } = await worker.recognize(imagePreview);
+      // Use the preprocessed canvas for OCR
+      const { data } = await worker.recognize(canvas);
       await worker.terminate();
+
+      console.log('OCR raw text:', data.text);
+      console.log('OCR confidence:', data.confidence);
+
+      setProgress(95);
+      setProgressText('Extracting fields...');
+
+      const extracted = extractDataByDocType(data.text, docType);
+      console.log('Extracted data:', extracted);
 
       setProgress(100);
       setProgressText('Complete!');
 
-      const extracted = extractDataByDocType(data.text, docType);
-      
       setTimeout(() => {
         onComplete(imageFile, imagePreview, extracted, data.text);
       }, 500);
     } catch (error: any) {
-      toast({ title: 'OCR Failed', description: 'Unable to read document. Please retake photo with better lighting.', variant: 'destructive' });
+      console.error('OCR Error:', error);
+      toast({ title: 'OCR Failed', description: error?.message || 'Unable to read document. Please retake photo with better lighting.', variant: 'destructive' });
       setProcessing(false);
       setProgress(0);
     }
