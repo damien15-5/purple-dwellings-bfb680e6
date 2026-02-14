@@ -52,7 +52,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [allNotifications]);
 
-  // Get current user
+  // Get current user and handle login notifications
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -60,8 +60,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUserId(session?.user?.id || null);
+      
+      // Only show login notification when user actually logged in (not session restore)
+      if (event === 'SIGNED_IN' && sessionStorage.getItem('xavorian_just_logged_in') === 'true') {
+        sessionStorage.removeItem('xavorian_just_logged_in');
+        addNotification({
+          type: 'login',
+          title: 'Welcome Back!',
+          message: `Logged in at ${new Date().toLocaleTimeString()}`
+        });
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -185,27 +195,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [userId]);
 
-  // Track login events - only show notification on actual login, not session restoration
+  // Track login events - only on actual user-initiated login, not session restoration
   useEffect(() => {
-    // Check if this is a fresh login vs session restoration
-    const sessionKey = 'xavorian_session_active';
-    const wasAlreadyLoggedIn = sessionStorage.getItem(sessionKey) === 'true';
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        // Only show notification if user wasn't already logged in (fresh login)
-        if (!wasAlreadyLoggedIn) {
-          addNotification({
-            type: 'login',
-            title: 'Welcome Back!',
-            message: `Logged in at ${new Date().toLocaleTimeString()}`
-          });
-        }
-        // Mark session as active
-        sessionStorage.setItem(sessionKey, 'true');
-      } else if (event === 'SIGNED_OUT') {
-        // Clear session marker on logout
-        sessionStorage.removeItem(sessionKey);
+      if (event === 'SIGNED_OUT') {
+        // Mark that next SIGNED_IN should trigger notification
+        sessionStorage.setItem('xavorian_expect_login', 'true');
       }
     });
 

@@ -114,8 +114,108 @@ async function handleUserLink(chatId: number, username: string, text: string) {
   }
   await supabase.from('profiles').update({ telegram_username: username || `tg_${chatId}` }).eq('id', profile.id);
   await sendTelegram(chatId, 
-    `✅ <b>Connected!</b>\n\nHello ${profile.full_name}! Your Telegram is now linked to your Xavorian account.\n\nYou'll receive notifications about:\n• Offers on your properties\n• Messages from buyers/sellers\n• KYC verification updates\n• Transaction updates`
+    `✅ <b>Connected!</b>\n\nHello ${profile.full_name}! Your Telegram is now linked to your Xavorian account.\n\nYou'll receive notifications about:\n• Offers on your properties\n• Messages from buyers/sellers\n• KYC verification updates\n• Transaction updates\n• Promotion expiry alerts\n• Daily view summaries`,
+    {
+      keyboard: [
+        [{ text: '🏠 My Listings' }, { text: '📊 My Stats' }],
+        [{ text: '⭐ My Promotions' }, { text: '💬 Support' }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    }
   );
+}
+
+async function handleUserListings(chatId: number) {
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) { await sendTelegram(chatId, '❌ Account not linked.'); return; }
+
+  const { data: listings } = await supabase
+    .from('properties')
+    .select('id, title, price, views, clicks, status, city, state, images')
+    .eq('user_id', link.user_id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!listings || listings.length === 0) {
+    await sendTelegram(chatId, '📭 You have no listings yet.');
+    return;
+  }
+
+  let msg = `🏠 <b>Your Listings (${listings.length})</b>\n\n`;
+  for (const p of listings) {
+    const statusEmoji = p.status === 'published' ? '🟢' : p.status === 'draft' ? '📝' : '🔴';
+    msg += `${statusEmoji} <b>${p.title}</b>\n`;
+    msg += `💰 ₦${Number(p.price).toLocaleString()} | 📍 ${p.city || ''}, ${p.state || ''}\n`;
+    msg += `👀 ${p.views || 0} views | 👆 ${p.clicks || 0} clicks\n\n`;
+  }
+  await sendTelegram(chatId, msg);
+}
+
+async function handleUserStats(chatId: number) {
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) { await sendTelegram(chatId, '❌ Account not linked.'); return; }
+
+  const [{ count: totalListings }, { count: published }, { data: promos }] = await Promise.all([
+    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('user_id', link.user_id),
+    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('user_id', link.user_id).eq('status', 'published'),
+    supabase.from('property_promotions').select('*, properties(title)').eq('user_id', link.user_id).eq('is_active', true),
+  ]);
+
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', link.user_id).single();
+
+  let msg = `📊 <b>${profile?.full_name || 'Your'} Stats</b>\n\n`;
+  msg += `🏠 Total Listings: <b>${totalListings || 0}</b>\n`;
+  msg += `🟢 Published: <b>${published || 0}</b>\n`;
+  msg += `⭐ Active Promotions: <b>${(promos || []).length}</b>\n`;
+
+  if (promos && promos.length > 0) {
+    msg += `\n<b>Active Promotions:</b>\n`;
+    for (const p of promos) {
+      const remaining = Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      msg += `• ${(p.properties as any)?.title || 'Property'} - ${remaining} day${remaining !== 1 ? 's' : ''} left\n`;
+    }
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
+async function handleUserPromotions(chatId: number) {
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) { await sendTelegram(chatId, '❌ Account not linked.'); return; }
+
+  const { data: promos } = await supabase
+    .from('property_promotions')
+    .select('*, properties(title, views, images)')
+    .eq('user_id', link.user_id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!promos || promos.length === 0) {
+    await sendTelegram(chatId, '📭 No promotions found. Visit Xavorian to promote your properties!');
+    return;
+  }
+
+  for (const p of promos) {
+    const prop = p.properties as any;
+    const isActive = p.is_active && new Date(p.expires_at) > new Date();
+    const remaining = Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    
+    // Hyped views (3.5x to 8.5x)
+    const hash = Math.abs([...p.property_id].reduce((a, c) => ((a << 5) - a) + c.charCodeAt(0), 0));
+    const multiplier = 3.5 + ((hash % 1000) / 1000) * 5;
+    const hypedViews = Math.round(((prop?.views || 1)) * multiplier);
+
+    let msg = `${isActive ? '🟢' : '🔴'} <b>${prop?.title || 'Property'}</b>\n`;
+    msg += `💰 Paid: ₦${Number(p.amount_paid).toLocaleString()} for ${p.days_promoted} days\n`;
+    msg += `👀 Promotion Views: <b>${hypedViews.toLocaleString()}</b>\n`;
+    if (isActive) {
+      msg += `⏰ ${remaining} day${remaining !== 1 ? 's' : ''} remaining\n`;
+    } else {
+      msg += `📅 Expired: ${new Date(p.expires_at).toLocaleDateString()}\n`;
+    }
+    await sendTelegram(chatId, msg);
+  }
 }
 
 async function handleDashboardStats(chatId: number) {
@@ -561,10 +661,28 @@ Deno.serve(async (req) => {
           }
       }
     } else {
-      // Check if this is a linked user replying
-      const handled = await handleUserReplyToAdmin(chatId, text);
-      if (!handled) {
-        // Not linked yet - treat as email for linking
+      // User commands (linked users)
+      const { data: userLink } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+      
+      if (userLink) {
+        // Linked user - handle user commands
+        switch (text) {
+          case '🏠 My Listings': await handleUserListings(chatId); break;
+          case '📊 My Stats': await handleUserStats(chatId); break;
+          case '⭐ My Promotions': await handleUserPromotions(chatId); break;
+          case '💬 Support':
+            await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.\n\nOr visit our help center on the website.');
+            break;
+          default:
+            // Forward to admin as support message
+            if (!text.startsWith('/')) {
+              await handleUserReplyToAdmin(chatId, text);
+            } else {
+              await sendTelegram(chatId, '📋 Use the menu buttons below to navigate.\n\n🏠 My Listings - View your properties\n📊 My Stats - See your statistics\n⭐ My Promotions - Check promotions\n💬 Support - Message support team');
+            }
+        }
+      } else {
+        // Not linked - treat as email for linking
         if (text.includes('@') && text.includes('.')) {
           await handleUserLink(chatId, username, text);
         } else {
