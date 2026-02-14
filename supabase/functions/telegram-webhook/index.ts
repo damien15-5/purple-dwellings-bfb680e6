@@ -72,6 +72,7 @@ async function clearAdminReplyTarget(chatId: number) {
 
 async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
   const adminCommands = [
+    { command: 'help', description: 'Show all available commands' },
     { command: 'searchuser', description: 'Search users by name or email' },
     { command: 'searchkyc', description: 'Search KYC by name, email, or status' },
     { command: 'searchlisting', description: 'Search listings by title, city, or status' },
@@ -85,6 +86,7 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
   ];
 
   const userCommands = [
+    { command: 'help', description: 'Show all available commands' },
     { command: 'mylistings', description: 'View your property listings' },
     { command: 'mystats', description: 'View your account statistics' },
     { command: 'mypromotions', description: 'Check your promotions' },
@@ -1149,26 +1151,40 @@ Deno.serve(async (req) => {
         return new Response('OK', { headers: corsHeaders });
       }
 
-      if (text.startsWith('/msg ')) {
-        await handleAdminMessage(chatId, text);
+      if (text === '/help') {
+        await handleSearchHelp(chatId);
         return new Response('OK', { headers: corsHeaders });
       }
 
-      // Search commands
-      if (text.startsWith('/searchuser ')) {
-        await handleSearchUsers(chatId, text.replace('/searchuser ', '').trim());
+      if (text.startsWith('/msg')) {
+        const args = text.replace(/^\/msg\s*/, '').trim();
+        if (!args) {
+          await sendTelegram(chatId, '📝 Usage: /msg user@email.com Your message here\n\nExample:\n/msg john@gmail.com Hello, please check your KYC');
+        } else {
+          await handleAdminMessage(chatId, '/msg ' + args);
+        }
         return new Response('OK', { headers: corsHeaders });
       }
-      if (text.startsWith('/searchkyc ')) {
-        await handleSearchKYC(chatId, text.replace('/searchkyc ', '').trim());
+
+      // Search commands - handle with or without arguments
+      if (text === '/searchuser' || text.startsWith('/searchuser ')) {
+        const query = text.replace(/^\/searchuser\s*/, '').trim();
+        await handleSearchUsers(chatId, query);
         return new Response('OK', { headers: corsHeaders });
       }
-      if (text.startsWith('/searchlisting ')) {
-        await handleSearchListings(chatId, text.replace('/searchlisting ', '').trim());
+      if (text === '/searchkyc' || text.startsWith('/searchkyc ')) {
+        const query = text.replace(/^\/searchkyc\s*/, '').trim();
+        await handleSearchKYC(chatId, query);
         return new Response('OK', { headers: corsHeaders });
       }
-      if (text.startsWith('/searchpromo ')) {
-        await handleSearchPromotions(chatId, text.replace('/searchpromo ', '').trim());
+      if (text === '/searchlisting' || text.startsWith('/searchlisting ')) {
+        const query = text.replace(/^\/searchlisting\s*/, '').trim();
+        await handleSearchListings(chatId, query);
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text === '/searchpromo' || text.startsWith('/searchpromo ')) {
+        const query = text.replace(/^\/searchpromo\s*/, '').trim();
+        await handleSearchPromotions(chatId, query);
         return new Response('OK', { headers: corsHeaders });
       }
 
@@ -1177,6 +1193,11 @@ Deno.serve(async (req) => {
       if (text === '/exportkyc') { await handleExportKYC(chatId); return new Response('OK', { headers: corsHeaders }); }
       if (text === '/exportlistings') { await handleExportListings(chatId); return new Response('OK', { headers: corsHeaders }); }
       if (text === '/exportpromos') { await handleExportPromotions(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text === '/search' || text.startsWith('/search ')) {
+        const query = text.replace(/^\/search\s*/, '').trim();
+        if (query) { await handleSearch(chatId, query); } else { await handleSearchHelp(chatId); }
+        return new Response('OK', { headers: corsHeaders });
+      }
 
       // Check reply mode
       const replyTarget = await getAdminReplyTarget(chatId);
@@ -1223,11 +1244,14 @@ Deno.serve(async (req) => {
           case '💬 Support': case '/support':
             await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.');
             break;
+          case '/help':
+            await sendTelegram(chatId, '📋 <b>Available Commands</b>\n\n/mylistings - View your property listings\n/mystats - See your account statistics\n/mypromotions - Check your promotions\n/myoffers - View your offers\n/mytransactions - View payment history\n/support - Contact support team\n/help - Show this help message\n\nOr use the menu buttons below!');
+            break;
           default:
             if (!text.startsWith('/')) {
               await handleUserReplyToAdmin(chatId, text);
             } else {
-              await sendTelegram(chatId, '📋 Use the menu buttons or type / to see commands.\n\n/mylistings - View your properties\n/mystats - See your statistics\n/mypromotions - Check promotions\n/myoffers - View offers\n/mytransactions - Payment history\n/support - Message support team');
+              await sendTelegram(chatId, '📋 Unknown command. Type /help to see all available commands.');
             }
         }
       } else {

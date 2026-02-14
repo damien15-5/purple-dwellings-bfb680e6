@@ -80,6 +80,32 @@ export const OffersNegotiations = () => {
 
       if (error) throw error;
 
+      // Find the offer to get buyer info for notification
+      const offer = offers.find(o => o.id === offerId);
+      if (offer) {
+        const buyerId = offer.buyer_id;
+        const sellerName = offer.seller?.full_name || 'Seller';
+        const propertyTitle = offer.property?.title || 'Property';
+        const offerAmount = offer.offer_amount;
+
+        // Notify buyer via Telegram
+        try {
+          await supabase.functions.invoke('telegram-notify', {
+            body: {
+              type: 'offer_responded',
+              data: {
+                userId: buyerId,
+                sellerName,
+                propertyTitle,
+                amount: offerAmount,
+                accepted: accept,
+                sellerResponse: responseMessage,
+              },
+            },
+          });
+        } catch (e) { console.error('Telegram notify error:', e); }
+      }
+
       toast({
         title: 'Success',
         description: `Offer ${accept ? 'accepted' : 'rejected'} successfully`,
