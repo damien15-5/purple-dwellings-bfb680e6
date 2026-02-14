@@ -118,7 +118,7 @@ export const HelpSupport = () => {
         .eq('id', user.id)
         .single();
 
-      const { error } = await supabase
+      const { data: ticket, error } = await supabase
         .from('customer_service_tickets')
         .insert({
           user_id: user.id,
@@ -127,9 +127,30 @@ export const HelpSupport = () => {
           description: contactForm.message,
           status: 'open',
           priority: 'medium',
-        });
+        })
+        .select('ticket_number')
+        .single();
 
       if (error) throw error;
+
+      // Notify admin via Telegram
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({
+            type: 'ticket_created',
+            data: {
+              ticketNumber: ticket?.ticket_number || 'N/A',
+              subject: contactForm.subject,
+              userEmail: profile?.email || user.email || '',
+              description: contactForm.message,
+              priority: 'medium',
+              userId: user.id,
+            },
+          }),
+        });
+      } catch (e) { console.error('Telegram notify error:', e); }
 
       toast({
         title: 'Success',
