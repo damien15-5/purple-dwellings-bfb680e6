@@ -79,9 +79,9 @@ export const Navigation = () => {
     { to: '/browse', label: 'Properties', icon: null },
     { to: '/upload-listing', label: 'Upload Listing', icon: null },
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/dashboard/chats', label: 'Messages', icon: MessageSquare },
+    { to: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
     { to: '/about', label: 'About Us', icon: null },
-    { to: '/contact', label: 'Contact', icon: null },
+    { to: '/support', label: 'Support', icon: null },
     { to: '/faq', label: 'FAQ', icon: HelpCircle },
   ];
 

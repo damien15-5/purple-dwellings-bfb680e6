@@ -51,15 +51,9 @@ const quickActions = [
 const getWelcomeMessage = (): Message => ({
   id: '1',
   role: 'assistant',
-  content: `Hello! I'm **Xavo**, your Xavorian AI assistant. 👋
+  content: `Hi! I'm **Xevo**, your Xavorian AI assistant. 👋
 
-I can help you with:
-• Property listings and verification
-• Escrow transactions and payments
-• Offers and negotiations
-• Account settings and support
-
-How can I assist you today?`,
+How can I help you today?`,
   timestamp: new Date(),
 });
 
