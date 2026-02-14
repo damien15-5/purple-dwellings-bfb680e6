@@ -10,12 +10,11 @@ import {
   Upload,
   Heart,
   Handshake,
-  Lock,
   TrendingUp,
   ArrowRight,
   CheckCircle,
-  Clock,
-  AlertCircle
+  Star,
+  CreditCard
 } from 'lucide-react';
 
 export const DashboardHome = () => {
@@ -25,12 +24,12 @@ export const DashboardHome = () => {
     savedProperties: 0,
     myListings: 0,
     offers: 0,
-    escrow: 0,
+    transactions: 0,
+    promotedProperties: 0,
   });
   const [financialStats, setFinancialStats] = useState({
     totalTransactionsMade: 0,
     totalSpentBuying: 0,
-    amountOnEscrow: 0,
   });
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,13 +43,14 @@ export const DashboardHome = () => {
     if (!user) return;
 
     // Load summary data
-    const [profileData, kycData, listingsCount, activeOffersCount, escrowCount, savedCount] = await Promise.all([
+    const [profileData, kycData, listingsCount, activeOffersCount, transactionsCount, savedCount, activePromotions] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
       supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`).in('offer_status', ['pending', 'accepted']),
-      supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
+      supabase.from('purchase_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
       supabase.from('saved_properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('property_promotions').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true).gt('expires_at', new Date().toISOString()),
     ]);
 
     setProfile(profileData.data);
@@ -59,24 +59,22 @@ export const DashboardHome = () => {
       savedProperties: savedCount.count || 0,
       myListings: listingsCount.count || 0,
       offers: activeOffersCount.count || 0,
-      escrow: escrowCount.count || 0,
+      transactions: transactionsCount.count || 0,
+      promotedProperties: activePromotions.count || 0,
     });
 
     // Load financial stats
-    const [completedAsSeller, completedAsBuyer, activeEscrow] = await Promise.all([
+    const [completedAsSeller, completedAsBuyer] = await Promise.all([
       supabase.from('escrow_transactions').select('total_amount').eq('seller_id', user.id).eq('status', 'completed'),
       supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).eq('status', 'completed'),
-      supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).in('status', ['funded', 'inspection_period']),
     ]);
 
     const totalTransactionsMade = completedAsSeller.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
     const totalSpentBuying = completedAsBuyer.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
-    const amountOnEscrow = activeEscrow.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
 
     setFinancialStats({
       totalTransactionsMade,
       totalSpentBuying,
-      amountOnEscrow,
     });
 
     // Load analytics lazily
@@ -127,12 +125,20 @@ export const DashboardHome = () => {
       link: '/dashboard/offers'
     },
     { 
-      title: 'Escrow Transactions', 
-      value: stats.escrow, 
-      icon: Lock, 
+      title: 'Transactions', 
+      value: stats.transactions, 
+      icon: CreditCard, 
+      color: 'text-orange-500',
+      bgColor: 'bg-orange-50',
+      link: '/dashboard/transactions'
+    },
+    { 
+      title: 'Promoted Properties', 
+      value: stats.promotedProperties, 
+      icon: Star, 
       color: 'text-purple-500',
       bgColor: 'bg-purple-50',
-      link: '/dashboard/escrow'
+      link: '/dashboard/promotions'
     },
   ];
 
@@ -140,7 +146,7 @@ export const DashboardHome = () => {
     { label: 'Upload Property', icon: Upload, link: '/upload-listing', variant: 'hero' as const },
     { label: 'View Listings', icon: Home, link: '/dashboard/my-listings', variant: 'outline' as const },
     { label: 'View Offers', icon: Handshake, link: '/dashboard/offers', variant: 'outline' as const },
-    { label: 'Escrow Dashboard', icon: Lock, link: '/dashboard/escrow', variant: 'outline' as const },
+    { label: 'Promote Property', icon: Star, link: '/promote-property', variant: 'outline' as const },
   ];
 
   return (
@@ -191,7 +197,7 @@ export const DashboardHome = () => {
       </div>
 
       {/* Financial Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <Card className="card-glow">
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
@@ -219,21 +225,6 @@ export const DashboardHome = () => {
               ₦{financialStats.totalSpentBuying.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">On purchased properties</p>
-          </CardContent>
-        </Card>
-
-        <Card className="card-glow">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
-              Amount on Escrow
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-foreground">
-              ₦{financialStats.amountOnEscrow.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Active escrow funds</p>
           </CardContent>
         </Card>
       </div>

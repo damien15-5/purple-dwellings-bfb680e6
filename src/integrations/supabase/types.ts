@@ -1014,6 +1014,56 @@ export type Database = {
         }
         Relationships: []
       }
+      property_promotions: {
+        Row: {
+          amount_paid: number
+          created_at: string
+          days_promoted: number
+          expires_at: string
+          id: string
+          is_active: boolean
+          paystack_reference: string | null
+          promotion_id: string
+          property_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_paid: number
+          created_at?: string
+          days_promoted: number
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          paystack_reference?: string | null
+          promotion_id: string
+          property_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string
+          days_promoted?: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          paystack_reference?: string | null
+          promotion_id?: string
+          property_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_promotions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_transactions: {
         Row: {
           buyer_id: string

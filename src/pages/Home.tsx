@@ -31,6 +31,7 @@ type Property = {
   city?: string;
   state?: string;
   address?: string;
+  isPromoted?: boolean;
 };
 
 // Loading skeleton for property sections
@@ -82,17 +83,27 @@ export const Home = () => {
 
   const fetchProperties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false })
-        .limit(50); // Limit initial load for performance
+      // Fetch properties and active promotions in parallel
+      const [propertiesRes, promotionsRes] = await Promise.all([
+        supabase
+          .from('properties')
+          .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks')
+          .eq('status', 'published')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('property_promotions')
+          .select('property_id')
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString()),
+      ]);
 
-      if (error) throw error;
+      if (propertiesRes.error) throw propertiesRes.error;
 
-      if (data) {
-        const transformedProperties: Property[] = data.map(p => ({
+      const promotedIds = new Set((promotionsRes.data || []).map(p => p.property_id));
+
+      if (propertiesRes.data) {
+        const transformedProperties: Property[] = propertiesRes.data.map(p => ({
           id: p.id,
           image: p.images?.[0] || '',
           price: p.price,
@@ -106,7 +117,8 @@ export const Home = () => {
           city: p.city || '',
           state: p.state || '',
           address: p.address || '',
-          matchScore: Math.floor(Math.random() * 40) + 60
+          matchScore: Math.floor(Math.random() * 40) + 60,
+          isPromoted: promotedIds.has(p.id),
         }));
 
         setAllProperties(transformedProperties);
@@ -190,11 +202,19 @@ export const Home = () => {
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
+  // Featured: promoted first, then by clicks
   const featuredProperties = useMemo(() => 
-    [...filteredProperties].sort((a, b) => b.clicks - a.clicks).slice(0, 6),
+    [...filteredProperties]
+      .sort((a, b) => {
+        if (a.isPromoted && !b.isPromoted) return -1;
+        if (!a.isPromoted && b.isPromoted) return 1;
+        return b.clicks - a.clicks;
+      })
+      .slice(0, 6),
     [filteredProperties]
   );
 
+  // Locality: promoted first in user's area
   const localityProperties = useMemo(() => 
     filteredProperties
       .filter(p => {
@@ -203,17 +223,36 @@ export const Home = () => {
                p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
                p.location.toLowerCase().includes(userLocation.toLowerCase());
       })
+      .sort((a, b) => {
+        if (a.isPromoted && !b.isPromoted) return -1;
+        if (!a.isPromoted && b.isPromoted) return 1;
+        return 0;
+      })
       .slice(0, 8),
     [filteredProperties, userLocation]
   );
 
+  // Explore more: promoted first
   const exploreMoreProperties = useMemo(() => 
-    filteredProperties.slice(0, 9),
+    [...filteredProperties]
+      .sort((a, b) => {
+        if (a.isPromoted && !b.isPromoted) return -1;
+        if (!a.isPromoted && b.isPromoted) return 1;
+        return 0;
+      })
+      .slice(0, 9),
     [filteredProperties]
   );
 
+  // Recommended: promoted properties prioritized
   const recommendedProperties = useMemo(() => 
-    [...filteredProperties].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)).slice(0, 8),
+    [...filteredProperties]
+      .sort((a, b) => {
+        if (a.isPromoted && !b.isPromoted) return -1;
+        if (!a.isPromoted && b.isPromoted) return 1;
+        return (b.matchScore || 0) - (a.matchScore || 0);
+      })
+      .slice(0, 8),
     [filteredProperties]
   );
 

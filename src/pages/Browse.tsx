@@ -25,6 +25,7 @@ type Property = {
   city?: string;
   state?: string;
   country?: string;
+  isPromoted?: boolean;
 };
 
 export const Browse = () => {
@@ -64,18 +65,42 @@ export const Browse = () => {
 
   const fetchProperties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
+      const [propertiesRes, promotionsRes] = await Promise.all([
+        supabase
+          .from('properties')
+          .select('*')
+          .eq('status', 'published')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('property_promotions')
+          .select('property_id')
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString()),
+      ]);
 
-      if (error) throw error;
+      if (propertiesRes.error) throw propertiesRes.error;
 
-      setAllProperties(data || []);
+      const promotedIds = new Set((promotionsRes.data || []).map(p => p.property_id));
+      const propertiesWithPromo = (propertiesRes.data || []).map(p => ({
+        ...p,
+        isPromoted: promotedIds.has(p.id),
+      }));
+
+      // Sort: promoted first
+      propertiesWithPromo.sort((a, b) => {
+        if (a.isPromoted && !b.isPromoted) return -1;
+        if (!a.isPromoted && b.isPromoted) return 1;
+        return 0;
+      });
+
+      setAllProperties(propertiesWithPromo);
       
-      // Set suggested properties (first 5 for demo)
-      setSuggestedProperties((data || []).slice(0, 5));
+      // Suggested: promoted properties first
+      const suggested = propertiesWithPromo.filter(p => p.isPromoted).slice(0, 5);
+      if (suggested.length < 5) {
+        suggested.push(...propertiesWithPromo.filter(p => !p.isPromoted).slice(0, 5 - suggested.length));
+      }
+      setSuggestedProperties(suggested);
     } catch (error: any) {
       console.error('Error fetching properties:', error);
       toast.error('Failed to load properties');
