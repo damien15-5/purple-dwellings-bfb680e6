@@ -20,6 +20,26 @@ export const OffersNegotiations = () => {
 
   useEffect(() => {
     loadOffers();
+
+    // Subscribe to realtime updates on escrow_transactions
+    const channel = supabase
+      .channel('offers-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'escrow_transactions',
+        },
+        () => {
+          loadOffers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadOffers = async () => {
