@@ -14,12 +14,14 @@ import {
   ArrowRight,
   CheckCircle,
   Star,
-  CreditCard
+  CreditCard,
+  Shield
 } from 'lucide-react';
 
 export const DashboardHome = () => {
   const [profile, setProfile] = useState<any>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [stats, setStats] = useState({
     savedProperties: 0,
     myListings: 0,
@@ -45,7 +47,7 @@ export const DashboardHome = () => {
     // Load summary data
     const [profileData, kycData, listingsCount, activeOffersCount, transactionsCount, savedCount, activePromotions] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('kyc_documents').select('status').eq('user_id', user.id).eq('status', 'verified').maybeSingle(),
+      supabase.from('kyc_documents').select('status').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('escrow_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`).in('offer_status', ['pending', 'accepted']),
       supabase.from('purchase_transactions').select('id', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
@@ -54,7 +56,9 @@ export const DashboardHome = () => {
     ]);
 
     setProfile(profileData.data);
-    setIsVerified(!!kycData.data);
+    const kycStatusVal = kycData.data?.status || null;
+    setIsVerified(kycStatusVal === 'verified');
+    setKycStatus(kycStatusVal);
     setStats({
       savedProperties: savedCount.count || 0,
       myListings: listingsCount.count || 0,
@@ -171,7 +175,65 @@ export const DashboardHome = () => {
         <div className="absolute bottom-0 left-0 w-24 h-24 sm:w-36 sm:h-36 md:w-48 md:h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
       </div>
 
-      {/* Stats Grid */}
+      {/* KYC Verification Status */}
+      <Card className={`card-glow border-l-4 ${
+        isVerified 
+          ? 'border-l-emerald-500' 
+          : kycStatus === 'pending' 
+            ? 'border-l-amber-500' 
+            : kycStatus === 'rejected'
+              ? 'border-l-red-500'
+              : 'border-l-muted-foreground'
+      }`}>
+        <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-full ${
+              isVerified 
+                ? 'bg-emerald-100 text-emerald-600' 
+                : kycStatus === 'pending'
+                  ? 'bg-amber-100 text-amber-600'
+                  : kycStatus === 'rejected'
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-muted text-muted-foreground'
+            }`}>
+              {isVerified ? (
+                <CheckCircle className="h-5 w-5" />
+              ) : (
+                <Shield className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm sm:text-base text-foreground">
+                {isVerified 
+                  ? 'Identity Verified' 
+                  : kycStatus === 'pending'
+                    ? 'Verification Pending'
+                    : kycStatus === 'rejected'
+                      ? 'Verification Rejected'
+                      : 'Not Verified'}
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {isVerified 
+                  ? 'Your identity has been confirmed. You can upload properties.'
+                  : kycStatus === 'pending'
+                    ? 'Your documents are under review. You\'ll be notified once approved.'
+                    : kycStatus === 'rejected'
+                      ? 'Your verification was rejected. Please resubmit your documents.'
+                      : 'Complete KYC verification to upload and sell properties.'}
+              </p>
+            </div>
+          </div>
+          {!isVerified && (
+            <Link to="/dashboard/verification">
+              <Button size="sm" variant={kycStatus === 'rejected' ? 'destructive' : 'default'} className="gap-1.5 whitespace-nowrap">
+                <Shield className="h-3.5 w-3.5" />
+                {kycStatus === 'rejected' ? 'Resubmit KYC' : kycStatus === 'pending' ? 'View Status' : 'Verify Now'}
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statCards.map((stat) => (
           <Link key={stat.title} to={stat.link}>
