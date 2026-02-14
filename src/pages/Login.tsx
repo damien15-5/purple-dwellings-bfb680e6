@@ -36,6 +36,19 @@ export const Login = () => {
 
       if (error) throw error;
 
+      // Mark this as an actual login for notification tracking
+      sessionStorage.setItem('xavorian_just_logged_in', 'true');
+      
+      // Send Telegram login alert
+      try {
+        await supabase.functions.invoke('telegram-notify', {
+          body: {
+            type: 'login_alert',
+            data: { userId: data.user?.id, time: new Date().toLocaleString() }
+          }
+        });
+      } catch (e) { /* silent */ }
+      
       toast({
         title: 'Welcome back!',
         description: 'Successfully logged in',

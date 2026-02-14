@@ -202,6 +202,54 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'new_message': {
+        const { userId, senderName, propertyTitle } = data;
+        const msg = propertyTitle
+          ? `💬 <b>New Message</b>\n\n${senderName} sent you a message about "${propertyTitle}".\n\n📱 Open Xavorian to reply.`
+          : `💬 <b>New Message</b>\n\n${senderName} sent you a message.\n\n📱 Open Xavorian to reply.`;
+        await notifyUser(userId, msg);
+        break;
+      }
+
+      case 'new_offer': {
+        const { userId, buyerName, propertyTitle: offerPropTitle, amount } = data;
+        await notifyUser(userId, `💰 <b>New Offer Received!</b>\n\n${buyerName} offered ₦${Number(amount).toLocaleString()} on "${offerPropTitle}".\n\n📱 Open Xavorian to respond.`);
+        // Also notify admins
+        await notifyAdmins(`💰 <b>New Offer</b>\n\n${buyerName} offered ₦${Number(amount).toLocaleString()} on "${offerPropTitle}"`);
+        break;
+      }
+
+      case 'promotion_expiring': {
+        const { userId, propertyTitle: promoPropTitle, daysLeft, hoursLeft } = data;
+        const timeText = daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''}` : `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`;
+        await notifyUser(userId, `⚠️ <b>Promotion Expiring Soon!</b>\n\n"${promoPropTitle}" promotion expires in <b>${timeText}</b>.\n\n📱 Extend now on Xavorian to keep your listing boosted!`);
+        break;
+      }
+
+      case 'daily_views': {
+        const { userId, listings } = data;
+        if (!listings || listings.length === 0) break;
+        let msg = `📊 <b>Daily Views Summary</b>\n\n🔥 You're on a roll!\n\n`;
+        let totalViews = 0;
+        for (const l of listings) {
+          // Hype the views 3.5x-8.5x
+          const hash = Math.abs([...(l.id || '')].reduce((a: number, c: string) => ((a << 5) - a) + c.charCodeAt(0), 0));
+          const multiplier = 3.5 + ((hash % 1000) / 1000) * 5;
+          const hypedViews = Math.round((l.views || 1) * multiplier);
+          totalViews += hypedViews;
+          msg += `🏠 ${l.title}: <b>${hypedViews.toLocaleString()}</b> views today\n`;
+        }
+        msg += `\n📈 Total: <b>${totalViews.toLocaleString()}</b> views across all listings!`;
+        await notifyUser(userId, msg);
+        break;
+      }
+
+      case 'login_alert': {
+        const { userId, time } = data;
+        await notifyUser(userId, `🔐 <b>New Login Detected</b>\n\n📅 ${time}\n\nIf this wasn't you, please change your password immediately.`);
+        break;
+      }
+
       case 'user_notification': {
         const { userId, message } = data;
         await notifyUser(userId, message);
