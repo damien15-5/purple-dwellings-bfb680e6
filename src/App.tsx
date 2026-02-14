@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { AdminProvider, useAdmin } from "@/contexts/AdminContext";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -78,7 +78,19 @@ const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/damienxavorianezeani" replace />;
 };
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason?.message?.includes('Failed to fetch dynamically imported module')) {
+        console.warn('Module load failed, reloading page...');
+        window.location.reload();
+      }
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AdminProvider>
@@ -179,6 +191,7 @@ const App = () => (
       </AdminProvider>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
