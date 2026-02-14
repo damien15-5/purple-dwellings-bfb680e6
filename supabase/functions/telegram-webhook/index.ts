@@ -6,7 +6,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const MAX_ADMINS = 1;
+// Admin registration is handled via the web admin management page only
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,19 +70,57 @@ async function clearAdminReplyTarget(chatId: number) {
   await supabase.from('telegram_admin_chats').update({ reply_target_user_id: null } as any).eq('chat_id', chatId);
 }
 
+async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
+  const adminCommands = [
+    { command: 'searchuser', description: 'Search users by name or email' },
+    { command: 'searchkyc', description: 'Search KYC by name, email, or status' },
+    { command: 'searchlisting', description: 'Search listings by title, city, or status' },
+    { command: 'searchpromo', description: 'Search promotions by title or email' },
+    { command: 'exportusers', description: 'Export all users as CSV' },
+    { command: 'exportkyc', description: 'Export all KYC records as CSV' },
+    { command: 'exportlistings', description: 'Export all listings as CSV' },
+    { command: 'exportpromos', description: 'Export all promotions as CSV' },
+    { command: 'msg', description: 'Message a user: /msg email message' },
+    { command: 'cancel', description: 'Cancel messaging mode' },
+  ];
+
+  const userCommands = [
+    { command: 'mylistings', description: 'View your property listings' },
+    { command: 'mystats', description: 'View your account statistics' },
+    { command: 'mypromotions', description: 'Check your promotions' },
+    { command: 'myoffers', description: 'View your offers' },
+    { command: 'mytransactions', description: 'View payment history' },
+    { command: 'support', description: 'Contact support' },
+  ];
+
+  const commands = role === 'admin' ? adminCommands : userCommands;
+
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      commands,
+      scope: { type: 'chat', chat_id: chatId },
+    }),
+  });
+}
+
 async function handleAdminSetup(chatId: number, username: string) {
-  const { count } = await supabase.from('telegram_admin_chats').select('*', { count: 'exact', head: true }).eq('is_active', true);
-  
-  if ((count || 0) >= MAX_ADMINS) {
-    const { data: existing } = await supabase.from('telegram_admin_chats').select('id').eq('chat_id', chatId).eq('is_active', true).single();
-    if (!existing) {
-      await sendTelegram(chatId, '❌ <b>Access Denied</b>\n\nAdmin registration is locked. Only the platform owner can be registered as admin.');
-      return;
-    }
+  // Check if this Telegram username is registered as an admin in admin_credentials
+  const { data: adminCred } = await supabase
+    .from('admin_credentials')
+    .select('id, username, role, telegram_username')
+    .ilike('telegram_username', username)
+    .eq('is_active', true)
+    .single();
+
+  if (!adminCred) {
+    await sendTelegram(chatId, '❌ <b>Access Denied</b>\n\nYour Telegram username is not registered as an admin. An admin must add your Telegram username from the Admin Management page first.');
+    return;
   }
 
   const { error } = await supabase.from('telegram_admin_chats').upsert(
-    { chat_id: chatId, username, admin_id: '00000000-0000-0000-0000-000000000000', is_active: true },
+    { chat_id: chatId, username, admin_id: adminCred.id, is_active: true },
     { onConflict: 'chat_id' }
   );
   if (error) {
@@ -90,7 +128,7 @@ async function handleAdminSetup(chatId: number, username: string) {
     return;
   }
   await sendTelegram(chatId, 
-    '✅ <b>Admin registered!</b>\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below to manage the platform.\n\n<b>Search Commands:</b>\n/searchuser name or email\n/searchkyc name or status\n/searchlisting title or city\n/searchpromo title\n\n<b>Export Commands:</b>\n/exportusers\n/exportkyc\n/exportlistings\n/exportpromos\n\nTo message a user: /msg email message',
+    `✅ <b>Admin registered!</b>\n\nWelcome, <b>${adminCred.username}</b> (${adminCred.role.replace('_', ' ')})!\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below or type / to see all commands.`,
     {
       keyboard: [
         [{ text: '📊 Dashboard Stats' }, { text: '🔐 Pending KYC' }],
@@ -102,6 +140,9 @@ async function handleAdminSetup(chatId: number, username: string) {
       persistent: true,
     }
   );
+
+  // Set bot commands for this admin user
+  await setCommandsForChat(chatId, 'admin');
 }
 
 async function handleUserLink(chatId: number, username: string, text: string) {
@@ -133,6 +174,8 @@ async function handleUserLink(chatId: number, username: string, text: string) {
       persistent: true,
     }
   );
+  // Set user slash commands
+  await setCommandsForChat(chatId, 'user');
 }
 
 // ==================== USER COMMANDS ====================
@@ -1040,12 +1083,57 @@ Deno.serve(async (req) => {
     const text = message.text.trim();
     const username = message.from?.username || '';
 
-    if (text === '/admin' || text === '/start admin') {
-      await handleAdminSetup(chatId, username);
-      return new Response('OK', { headers: corsHeaders });
-    }
-
+    // Check if username is a registered admin via admin_credentials
     if (text === '/start') {
+      // Check if already admin
+      const existingAdmin = await isAdmin(chatId);
+      if (existingAdmin) {
+        await sendTelegram(chatId, '👋 <b>Welcome back, Admin!</b>\n\nUse the menu below or type / to see available commands.', {
+          keyboard: [
+            [{ text: '📊 Dashboard Stats' }, { text: '🔐 Pending KYC' }],
+            [{ text: '🎫 Open Tickets' }, { text: '🏠 Recent Listings' }],
+            [{ text: '👤 Total Users' }, { text: '⭐ Active Promotions' }],
+            [{ text: '🔍 Search Help' }],
+          ],
+          resize_keyboard: true,
+          persistent: true,
+        });
+        await setCommandsForChat(chatId, 'admin');
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Check if their Telegram username is registered as admin
+      if (username) {
+        const { data: adminCred } = await supabase
+          .from('admin_credentials')
+          .select('id, username, role, telegram_username')
+          .ilike('telegram_username', username)
+          .eq('is_active', true)
+          .single();
+
+        if (adminCred) {
+          await handleAdminSetup(chatId, username);
+          return new Response('OK', { headers: corsHeaders });
+        }
+      }
+
+      // Check if already linked user
+      const { data: existingLink } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+      if (existingLink) {
+        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', existingLink.user_id).single();
+        await sendTelegram(chatId, `👋 <b>Welcome back, ${profile?.full_name || 'User'}!</b>\n\nUse the menu below or type / to see available commands.`, {
+          keyboard: [
+            [{ text: '🏠 My Listings' }, { text: '📊 My Stats' }],
+            [{ text: '⭐ My Promotions' }, { text: '🤝 My Offers' }],
+            [{ text: '💳 My Transactions' }, { text: '💬 Support' }],
+          ],
+          resize_keyboard: true,
+          persistent: true,
+        });
+        await setCommandsForChat(chatId, 'user');
+        return new Response('OK', { headers: corsHeaders });
+      }
+
       await sendTelegram(chatId, 
         '👋 <b>Welcome to XavorianBot!</b>\n\nTo connect your Xavorian account, please type your registered email address.\n\nExample: <code>john@example.com</code>'
       );
@@ -1127,19 +1215,19 @@ Deno.serve(async (req) => {
       
       if (userLink) {
         switch (text) {
-          case '🏠 My Listings': await handleUserListings(chatId); break;
-          case '📊 My Stats': await handleUserStats(chatId); break;
-          case '⭐ My Promotions': await handleUserPromotions(chatId); break;
-          case '🤝 My Offers': await handleUserOffers(chatId); break;
-          case '💳 My Transactions': await handleUserTransactions(chatId); break;
-          case '💬 Support':
+          case '🏠 My Listings': case '/mylistings': await handleUserListings(chatId); break;
+          case '📊 My Stats': case '/mystats': await handleUserStats(chatId); break;
+          case '⭐ My Promotions': case '/mypromotions': await handleUserPromotions(chatId); break;
+          case '🤝 My Offers': case '/myoffers': await handleUserOffers(chatId); break;
+          case '💳 My Transactions': case '/mytransactions': await handleUserTransactions(chatId); break;
+          case '💬 Support': case '/support':
             await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.');
             break;
           default:
             if (!text.startsWith('/')) {
               await handleUserReplyToAdmin(chatId, text);
             } else {
-              await sendTelegram(chatId, '📋 Use the menu buttons below to navigate.\n\n🏠 My Listings - View your properties\n📊 My Stats - See your statistics\n⭐ My Promotions - Check promotions\n🤝 My Offers - View offers\n💳 My Transactions - Payment history\n💬 Support - Message support team');
+              await sendTelegram(chatId, '📋 Use the menu buttons or type / to see commands.\n\n/mylistings - View your properties\n/mystats - See your statistics\n/mypromotions - Check promotions\n/myoffers - View offers\n/mytransactions - Payment history\n/support - Message support team');
             }
         }
       } else {

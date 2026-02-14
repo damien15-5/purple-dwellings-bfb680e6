@@ -57,6 +57,7 @@ export type Database = {
           password_hash: string
           role: Database["public"]["Enums"]["app_role"]
           second_password_hash: string
+          telegram_username: string | null
           user_id: string | null
           username: string
         }
@@ -69,6 +70,7 @@ export type Database = {
           password_hash: string
           role: Database["public"]["Enums"]["app_role"]
           second_password_hash: string
+          telegram_username?: string | null
           user_id?: string | null
           username: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           password_hash?: string
           role?: Database["public"]["Enums"]["app_role"]
           second_password_hash?: string
+          telegram_username?: string | null
           user_id?: string | null
           username?: string
         }
