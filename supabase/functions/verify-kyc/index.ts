@@ -267,14 +267,14 @@ serve(async (req) => {
 
     await supabase.from("kyc_documents").update(updateData).eq("id", kyc_id);
 
-    // Send Telegram notification to admin
+    // Send Telegram notification to admin with document images
     try {
       await fetch(`${supabaseUrl}/functions/v1/telegram-notify`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
         body: JSON.stringify({
           type: "kyc_submitted",
-          data: { userId: user.id, fullName: personal_info.full_name, identityType: doc_type },
+          data: { userId: user.id, fullName: personal_info.full_name, identityType: doc_type, documentImagePath: document_image_path, selfiePath: selfie_path },
         }),
       });
     } catch (e) { console.error("Telegram notify error:", e); }

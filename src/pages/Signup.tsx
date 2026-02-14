@@ -89,6 +89,13 @@ export const Signup = () => {
 
       if (data.user) {
         // Profile is automatically created by database trigger
+        // Send new user signup notification to Telegram
+        try {
+          await supabase.functions.invoke('telegram-notify', {
+            body: { type: 'new_user', data: { fullName, email, accountType } },
+          });
+        } catch (e) { console.error('Telegram notify error:', e); }
+        
         // Move to KYC step
         setStep(2);
         toast({

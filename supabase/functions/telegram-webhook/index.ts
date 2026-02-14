@@ -6,6 +6,9 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+// The ONE admin chat ID - only the first admin to register is accepted
+const MAX_ADMINS = 1;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,15 +17,64 @@ const corsHeaders = {
 async function sendTelegram(chatId: number, text: string, replyMarkup?: any) {
   const body: any = { chat_id: chatId, text, parse_mode: 'HTML' };
   if (replyMarkup) body.reply_markup = replyMarkup;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.ok;
+}
+
+async function sendPhoto(chatId: number, photoUrl: string, caption?: string, replyMarkup?: any) {
+  const body: any = { chat_id: chatId, photo: photoUrl, parse_mode: 'HTML' };
+  if (caption) body.caption = caption;
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 }
 
+async function getSignedUrl(bucket: string, path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+  if (error) { console.error('Signed URL error:', error); return null; }
+  return data.signedUrl;
+}
+
+async function getPublicUrl(bucket: string, path: string): string {
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// State for admin messaging - stored as a simple map in memory per request
+// We use a DB approach: store pending reply target in telegram_admin_chats
+async function setAdminReplyTarget(chatId: number, targetUserId: string) {
+  await supabase.from('telegram_admin_chats').update({ reply_target_user_id: targetUserId } as any).eq('chat_id', chatId);
+}
+
+async function getAdminReplyTarget(chatId: number): Promise<string | null> {
+  const { data } = await supabase.from('telegram_admin_chats').select('*').eq('chat_id', chatId).single();
+  return (data as any)?.reply_target_user_id || null;
+}
+
+async function clearAdminReplyTarget(chatId: number) {
+  await supabase.from('telegram_admin_chats').update({ reply_target_user_id: null } as any).eq('chat_id', chatId);
+}
+
 async function handleAdminSetup(chatId: number, username: string) {
-  // Register admin chat
+  // Check if max admins already registered
+  const { count } = await supabase.from('telegram_admin_chats').select('*', { count: 'exact', head: true }).eq('is_active', true);
+  
+  if ((count || 0) >= MAX_ADMINS) {
+    // Check if THIS chat is already the admin
+    const { data: existing } = await supabase.from('telegram_admin_chats').select('id').eq('chat_id', chatId).eq('is_active', true).single();
+    if (!existing) {
+      await sendTelegram(chatId, '❌ <b>Access Denied</b>\n\nAdmin registration is locked. Only the platform owner can be registered as admin.');
+      return;
+    }
+  }
+
   const { error } = await supabase.from('telegram_admin_chats').upsert(
     { chat_id: chatId, username, admin_id: '00000000-0000-0000-0000-000000000000', is_active: true },
     { onConflict: 'chat_id' }
@@ -32,7 +84,7 @@ async function handleAdminSetup(chatId: number, username: string) {
     return;
   }
   await sendTelegram(chatId, 
-    '✅ <b>Admin registered!</b>\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below to manage the platform.',
+    '✅ <b>Admin registered!</b>\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below to manage the platform.\n\nTo message a user, use: /msg user_email message',
     {
       keyboard: [
         [{ text: '📊 Dashboard Stats' }, { text: '🔐 Pending KYC' }],
@@ -47,25 +99,20 @@ async function handleAdminSetup(chatId: number, username: string) {
 
 async function handleUserLink(chatId: number, username: string, text: string) {
   const email = text.trim().toLowerCase();
-  // Find user by email
   const { data: profile } = await supabase.from('profiles').select('id, full_name, email').eq('email', email).single();
   if (!profile) {
     await sendTelegram(chatId, '❌ No account found with that email. Please check and try again.');
     return;
   }
-  // Link user
   const { error } = await supabase.from('telegram_user_links').upsert(
     { user_id: profile.id, chat_id: chatId, username, is_verified: true },
     { onConflict: 'user_id' }
   );
   if (error) {
-    // Might be chat_id conflict
     await sendTelegram(chatId, '❌ This Telegram account is already linked to another user.');
     return;
   }
-  // Update profile telegram username
   await supabase.from('profiles').update({ telegram_username: username || `tg_${chatId}` }).eq('id', profile.id);
-
   await sendTelegram(chatId, 
     `✅ <b>Connected!</b>\n\nHello ${profile.full_name}! Your Telegram is now linked to your Xavorian account.\n\nYou'll receive notifications about:\n• Offers on your properties\n• Messages from buyers/sellers\n• KYC verification updates\n• Transaction updates`
   );
@@ -79,7 +126,6 @@ async function handleDashboardStats(chatId: number) {
     supabase.from('customer_service_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
     supabase.from('property_promotions').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ]);
-
   const { count: aiTickets } = await supabase.from('ai_support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open');
 
   await sendTelegram(chatId,
@@ -102,32 +148,47 @@ async function handlePendingKYC(chatId: number) {
 
   for (const kyc of pending) {
     const { data: profile } = await supabase.from('profiles').select('email').eq('id', kyc.user_id).single();
+    const { data: tgLink } = await supabase.from('telegram_user_links').select('username').eq('user_id', kyc.user_id).single();
     
     let msg = `🔐 <b>KYC Review</b>\n\n`;
     msg += `👤 Name: <b>${kyc.full_name || 'N/A'}</b>\n`;
     msg += `📧 Email: ${profile?.email || 'N/A'}\n`;
     msg += `🪪 ID Type: ${kyc.identity_type || 'N/A'}\n`;
     msg += `🔢 ID Number: ${kyc.identity_number || 'N/A'}\n`;
-    msg += `📅 Submitted: ${kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString() : 'N/A'}\n`;
+    msg += `📅 Submitted: ${kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString() : 'N/A'}`;
+    if (tgLink?.username) msg += `\n📱 Telegram: @${tgLink.username}`;
 
+    // Send document image
     if (kyc.document_image_url) {
-      msg += `\n📄 <a href="${kyc.document_image_url}">View Document</a>`;
+      const signedUrl = await getSignedUrl('kyc-documents', kyc.document_image_url);
+      if (signedUrl) {
+        await sendPhoto(chatId, signedUrl, `📄 <b>ID Document</b> - ${kyc.full_name || 'User'}`);
+      }
     }
+
+    // Send selfie image
     if (kyc.selfie_url) {
-      msg += `\n🤳 <a href="${kyc.selfie_url}">View Selfie</a>`;
+      const signedUrl = await getSignedUrl('kyc-documents', kyc.selfie_url);
+      if (signedUrl) {
+        await sendPhoto(chatId, signedUrl, `🤳 <b>Selfie</b> - ${kyc.full_name || 'User'}`);
+      }
     }
 
     await sendTelegram(chatId, msg, {
-      inline_keyboard: [[
-        { text: '✅ Approve', callback_data: `kyc_approve_${kyc.id}` },
-        { text: '❌ Reject', callback_data: `kyc_reject_${kyc.id}` },
-      ]],
+      inline_keyboard: [
+        [
+          { text: '✅ Approve', callback_data: `kyc_approve_${kyc.id}` },
+          { text: '❌ Reject', callback_data: `kyc_reject_${kyc.id}` },
+        ],
+        [
+          { text: '💬 Message User', callback_data: `msg_user_${kyc.user_id}` },
+        ],
+      ],
     });
   }
 }
 
 async function handleOpenTickets(chatId: number) {
-  // Get both ticket types
   const [{ data: csTickets }, { data: aiTickets }] = await Promise.all([
     supabase.from('customer_service_tickets').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(5),
     supabase.from('ai_support_tickets').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(5),
@@ -144,18 +205,26 @@ async function handleOpenTickets(chatId: number) {
   }
 
   for (const ticket of allTickets) {
+    const { data: tgLink } = await supabase.from('telegram_user_links').select('username').eq('user_id', ticket.user_id).single();
+    
     let msg = `🎫 <b>Ticket ${ticket.ticket_number || 'N/A'}</b> [${ticket.source}]\n\n`;
     msg += `📌 Subject: <b>${ticket.subject || 'N/A'}</b>\n`;
     msg += `📧 Email: ${ticket.user_email}\n`;
     msg += `⚡ Priority: ${ticket.priority || 'medium'}\n`;
     msg += `📊 Status: ${ticket.status}\n`;
+    if (tgLink?.username) msg += `📱 Telegram: @${tgLink.username}\n`;
     msg += `📝 ${(ticket.description || '').substring(0, 200)}${(ticket.description || '').length > 200 ? '...' : ''}\n`;
 
     await sendTelegram(chatId, msg, {
-      inline_keyboard: [[
-        { text: '✅ Resolve', callback_data: `ticket_resolve_${ticket.source}_${ticket.id}` },
-        { text: '📝 In Progress', callback_data: `ticket_progress_${ticket.source}_${ticket.id}` },
-      ]],
+      inline_keyboard: [
+        [
+          { text: '✅ Resolve', callback_data: `ticket_resolve_${ticket.source}_${ticket.id}` },
+          { text: '📝 In Progress', callback_data: `ticket_progress_${ticket.source}_${ticket.id}` },
+        ],
+        [
+          { text: '💬 Message User', callback_data: `msg_user_${ticket.user_id}` },
+        ],
+      ],
     });
   }
 }
@@ -174,6 +243,15 @@ async function handleRecentListings(chatId: number) {
 
   for (const p of listings) {
     const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', p.user_id).single();
+    
+    // Send first image if available
+    if (p.images && p.images.length > 0) {
+      const imgUrl = p.images[0];
+      // Property images are in public bucket
+      const fullUrl = imgUrl.startsWith('http') ? imgUrl : getPublicUrl('property-images', imgUrl);
+      await sendPhoto(chatId, fullUrl, `🏠 <b>${p.title}</b>\n💰 ₦${Number(p.price).toLocaleString()}\n📍 ${p.city || ''}, ${p.state || ''}`);
+    }
+
     let msg = `🏠 <b>${p.title}</b>\n\n`;
     msg += `💰 ₦${Number(p.price).toLocaleString()}\n`;
     msg += `📍 ${p.city || ''}, ${p.state || ''}\n`;
@@ -182,15 +260,17 @@ async function handleRecentListings(chatId: number) {
     msg += `👤 Owner: ${owner?.full_name || 'N/A'} (${owner?.email || 'N/A'})\n`;
     msg += `📅 Listed: ${new Date(p.created_at).toLocaleDateString()}`;
 
-    await sendTelegram(chatId, msg);
+    await sendTelegram(chatId, msg, {
+      inline_keyboard: [[
+        { text: '💬 Message Seller', callback_data: `msg_user_${p.user_id}` },
+      ]],
+    });
   }
 }
 
 async function handleTotalUsers(chatId: number) {
   const { count: total } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
   const { count: verified } = await supabase.from('kyc_documents').select('*', { count: 'exact', head: true }).eq('status', 'verified');
-  
-  // Recent users
   const { data: recent } = await supabase.from('profiles').select('full_name, email, created_at').order('created_at', { ascending: false }).limit(5);
 
   let msg = `👤 <b>User Statistics</b>\n\n`;
@@ -229,14 +309,12 @@ async function handleActivePromotions(chatId: number) {
 }
 
 async function handleSearch(chatId: number, query: string) {
-  // Search properties
   const { data: properties } = await supabase
     .from('properties')
     .select('id, title, price, property_type, state, city, status')
     .or(`title.ilike.%${query}%,description.ilike.%${query}%,address.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%`)
     .limit(5);
 
-  // Search users
   const { data: users } = await supabase
     .from('profiles')
     .select('id, full_name, email')
@@ -244,7 +322,6 @@ async function handleSearch(chatId: number, query: string) {
     .limit(5);
 
   let msg = `🔍 <b>Search: "${query}"</b>\n\n`;
-
   if (properties && properties.length > 0) {
     msg += `<b>Properties:</b>\n`;
     properties.forEach((p, i) => {
@@ -252,33 +329,65 @@ async function handleSearch(chatId: number, query: string) {
     });
     msg += '\n';
   }
-
   if (users && users.length > 0) {
     msg += `<b>Users:</b>\n`;
     users.forEach((u, i) => {
       msg += `${i + 1}. ${u.full_name} (${u.email})\n`;
     });
   }
-
   if ((!properties || properties.length === 0) && (!users || users.length === 0)) {
     msg += 'No results found.';
   }
-
   await sendTelegram(chatId, msg);
+}
+
+async function handleAdminMessage(chatId: number, text: string) {
+  // /msg email@example.com Hello there
+  const parts = text.replace('/msg ', '').trim();
+  const spaceIdx = parts.indexOf(' ');
+  if (spaceIdx === -1) {
+    await sendTelegram(chatId, '📝 Usage: /msg user@email.com Your message here');
+    return;
+  }
+  const email = parts.substring(0, spaceIdx).toLowerCase();
+  const message = parts.substring(spaceIdx + 1).trim();
+
+  const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('email', email).single();
+  if (!profile) {
+    await sendTelegram(chatId, `❌ No user found with email: ${email}`);
+    return;
+  }
+
+  const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', profile.id).eq('is_verified', true).single();
+  if (!link) {
+    await sendTelegram(chatId, `❌ User <b>${profile.full_name}</b> hasn't linked their Telegram account.`);
+    return;
+  }
+
+  await sendTelegram(link.chat_id, `📩 <b>Message from Xavorian Support</b>\n\n${message}\n\n<i>Reply to this message to respond.</i>`);
+  await sendTelegram(chatId, `✅ Message sent to <b>${profile.full_name}</b> (${email})`);
+}
+
+async function handleDirectMessageToUser(chatId: number, userId: string) {
+  // Set reply target so next admin text goes to this user
+  await setAdminReplyTarget(chatId, userId);
+  const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', userId).single();
+  await sendTelegram(chatId, `💬 You're now messaging <b>${profile?.full_name || 'User'}</b> (${profile?.email || 'N/A'}).\n\nType your message and it will be sent to them.\n\nType /cancel to stop messaging.`);
 }
 
 async function handleCallbackQuery(callbackQuery: any) {
   const data = callbackQuery.data as string;
   const chatId = callbackQuery.message.chat.id;
 
-  if (data.startsWith('kyc_approve_')) {
+  if (data.startsWith('msg_user_')) {
+    const userId = data.replace('msg_user_', '');
+    await handleDirectMessageToUser(chatId, userId);
+  } else if (data.startsWith('kyc_approve_')) {
     const kycId = data.replace('kyc_approve_', '');
     const { data: kyc } = await supabase.from('kyc_documents').select('user_id, full_name').eq('id', kycId).single();
-    
     await supabase.from('kyc_documents').update({ status: 'verified', verified_at: new Date().toISOString() }).eq('id', kycId);
     await sendTelegram(chatId, `✅ KYC for <b>${kyc?.full_name || 'User'}</b> has been <b>APPROVED</b>.`);
 
-    // Notify user via Telegram if linked
     if (kyc?.user_id) {
       const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', kyc.user_id).single();
       if (link) {
@@ -288,7 +397,6 @@ async function handleCallbackQuery(callbackQuery: any) {
   } else if (data.startsWith('kyc_reject_')) {
     const kycId = data.replace('kyc_reject_', '');
     const { data: kyc } = await supabase.from('kyc_documents').select('user_id, full_name').eq('id', kycId).single();
-    
     await supabase.from('kyc_documents').update({ status: 'rejected' }).eq('id', kycId);
     await sendTelegram(chatId, `❌ KYC for <b>${kyc?.full_name || 'User'}</b> has been <b>REJECTED</b>.`);
 
@@ -303,7 +411,6 @@ async function handleCallbackQuery(callbackQuery: any) {
     const source = parts[0];
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
-    
     await supabase.from(table).update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', ticketId);
     await sendTelegram(chatId, `✅ Ticket has been <b>RESOLVED</b>.`);
   } else if (data.startsWith('ticket_progress_')) {
@@ -311,12 +418,10 @@ async function handleCallbackQuery(callbackQuery: any) {
     const source = parts[0];
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
-    
     await supabase.from(table).update({ status: 'in_progress' }).eq('id', ticketId);
     await sendTelegram(chatId, `📝 Ticket marked as <b>IN PROGRESS</b>.`);
   }
 
-  // Answer callback to remove loading state
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -329,12 +434,29 @@ async function isAdmin(chatId: number): Promise<boolean> {
   return !!data;
 }
 
+async function handleUserReplyToAdmin(chatId: number, text: string) {
+  // A linked user is replying - forward to admin
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id, username').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) return false;
+
+  const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', link.user_id).single();
+  
+  // Get admin chat ids
+  const { data: admins } = await supabase.from('telegram_admin_chats').select('chat_id').eq('is_active', true);
+  if (!admins || admins.length === 0) return false;
+
+  for (const admin of admins) {
+    await sendTelegram(admin.chat_id, `📨 <b>Reply from ${profile?.full_name || 'User'}</b>\n📧 ${profile?.email || 'N/A'}\n${link.username ? `📱 @${link.username}` : ''}\n\n${text}\n\n<i>Use /msg ${profile?.email} to reply</i>`);
+  }
+  await sendTelegram(chatId, '✅ Your message has been sent to Xavorian Support.');
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Setup webhook endpoint
   if (req.method === 'GET') {
     const url = new URL(req.url);
     if (url.searchParams.get('setup') === 'true') {
@@ -353,7 +475,18 @@ Deno.serve(async (req) => {
   try {
     const update = await req.json();
     
-    // Handle callback queries (button presses)
+    // Handle webhook setup request
+    if (update.setup_webhook === true) {
+      const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-webhook`;
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhookUrl }),
+      });
+      const result = await res.json();
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
     if (update.callback_query) {
       await handleCallbackQuery(update.callback_query);
       return new Response('OK', { headers: corsHeaders });
@@ -368,60 +501,75 @@ Deno.serve(async (req) => {
     const text = message.text.trim();
     const username = message.from?.username || '';
 
-    // Admin setup command
     if (text === '/admin' || text === '/start admin') {
       await handleAdminSetup(chatId, username);
       return new Response('OK', { headers: corsHeaders });
     }
 
-    // User start command
     if (text === '/start') {
       await sendTelegram(chatId, 
-        '👋 <b>Welcome to Xavorian Bot!</b>\n\nTo connect your Xavorian account, please type your registered email address.\n\nExample: <code>john@example.com</code>'
+        '👋 <b>Welcome to XavorianBot!</b>\n\nTo connect your Xavorian account, please type your registered email address.\n\nExample: <code>john@example.com</code>'
       );
       return new Response('OK', { headers: corsHeaders });
     }
 
-    // Check if admin
     const adminCheck = await isAdmin(chatId);
 
     if (adminCheck) {
-      // Admin commands
+      // Check if /cancel
+      if (text === '/cancel') {
+        await clearAdminReplyTarget(chatId);
+        await sendTelegram(chatId, '✅ Messaging mode cancelled.');
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Check if /msg command
+      if (text.startsWith('/msg ')) {
+        await handleAdminMessage(chatId, text);
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Check if admin is in reply mode
+      const replyTarget = await getAdminReplyTarget(chatId);
+      if (replyTarget) {
+        // Send message to user
+        const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', replyTarget).eq('is_verified', true).single();
+        if (link) {
+          await sendTelegram(link.chat_id, `📩 <b>Message from Xavorian Support</b>\n\n${text}\n\n<i>Reply to respond.</i>`);
+          await sendTelegram(chatId, '✅ Message sent. Type another message or /cancel to stop.');
+        } else {
+          await sendTelegram(chatId, '❌ User has not linked their Telegram. Use /cancel to exit messaging mode.');
+        }
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Regular admin commands
       switch (text) {
-        case '📊 Dashboard Stats':
-          await handleDashboardStats(chatId);
-          break;
-        case '🔐 Pending KYC':
-          await handlePendingKYC(chatId);
-          break;
-        case '🎫 Open Tickets':
-          await handleOpenTickets(chatId);
-          break;
-        case '🏠 Recent Listings':
-          await handleRecentListings(chatId);
-          break;
-        case '👤 Total Users':
-          await handleTotalUsers(chatId);
-          break;
-        case '⭐ Active Promotions':
-          await handleActivePromotions(chatId);
-          break;
+        case '📊 Dashboard Stats': await handleDashboardStats(chatId); break;
+        case '🔐 Pending KYC': await handlePendingKYC(chatId); break;
+        case '🎫 Open Tickets': await handleOpenTickets(chatId); break;
+        case '🏠 Recent Listings': await handleRecentListings(chatId); break;
+        case '👤 Total Users': await handleTotalUsers(chatId); break;
+        case '⭐ Active Promotions': await handleActivePromotions(chatId); break;
         default:
-          // Treat as search query
           if (text.startsWith('/search ')) {
             await handleSearch(chatId, text.replace('/search ', ''));
           } else if (!text.startsWith('/')) {
             await handleSearch(chatId, text);
           } else {
-            await sendTelegram(chatId, 'Unknown command. Use the menu buttons or type a search query.');
+            await sendTelegram(chatId, 'Unknown command. Use the menu buttons or type a search query.\n\nTo message a user: /msg email@example.com Your message');
           }
       }
     } else {
-      // User flow - treat as email for linking
-      if (text.includes('@') && text.includes('.')) {
-        await handleUserLink(chatId, username, text);
-      } else {
-        await sendTelegram(chatId, '📧 Please enter your registered email address to connect your account.\n\nExample: <code>john@example.com</code>');
+      // Check if this is a linked user replying
+      const handled = await handleUserReplyToAdmin(chatId, text);
+      if (!handled) {
+        // Not linked yet - treat as email for linking
+        if (text.includes('@') && text.includes('.')) {
+          await handleUserLink(chatId, username, text);
+        } else {
+          await sendTelegram(chatId, '📧 Please enter your registered email address to connect your account.\n\nExample: <code>john@example.com</code>');
+        }
       }
     }
 

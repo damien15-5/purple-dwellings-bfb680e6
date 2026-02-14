@@ -22,6 +22,22 @@ async function sendTelegram(chatId: number, text: string, replyMarkup?: any) {
   return res.ok;
 }
 
+async function sendPhoto(chatId: number, photoUrl: string, caption?: string) {
+  const body: any = { chat_id: chatId, photo: photoUrl, parse_mode: 'HTML' };
+  if (caption) body.caption = caption;
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+async function getSignedUrl(bucket: string, path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 async function getAdminChatIds(): Promise<number[]> {
   const { data } = await supabase.from('telegram_admin_chats').select('chat_id').eq('is_active', true);
   return (data || []).map((d: any) => d.chat_id);
@@ -36,7 +52,21 @@ async function notifyAdmins(message: string, replyMarkup?: any) {
   const chatIds = await getAdminChatIds();
   for (const chatId of chatIds) {
     await sendTelegram(chatId, message, replyMarkup);
-    // Log
+    await supabase.from('telegram_notifications').insert({
+      chat_id: chatId,
+      message_type: 'admin_notification',
+      message_text: message,
+    });
+  }
+}
+
+async function notifyAdminsWithPhotos(photos: { url: string; caption: string }[], message: string, replyMarkup?: any) {
+  const chatIds = await getAdminChatIds();
+  for (const chatId of chatIds) {
+    for (const photo of photos) {
+      await sendPhoto(chatId, photo.url, photo.caption);
+    }
+    await sendTelegram(chatId, message, replyMarkup);
     await supabase.from('telegram_notifications').insert({
       chat_id: chatId,
       message_type: 'admin_notification',
@@ -67,23 +97,41 @@ Deno.serve(async (req) => {
 
     switch (type) {
       case 'kyc_submitted': {
-        const { userId, fullName, identityType } = data;
+        const { userId, fullName, identityType, documentImagePath, selfiePath } = data;
         const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
         
+        const photos: { url: string; caption: string }[] = [];
+
+        // Get signed URLs for KYC images
+        if (documentImagePath) {
+          const signedUrl = await getSignedUrl('kyc-documents', documentImagePath);
+          if (signedUrl) photos.push({ url: signedUrl, caption: `📄 <b>ID Document</b> - ${fullName || 'User'}` });
+        }
+        if (selfiePath) {
+          const signedUrl = await getSignedUrl('kyc-documents', selfiePath);
+          if (signedUrl) photos.push({ url: signedUrl, caption: `🤳 <b>Selfie</b> - ${fullName || 'User'}` });
+        }
+
         let msg = `🔐 <b>New KYC Submission</b>\n\n`;
         msg += `👤 Name: <b>${fullName || 'N/A'}</b>\n`;
         msg += `📧 Email: ${profile?.email || 'N/A'}\n`;
         msg += `🪪 ID Type: ${identityType || 'N/A'}\n`;
         msg += `📅 Time: ${new Date().toLocaleString()}`;
 
-        await notifyAdmins(msg);
+        if (photos.length > 0) {
+          await notifyAdminsWithPhotos(photos, msg, {
+            inline_keyboard: [[
+              { text: '💬 Message User', callback_data: `msg_user_${userId}` },
+            ]],
+          });
+        } else {
+          await notifyAdmins(msg);
+        }
         break;
       }
 
       case 'ticket_created': {
         const { ticketNumber, subject, userEmail, description, priority, userId } = data;
-        
-        // Get user telegram link for admin to contact
         const { data: userLink } = await supabase.from('telegram_user_links').select('username').eq('user_id', userId).single();
         
         let msg = `🎫 <b>New Support Ticket</b>\n\n`;
@@ -94,14 +142,28 @@ Deno.serve(async (req) => {
         if (userLink?.username) msg += `📱 Telegram: @${userLink.username}\n`;
         msg += `\n📝 ${(description || '').substring(0, 300)}`;
 
-        await notifyAdmins(msg);
+        await notifyAdmins(msg, {
+          inline_keyboard: [[
+            { text: '💬 Message User', callback_data: `msg_user_${userId}` },
+          ]],
+        });
         break;
       }
 
       case 'new_listing': {
-        const { propertyId, title, price, propertyType, state, city, userId } = data;
+        const { propertyId, title, price, propertyType, state, city, userId, images } = data;
         const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', userId).single();
         
+        const photos: { url: string; caption: string }[] = [];
+        
+        // Send first few property images
+        if (images && images.length > 0) {
+          for (const img of images.slice(0, 3)) {
+            const imgUrl = img.startsWith('http') ? img : supabase.storage.from('property-images').getPublicUrl(img).data.publicUrl;
+            photos.push({ url: imgUrl, caption: `🏠 ${title}` });
+          }
+        }
+
         let msg = `🏠 <b>New Property Listed</b>\n\n`;
         msg += `📌 ${title}\n`;
         msg += `💰 ₦${Number(price).toLocaleString()}\n`;
@@ -109,7 +171,15 @@ Deno.serve(async (req) => {
         msg += `📍 ${city || ''}, ${state || ''}\n`;
         msg += `👤 By: ${owner?.full_name || 'N/A'} (${owner?.email || 'N/A'})`;
 
-        await notifyAdmins(msg);
+        if (photos.length > 0) {
+          await notifyAdminsWithPhotos(photos, msg, {
+            inline_keyboard: [[
+              { text: '💬 Message Seller', callback_data: `msg_user_${userId}` },
+            ]],
+          });
+        } else {
+          await notifyAdmins(msg);
+        }
         break;
       }
 
