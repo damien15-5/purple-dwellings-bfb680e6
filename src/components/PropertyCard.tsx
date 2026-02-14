@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Property } from '@/types/property';
-import { MapPin, Heart } from 'lucide-react';
+import { MapPin, Heart, ShieldCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useState, memo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -98,6 +99,14 @@ export const PropertyCard = memo(({ property, priority = false }: PropertyCardPr
               className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground'}`}
             />
           </button>
+          {property.isVerified && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge className="bg-emerald-600/90 backdrop-blur-sm text-white border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Verified
+              </Badge>
+            </div>
+          )}
         </div>
         <div className="space-y-0.5">
           <div className="flex items-start justify-between gap-2">

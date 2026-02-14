@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Eye, Heart, Star } from 'lucide-react';
+import { MapPin, Eye, Heart, Star, ShieldCheck } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, memo } from 'react';
@@ -21,6 +21,7 @@ type PropertyCardProps = {
   featured?: boolean;
   priority?: boolean;
   isPromoted?: boolean;
+  isVerifiedSeller?: boolean;
   onView?: () => void;
 };
 
@@ -38,6 +39,7 @@ export const PropertyCard = memo(({
   featured = false,
   priority = false,
   isPromoted = false,
+  isVerifiedSeller = false,
   onView
 }: PropertyCardProps) => {
   const [isSaved, setIsSaved] = useState(false);
@@ -168,6 +170,23 @@ export const PropertyCard = memo(({
               <Badge className="bg-primary/90 backdrop-blur-sm text-primary-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
                 <Star className="h-3 w-3 fill-current" />
                 Promoted
+              </Badge>
+            </div>
+          )}
+
+          {isVerifiedSeller && !isPromoted && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge className="bg-emerald-600/90 backdrop-blur-sm text-white border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Verified
+              </Badge>
+            </div>
+          )}
+          {isVerifiedSeller && isPromoted && (
+            <div className="absolute top-9 left-2 z-10">
+              <Badge className="bg-emerald-600/90 backdrop-blur-sm text-white border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Verified
               </Badge>
             </div>
           )}

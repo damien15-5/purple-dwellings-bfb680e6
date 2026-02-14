@@ -15,6 +15,7 @@ type Property = {
   views: number;
   clicks: number;
   isPromoted?: boolean;
+  isVerifiedSeller?: boolean;
 };
 
 type FeaturedPropertiesSectionProps = {
@@ -70,6 +71,7 @@ export const FeaturedPropertiesSection = ({ properties, onPropertyView }: Featur
                 variant="large"
                 featured={false}
                 isPromoted={property.isPromoted}
+                isVerifiedSeller={property.isVerifiedSeller}
                 priority={index < 3}
                 onView={() => onPropertyView(property.id)}
               />

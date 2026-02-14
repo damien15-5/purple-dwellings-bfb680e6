@@ -270,6 +270,12 @@ export const PropertyDetails = () => {
                 <Badge className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-primary text-primary-foreground text-xs sm:text-sm">
                   {property.property_type}
                 </Badge>
+                {property.is_verified && (
+                  <Badge className="absolute top-2 left-28 sm:top-4 sm:left-40 bg-emerald-600/90 backdrop-blur-sm text-white border-0 text-xs sm:text-sm gap-1">
+                    <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Verified Seller
+                  </Badge>
+                )}
               </div>
             )}
 

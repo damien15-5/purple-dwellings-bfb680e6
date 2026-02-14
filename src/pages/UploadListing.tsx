@@ -8,11 +8,11 @@ import { Check, Loader2 } from 'lucide-react';
 import { BasicDetails } from '@/components/upload/BasicDetails';
 import { AmenitiesStep } from '@/components/upload/AmenitiesStep';
 import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
-import { DocumentsUploadStep } from '@/components/upload/DocumentsUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 import { uploadToGCS } from '@/utils/gcsUpload';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 export type UploadFormData = {
   // Basic details
@@ -68,12 +68,11 @@ export type UploadFormData = {
   landSize?: string;
 };
 
-const ALL_STEPS = [
-  { id: 1, name: 'Basic Details', icon: '📝', required: true },
-  { id: 2, name: 'Amenities', icon: '✨', required: true },
-  { id: 3, name: 'Images', icon: '📷', required: true },
-  { id: 4, name: 'Documents', icon: '📄', required: false, skipForNonSale: true },
-  { id: 5, name: 'Review', icon: '👀', required: true },
+const STEPS = [
+  { id: 1, name: 'Basic Details' },
+  { id: 2, name: 'Amenities' },
+  { id: 3, name: 'Images' },
+  { id: 4, name: 'Review' },
 ];
 
 export const UploadListing = () => {
@@ -122,17 +121,8 @@ export const UploadListing = () => {
   });
   
   const [images, setImages] = useState<File[]>([]);
-  const [documents, setDocuments] = useState<{ type: string; file: File }[]>([]);
-  const [hasReceipt, setHasReceipt] = useState(false);
-
-  // Compute steps based on listing type
-  const STEPS = useMemo(() => {
-    if (formData.listingType === 'sale') {
-      return ALL_STEPS;
-    }
-    // Skip documents step for non-sale listings
-    return ALL_STEPS.filter(step => !step.skipForNonSale);
-  }, [formData.listingType]);
+  const [isKycVerified, setIsKycVerified] = useState<boolean | null>(null);
+  const [kycLoading, setKycLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -140,9 +130,21 @@ export const UploadListing = () => {
       if (!session) {
         toast.error('Please login to upload listings');
         navigate('/login');
-      } else {
-        setUserId(session.user.id);
+        return;
       }
+      setUserId(session.user.id);
+
+      // Check KYC status
+      const { data: kyc } = await supabase
+        .from('kyc_documents')
+        .select('status')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setIsKycVerified(kyc?.status === 'verified');
+      setKycLoading(false);
     };
     checkAuth();
   }, [navigate]);
@@ -184,20 +186,6 @@ export const UploadListing = () => {
           toast.error(validation.message || 'Invalid video file');
           return;
         }
-      }
-    }
-    
-    if (currentStep === 4 && formData.listingType === 'sale') {
-      // Documents step only required for sale listings
-      if (documents.length < 3) {
-        toast.error('Please upload at least 3 documents');
-        return;
-      }
-      
-      // Check receipt for non-land properties
-      if (formData.propertyType !== 'Land' && !hasReceipt) {
-        toast.error('Please upload a receipt document');
-        return;
       }
     }
     
@@ -271,31 +259,6 @@ export const UploadListing = () => {
         videoUrl = result.url!;
       }
 
-      // Upload documents to GCS (only for sale listings)
-      let documentData: any[] = [];
-      if (formData.listingType === 'sale' && documents.length > 0) {
-        setUploadProgress('Uploading documents to cloud...');
-        const documentUploads = documents.map(async (doc) => {
-          const result = await uploadToGCS(
-            doc.file,
-            `property-documents/${userId}`,
-            `${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${doc.file.name}`
-          );
-          
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to upload document');
-          }
-
-          return {
-            type: doc.type,
-            url: result.url,
-            name: doc.file.name,
-          };
-        });
-
-        documentData = await Promise.all(documentUploads);
-      }
-
       setUploadProgress('Publishing listing...');
 
       // Insert property
@@ -348,10 +311,11 @@ export const UploadListing = () => {
           agreement_fee: formData.agreementFee ? parseFloat(formData.agreementFee) : null,
           title_type: formData.titleType,
           land_size: formData.landSize ? parseFloat(formData.landSize) : null,
-          has_receipt: hasReceipt,
+          has_receipt: false,
           images: imageUrls,
           video_url: videoUrl,
-          documents: documentData,
+          documents: [],
+          is_verified: isKycVerified === true,
           status: 'published',
         });
 
@@ -367,6 +331,37 @@ export const UploadListing = () => {
       setUploadProgress('');
     }
   };
+
+  if (kycLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isKycVerified === false) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background flex items-center justify-center px-4">
+        <Card className="max-w-lg w-full p-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground">KYC Verification Required</h2>
+          <p className="text-muted-foreground">
+            You must complete your identity verification (KYC) before you can upload properties. This helps us ensure trust and safety on our platform.
+          </p>
+          <Button
+            onClick={() => navigate('/dashboard/verification')}
+            className="bg-gradient-to-r from-primary to-primary-light"
+          >
+            <ShieldCheck className="w-4 h-4 mr-2" />
+            Complete KYC Verification
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background relative overflow-hidden">
@@ -392,15 +387,15 @@ export const UploadListing = () => {
               <div key={step.id} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-500 shadow-md ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 shadow-md ${
                       currentStep > step.id
                         ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground scale-110'
                         : currentStep === step.id
-                        ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground scale-110 animate-pulse shadow-primary'
+                        ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground scale-110 ring-4 ring-primary/20'
                         : 'bg-muted/50 text-muted-foreground'
                     }`}
                   >
-                    {currentStep > step.id ? <Check className="w-7 h-7" /> : step.icon}
+                    {currentStep > step.id ? <Check className="w-5 h-5" /> : step.id}
                   </div>
                   <span className={`text-xs mt-2 text-center font-medium transition-colors ${
                     currentStep === step.id ? 'text-primary' : 'text-muted-foreground'
@@ -437,27 +432,17 @@ export const UploadListing = () => {
             <ImagesUploadStep 
               images={images} 
               setImages={setImages}
-              hasReceipt={hasReceipt}
-              setHasReceipt={setHasReceipt}
+              hasReceipt={false}
+              setHasReceipt={() => {}}
               propertyType={formData.propertyType}
             />
           )}
           
-          {currentStep === 4 && formData.listingType === 'sale' && (
-            <DocumentsUploadStep 
-              documents={documents} 
-              setDocuments={setDocuments}
-              hasReceipt={hasReceipt}
-              setHasReceipt={setHasReceipt}
-              propertyType={formData.propertyType}
-            />
-          )}
-          
-          {((currentStep === 5 && formData.listingType === 'sale') || (currentStep === 4 && formData.listingType !== 'sale')) && (
+          {currentStep === 4 && (
             <ReviewStep 
               formData={formData} 
               images={images}
-              documents={documents}
+              documents={[]}
               onEdit={(step) => setCurrentStep(step)}
             />
           )}
@@ -506,7 +491,7 @@ export const UploadListing = () => {
                   Publishing...
                 </>
               ) : (
-                'Publish Listing 🚀'
+                'Publish Listing'
               )}
             </Button>
           )}

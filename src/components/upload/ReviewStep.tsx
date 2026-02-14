@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Edit, MapPin, Home, FileText, Image as ImageIcon } from 'lucide-react';
+import { Edit, MapPin, Home, Image as ImageIcon } from 'lucide-react';
 import { UploadFormData } from '@/pages/UploadListing';
 
 type Props = {
@@ -168,35 +168,6 @@ export const ReviewStep = ({ formData, images, documents, onEdit }: Props) => {
         )}
       </Card>
 
-      {/* Documents */}
-      <Card className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground">Documents ({documents.length})</h3>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => onEdit(4)}>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-        </div>
-
-        {documents.length > 0 ? (
-          <div className="space-y-2">
-            {documents.map((doc, index) => (
-              <div key={index} className="flex items-center gap-2 text-sm">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-foreground">{doc.type}</span>
-                <span className="text-muted-foreground">- {doc.file.name}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No documents uploaded</p>
-        )}
-      </Card>
     </div>
   );
 };
