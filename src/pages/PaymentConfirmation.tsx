@@ -18,6 +18,28 @@ export const PaymentConfirmation = () => {
   const verifyPayment = async () => {
     const purchaseId = searchParams.get('purchase');
     const reference = searchParams.get('reference');
+    const isPromotion = searchParams.get('promotion') === 'true';
+    const promoRef = searchParams.get('ref');
+
+    // Handle promotion payment verification
+    if (isPromotion && promoRef) {
+      try {
+        const { data, error } = await supabase.functions.invoke('verify-promotion-payment', {
+          body: { reference: promoRef },
+        });
+        if (!error && data?.success) {
+          setStatus('success');
+          toast.success('Promotions activated successfully!');
+        } else {
+          setStatus('failed');
+          toast.error('Promotion payment verification failed');
+        }
+      } catch {
+        setStatus('failed');
+        toast.error('Failed to verify promotion payment');
+      }
+      return;
+    }
 
     if (!purchaseId) {
       setStatus('failed');
@@ -26,7 +48,6 @@ export const PaymentConfirmation = () => {
     }
 
     try {
-      // Check transaction status
       const { data: txData, error } = await supabase
         .from('purchase_transactions')
         .select('status')
@@ -41,7 +62,6 @@ export const PaymentConfirmation = () => {
         return;
       }
 
-      // Try manual verification
       if (reference) {
         const { data: verifyResp, error: verifyErr } = await supabase.functions.invoke('verify-payment', {
           body: { purchaseId, reference }
@@ -53,7 +73,6 @@ export const PaymentConfirmation = () => {
         }
       }
 
-      // Short poll once more
       setTimeout(async () => {
         const { data: updatedData } = await supabase
           .from('purchase_transactions')
@@ -101,8 +120,11 @@ export const PaymentConfirmation = () => {
               Your payment has been confirmed. You can view this transaction in your dashboard.
             </p>
             <div className="space-y-3">
-              <Button onClick={() => navigate('/dashboard/transactions')} className="w-full" size="lg">
-                View Transactions
+              <Button onClick={() => {
+                const isPromo = searchParams.get('promotion') === 'true';
+                navigate(isPromo ? '/dashboard/promotions' : '/dashboard/transactions');
+              }} className="w-full" size="lg">
+                {searchParams.get('promotion') === 'true' ? 'View Promotions' : 'View Transactions'}
               </Button>
               <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">
                 Browse More Properties

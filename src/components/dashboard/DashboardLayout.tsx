@@ -13,7 +13,8 @@ import {
   HelpCircle,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +28,7 @@ const navItems = [
   { to: '/dashboard/saved', icon: Heart, label: 'Saved Properties' },
   { to: '/dashboard/offers', icon: Handshake, label: 'Offers & Negotiations' },
   { to: '/dashboard/transactions', icon: CreditCard, label: 'Transactions' },
+  { to: '/dashboard/promotions', icon: Star, label: 'Promoted Properties' },
   { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { to: '/dashboard/messages', icon: MessageSquare, label: 'Messages' },
   { to: '/dashboard/help', icon: HelpCircle, label: 'Help & Support' },

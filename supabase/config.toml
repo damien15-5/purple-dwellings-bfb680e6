@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.create-split-account]
 verify_jwt = false
+
+[functions.initialize-promotion-payment]
+verify_jwt = false
+
+[functions.verify-promotion-payment]
+verify_jwt = false

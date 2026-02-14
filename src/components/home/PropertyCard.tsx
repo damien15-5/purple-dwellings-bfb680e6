@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Eye, Heart } from 'lucide-react';
+import { MapPin, Eye, Heart, Star } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, memo } from 'react';
@@ -19,7 +19,8 @@ type PropertyCardProps = {
   views?: number;
   variant?: 'large' | 'medium' | 'small';
   featured?: boolean;
-  priority?: boolean; // For above-the-fold images
+  priority?: boolean;
+  isPromoted?: boolean;
   onView?: () => void;
 };
 
@@ -36,6 +37,7 @@ export const PropertyCard = memo(({
   variant = 'medium',
   featured = false,
   priority = false,
+  isPromoted = false,
   onView
 }: PropertyCardProps) => {
   const [isSaved, setIsSaved] = useState(false);
@@ -165,6 +167,15 @@ export const PropertyCard = memo(({
             <div className="absolute top-2 left-2 z-10">
               <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5">
                 Guest favorite
+              </Badge>
+            </div>
+          )}
+
+          {isPromoted && (
+            <div className={`absolute ${featured ? 'top-8' : 'top-2'} left-2 z-10`}>
+              <Badge className="bg-primary/90 backdrop-blur-sm text-primary-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
+                <Star className="h-3 w-3 fill-current" />
+                Promoted
               </Badge>
             </div>
           )}

@@ -28,6 +28,7 @@ const MyListings = lazy(() => import("./pages/MyListings").then(m => ({ default:
 const SavedProperties = lazy(() => import("./pages/dashboard/SavedProperties").then(m => ({ default: m.SavedProperties })));
 const OffersNegotiations = lazy(() => import("./pages/dashboard/OffersNegotiations").then(m => ({ default: m.OffersNegotiations })));
 const Transactions = lazy(() => import("./pages/dashboard/Transactions").then(m => ({ default: m.Transactions })));
+const Promotions = lazy(() => import("./pages/dashboard/Promotions").then(m => ({ default: m.Promotions })));
 const Notifications = lazy(() => import("./pages/dashboard/Notifications").then(m => ({ default: m.Notifications })));
 const Messages = lazy(() => import("./pages/dashboard/Messages").then(m => ({ default: m.Messages })));
 const HelpSupport = lazy(() => import("./pages/dashboard/HelpSupport").then(m => ({ default: m.HelpSupport })));
@@ -38,6 +39,7 @@ const ChatWithSeller = lazy(() => import("./pages/ChatWithSeller").then(m => ({ 
 const StartPayment = lazy(() => import("./pages/StartPayment").then(m => ({ default: m.StartPayment })));
 const UploadDocuments = lazy(() => import("./pages/UploadDocuments").then(m => ({ default: m.UploadDocuments })));
 const UploadListing = lazy(() => import("./pages/UploadListing").then(m => ({ default: m.UploadListing })));
+const PromoteProperty = lazy(() => import("./pages/PromoteProperty").then(m => ({ default: m.PromoteProperty })));
 
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation").then(m => ({ default: m.PaymentConfirmation })));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicy })));
@@ -121,6 +123,7 @@ const App = () => {
             <Route path="saved" element={<SavedProperties />} />
             <Route path="offers" element={<OffersNegotiations />} />
             <Route path="transactions" element={<Transactions />} />
+            <Route path="promotions" element={<Promotions />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="messages" element={<Messages />} />
             <Route path="help" element={<HelpSupport />} />
@@ -140,6 +143,7 @@ const App = () => {
               <Route path="/start-escrow/:id" element={<Navigate to="/browse" replace />} />
               <Route path="/upload-documents/:id" element={<UploadDocuments />} />
               <Route path="/upload-listing" element={<UploadListing />} />
+              <Route path="/promote-property" element={<PromoteProperty />} />
               
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
