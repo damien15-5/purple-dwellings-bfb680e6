@@ -236,7 +236,8 @@ export const Browse = () => {
               title: p.title,
               price: p.price,
               location: p.address,
-              bedrooms: p.bedrooms
+              bedrooms: p.bedrooms,
+              isPromoted: p.isPromoted
             }))}
           />
         )}
