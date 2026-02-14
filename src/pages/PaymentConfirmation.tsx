@@ -10,64 +10,58 @@ export const PaymentConfirmation = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
-  const [escrowId, setEscrowId] = useState<string | null>(null);
 
   useEffect(() => {
     verifyPayment();
   }, []);
 
   const verifyPayment = async () => {
-    const escrow = searchParams.get('escrow');
+    const purchaseId = searchParams.get('purchase');
     const reference = searchParams.get('reference');
 
-    if (!escrow) {
+    if (!purchaseId) {
       setStatus('failed');
       toast.error('Invalid payment reference');
       return;
     }
 
-    setEscrowId(escrow);
-
     try {
-      // Check escrow status
-      const { data: escrowData, error } = await supabase
-        .from('escrow_transactions' as any)
-        .select('status, paystack_reference, tx_hash')
-        .eq('id', escrow)
+      // Check transaction status
+      const { data: txData, error } = await supabase
+        .from('purchase_transactions')
+        .select('status')
+        .eq('id', purchaseId)
         .single();
 
       if (error) throw error;
 
-      // If already funded
-      if ((escrowData as any).status === 'funded') {
+      if (txData.status === 'successful') {
         setStatus('success');
         toast.success('Payment confirmed successfully');
         return;
       }
 
-      // Try manual verification if we have a reference
+      // Try manual verification
       if (reference) {
         const { data: verifyResp, error: verifyErr } = await supabase.functions.invoke('verify-payment', {
-          body: { escrowId: escrow, reference, tx_hash: searchParams.get('tx_hash') }
+          body: { purchaseId, reference }
         });
-        if (verifyErr) {
-          console.error('Manual verify error:', verifyErr);
-        } else if ((verifyResp as any)?.success) {
+        if (!verifyErr && verifyResp?.success) {
           setStatus('success');
           toast.success('Payment confirmed');
           return;
         }
       }
 
-      // Fallback: short poll once more in case webhook lands late
+      // Short poll once more
       setTimeout(async () => {
         const { data: updatedData } = await supabase
-          .from('escrow_transactions' as any)
+          .from('purchase_transactions')
           .select('status')
-          .eq('id', escrow)
+          .eq('id', purchaseId)
           .single();
 
-        if ((updatedData as any)?.status === 'funded') {
+        if (updatedData?.status === 'successful') {
           setStatus('success');
           toast.success('Payment confirmed successfully');
         } else {
@@ -104,35 +98,11 @@ export const PaymentConfirmation = () => {
             <CheckCircle2 className="h-24 w-24 text-green-500 mx-auto mb-6 animate-float" />
             <h1 className="text-3xl font-bold mb-4">Payment Successful</h1>
             <p className="text-muted-foreground mb-8">
-              Your payment has been confirmed and funds are now held securely in escrow.
-              The inspection period has begun.
+              Your payment has been confirmed. You can view this transaction in your dashboard.
             </p>
-
-            <Card className="bg-accent/50 p-6 mb-8 text-left">
-              <h3 className="font-semibold mb-4">What Happens Next?</h3>
-              <ul className="space-y-3 text-sm">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                  <span>Funds are securely held in escrow for 14 days</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                  <span>Inspect the property during the inspection period</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                  <span>Confirm transaction to release funds to seller</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                  <span>Raise a dispute if there are any issues</span>
-                </li>
-              </ul>
-            </Card>
-
             <div className="space-y-3">
-              <Button onClick={() => navigate('/dashboard/escrows')} className="w-full" size="lg">
-                View My Escrows
+              <Button onClick={() => navigate('/dashboard/transactions')} className="w-full" size="lg">
+                View Transactions
               </Button>
               <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">
                 Browse More Properties
@@ -153,13 +123,10 @@ export const PaymentConfirmation = () => {
           <p className="text-muted-foreground mb-8">
             We couldn't verify your payment. Please try again or contact support.
           </p>
-
           <div className="space-y-3">
-            {escrowId && (
-              <Button onClick={() => navigate(`/start-escrow/${escrowId}`)} className="w-full">
-                Try Again
-              </Button>
-            )}
+            <Button onClick={() => navigate('/dashboard/transactions')} className="w-full">
+              View Transactions
+            </Button>
             <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">
               Back to Properties
             </Button>

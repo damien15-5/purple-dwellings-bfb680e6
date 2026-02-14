@@ -27,8 +27,7 @@ const Verification = lazy(() => import("./pages/dashboard/Verification").then(m 
 const MyListings = lazy(() => import("./pages/MyListings").then(m => ({ default: m.MyListings })));
 const SavedProperties = lazy(() => import("./pages/dashboard/SavedProperties").then(m => ({ default: m.SavedProperties })));
 const OffersNegotiations = lazy(() => import("./pages/dashboard/OffersNegotiations").then(m => ({ default: m.OffersNegotiations })));
-const EscrowTransactions = lazy(() => import("./pages/dashboard/EscrowTransactions").then(m => ({ default: m.EscrowTransactions })));
-const DocumentVerification = lazy(() => import("./pages/dashboard/DocumentVerification").then(m => ({ default: m.DocumentVerification })));
+const Transactions = lazy(() => import("./pages/dashboard/Transactions").then(m => ({ default: m.Transactions })));
 const Notifications = lazy(() => import("./pages/dashboard/Notifications").then(m => ({ default: m.Notifications })));
 const Messages = lazy(() => import("./pages/dashboard/Messages").then(m => ({ default: m.Messages })));
 const HelpSupport = lazy(() => import("./pages/dashboard/HelpSupport").then(m => ({ default: m.HelpSupport })));
@@ -36,13 +35,11 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks").then(m => ({ default:
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword").then(m => ({ default: m.ForgotPassword })));
 const VerifiedUser = lazy(() => import("./pages/VerifiedUser").then(m => ({ default: m.VerifiedUser })));
 const ChatWithSeller = lazy(() => import("./pages/ChatWithSeller").then(m => ({ default: m.ChatWithSeller })));
-const StartEscrow = lazy(() => import("./pages/StartEscrow").then(m => ({ default: m.StartEscrow })));
+const StartPayment = lazy(() => import("./pages/StartPayment").then(m => ({ default: m.StartPayment })));
 const UploadDocuments = lazy(() => import("./pages/UploadDocuments").then(m => ({ default: m.UploadDocuments })));
 const UploadListing = lazy(() => import("./pages/UploadListing").then(m => ({ default: m.UploadListing })));
 
-const MyEscrow = lazy(() => import("./pages/MyEscrow").then(m => ({ default: m.MyEscrow })));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation").then(m => ({ default: m.PaymentConfirmation })));
-const MyEscrows = lazy(() => import("./pages/MyEscrows").then(m => ({ default: m.MyEscrows })));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicy })));
 const Disclaimer = lazy(() => import("./pages/Disclaimer").then(m => ({ default: m.Disclaimer })));
 const AboutUs = lazy(() => import("./pages/AboutUs").then(m => ({ default: m.AboutUs })));
@@ -111,27 +108,29 @@ const App = () => (
             <Route path="my-listings" element={<MyListings />} />
             <Route path="saved" element={<SavedProperties />} />
             <Route path="offers" element={<OffersNegotiations />} />
-            <Route path="escrow" element={<EscrowTransactions />} />
-            <Route path="documents" element={<DocumentVerification />} />
+            <Route path="transactions" element={<Transactions />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="messages" element={<Messages />} />
             <Route path="help" element={<HelpSupport />} />
           </Route>
+              {/* Redirect old escrow routes */}
+              <Route path="/dashboard/escrow" element={<Navigate to="/dashboard/transactions" replace />} />
+              <Route path="/dashboard/escrows" element={<Navigate to="/dashboard/transactions" replace />} />
+              <Route path="/dashboard/documents" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard/favorites" element={<Browse />} />
               <Route path="/dashboard/chats" element={<Navigate to="/dashboard/messages" replace />} />
-              <Route path="/dashboard/escrow" element={<MyEscrow />} />
               <Route path="/dashboard/listings" element={<MyListings />} />
               <Route path="/dashboard/settings" element={<AccountSettings />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/chat/:propertyId" element={<Chat />} />
-              <Route path="/start-escrow/:id" element={<StartEscrow />} />
+              <Route path="/pay/:id" element={<StartPayment />} />
+              {/* Redirect old escrow route */}
+              <Route path="/start-escrow/:id" element={<Navigate to="/browse" replace />} />
               <Route path="/upload-documents/:id" element={<UploadDocuments />} />
               <Route path="/upload-listing" element={<UploadListing />} />
               
               <Route path="/my-listings" element={<MyListings />} />
-              <Route path="/my-escrow" element={<MyEscrow />} />
               <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
-              <Route path="/dashboard/escrows" element={<MyEscrows />} />
               <Route path="/my-chats" element={<Navigate to="/dashboard/messages" replace />} />
               <Route path="/account-settings" element={<AccountSettings />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />

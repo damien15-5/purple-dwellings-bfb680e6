@@ -372,7 +372,7 @@ export const PropertyDetails = () => {
                         navigate('/login');
                         return;
                       }
-                      navigate(`/start-escrow/${property.id}`);
+                      navigate(`/pay/${property.id}`);
                     }}
                     className="w-full bg-background/30 backdrop-blur-2xl border border-border/50 hover:bg-background/40 text-foreground shadow-lg" 
                     size="lg"
