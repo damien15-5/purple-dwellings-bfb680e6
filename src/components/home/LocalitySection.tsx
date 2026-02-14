@@ -14,6 +14,7 @@ type Property = {
   status: string;
   distance?: string;
   isPromoted?: boolean;
+  isVerifiedSeller?: boolean;
 };
 
 type LocalitySectionProps = {
@@ -69,6 +70,7 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
                 {...property}
                 variant="medium"
                 isPromoted={property.isPromoted}
+                isVerifiedSeller={property.isVerifiedSeller}
                 onView={() => onPropertyView(property.id)}
               />
             ))}

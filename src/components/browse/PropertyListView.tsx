@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Bed, Bath, Square, Heart } from 'lucide-react';
+import { MapPin, Bed, Bath, Square, Heart, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
@@ -61,7 +61,10 @@ export const PropertyListView = ({
             <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
           </button>
           {isVerified && (
-            <Badge className="absolute top-1.5 left-1.5 bg-primary text-xs py-0 px-1.5">Verified</Badge>
+            <Badge className="absolute top-1.5 left-1.5 bg-emerald-600/90 backdrop-blur-sm text-white border-0 text-xs py-0.5 px-1.5 gap-1">
+              <ShieldCheck className="h-3 w-3" />
+              Verified Seller
+            </Badge>
           )}
         </div>
 

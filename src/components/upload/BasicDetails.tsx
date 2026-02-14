@@ -246,34 +246,6 @@ export const BasicDetails = ({ formData, updateFormData }: Props) => {
         </div>
       )}
 
-      {/* Conditional Fields - Sale */}
-      {formData.listingType === 'sale' && (
-        <div className="space-y-4 p-4 bg-accent/50 rounded-lg">
-          <h3 className="font-semibold text-foreground">Sale Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="titleType">Title Type</Label>
-              <Input
-                id="titleType"
-                value={formData.titleType || ''}
-                onChange={(e) => updateFormData({ titleType: e.target.value })}
-                placeholder="e.g., C of O, Deed of Assignment"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="landSize">Land Size (sqm)</Label>
-              <Input
-                id="landSize"
-                type="number"
-                value={formData.landSize || ''}
-                onChange={(e) => updateFormData({ landSize: e.target.value })}
-                placeholder="e.g., 500"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Description */}
       <div className="space-y-2">
         <Label htmlFor="description">Property Description *</Label>

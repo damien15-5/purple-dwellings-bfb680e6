@@ -32,6 +32,7 @@ type Property = {
   state?: string;
   address?: string;
   isPromoted?: boolean;
+  isVerifiedSeller?: boolean;
 };
 
 // Loading skeleton for property sections
@@ -87,7 +88,7 @@ export const Home = () => {
       const [propertiesRes, promotionsRes] = await Promise.all([
         supabase
           .from('properties')
-          .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks')
+          .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks, is_verified')
           .eq('status', 'published')
           .order('created_at', { ascending: false })
           .limit(50),
@@ -119,6 +120,7 @@ export const Home = () => {
           address: p.address || '',
           matchScore: Math.floor(Math.random() * 40) + 60,
           isPromoted: promotedIds.has(p.id),
+          isVerifiedSeller: p.is_verified === true,
         }));
 
         setAllProperties(transformedProperties);
