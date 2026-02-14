@@ -5,14 +5,16 @@ import { Camera, CheckCircle, Loader2, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import imageCompression from 'browser-image-compression';
+import * as faceapi from '@vladmandic/face-api';
 
-// 7 challenge types
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1/model/';
+
 const ALL_CHALLENGES = [
-  { id: 'blink', instruction: 'Blink your eyes slowly', voice: 'Please blink your eyes slowly now.', duration: 5000 },
-  { id: 'smile', instruction: 'Smile at the camera', voice: 'Please give a natural smile at the camera.', duration: 5000 },
+  { id: 'blink', instruction: 'Blink your eyes slowly', voice: 'Please blink your eyes slowly now.', duration: 6000 },
   { id: 'turn_left', instruction: 'Turn your head to the left', voice: 'Please turn your head slowly to your left.', duration: 5000 },
   { id: 'turn_right', instruction: 'Turn your head to the right', voice: 'Please turn your head slowly to your right.', duration: 5000 },
   { id: 'nod', instruction: 'Nod your head up and down', voice: 'Please nod your head up and down slowly.', duration: 5000 },
+  { id: 'smile', instruction: 'Smile at the camera', voice: 'Please give a natural smile at the camera.', duration: 5000 },
   { id: 'open_mouth', instruction: 'Open your mouth briefly', voice: 'Please open your mouth briefly and close it.', duration: 5000 },
   { id: 'raise_eyebrows', instruction: 'Raise your eyebrows', voice: 'Please raise your eyebrows up and hold for a moment.', duration: 5000 },
 ];
@@ -38,102 +40,15 @@ interface Props {
   onBack: () => void;
 }
 
-type Phase = 'intro' | 'camera' | 'challenge' | 'capturing' | 'done';
-
-// Simple canvas-based face detection using skin-color heuristic
-function detectFaceInCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): boolean {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx || video.readyState < 2) return false;
-
-  const w = 160;
-  const h = 120;
-  canvas.width = w;
-  canvas.height = h;
-  ctx.drawImage(video, 0, 0, w, h);
-
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  // Check the center oval region for skin-tone pixels
-  const cx = w / 2;
-  const cy = h / 2;
-  const rx = w * 0.25;
-  const ry = h * 0.35;
-
-  let skinPixels = 0;
-  let totalChecked = 0;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      // Check if pixel is inside the oval
-      const dx = (x - cx) / rx;
-      const dy = (y - cy) / ry;
-      if (dx * dx + dy * dy > 1) continue;
-
-      totalChecked++;
-      const i = (y * w + x) * 4;
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-
-      // Skin color detection in RGB space
-      // Works across multiple skin tones
-      if (
-        r > 60 && g > 40 && b > 20 &&
-        r > g && r > b &&
-        Math.abs(r - g) > 10 &&
-        r - b > 15 &&
-        // Not too bright (avoid white backgrounds)
-        r < 250 && g < 250
-      ) {
-        skinPixels++;
-      }
-    }
-  }
-
-  // Need at least 20% skin pixels in the oval region
-  return totalChecked > 0 && (skinPixels / totalChecked) > 0.2;
-}
-
-// Motion detection between frames - uses center region for better sensitivity
-function detectMotion(prev: ImageData | null, current: ImageData): number {
-  if (!prev || prev.data.length !== current.data.length) return 0;
-  
-  const w = current.width;
-  const h = current.height;
-  let changedPixels = 0;
-  let totalChecked = 0;
-  
-  // Only check center 60% of frame where the face is
-  const startX = Math.floor(w * 0.2);
-  const endX = Math.floor(w * 0.8);
-  const startY = Math.floor(h * 0.1);
-  const endY = Math.floor(h * 0.9);
-  
-  for (let y = startY; y < endY; y++) {
-    for (let x = startX; x < endX; x++) {
-      const i = (y * w + x) * 4;
-      totalChecked++;
-      const diff = Math.abs(current.data[i] - prev.data[i]) +
-                   Math.abs(current.data[i + 1] - prev.data[i + 1]) +
-                   Math.abs(current.data[i + 2] - prev.data[i + 2]);
-      // Lower threshold (15) to catch subtle movements like blinks
-      if (diff > 15) changedPixels++;
-    }
-  }
-  
-  return totalChecked > 0 ? changedPixels / totalChecked : 0;
-}
+type Phase = 'loading_models' | 'intro' | 'camera' | 'challenge' | 'capturing' | 'done';
 
 export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const detectionCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const prevFrameRef = useRef<ImageData | null>(null);
 
-  const [phase, setPhase] = useState<Phase>('intro');
+  const [phase, setPhase] = useState<Phase>('loading_models');
   const [challenges] = useState(() => pickRandomChallenges(2));
   const [currentChallenge, setCurrentChallenge] = useState(0);
   const [challengeTimer, setChallengeTimer] = useState(0);
@@ -141,35 +56,69 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [motionDetected, setMotionDetected] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState('Loading face detection models...');
+
   const animFrameRef = useRef<number>();
-  const motionAccRef = useRef<number>(0);
+  const lastDetectionRef = useRef<any>(null);
+  const challengeDataRef = useRef<{
+    initialYaw: number | null;
+    initialPitch: number | null;
+    blinkDetected: boolean;
+    headTurnDetected: boolean;
+    nodDetected: boolean;
+    smileDetected: boolean;
+    mouthOpenDetected: boolean;
+    eyebrowsDetected: boolean;
+    actionDetected: boolean;
+  }>({
+    initialYaw: null, initialPitch: null,
+    blinkDetected: false, headTurnDetected: false, nodDetected: false,
+    smileDetected: false, mouthOpenDetected: false, eyebrowsDetected: false,
+    actionDetected: false,
+  });
 
   const showVideo = phase === 'camera' || phase === 'challenge' || phase === 'capturing';
 
-  // Attach stream to video element whenever video mounts and stream exists
+  // Load face-api.js models
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        setLoadingProgress('Loading face detection model...');
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        setLoadingProgress('Loading landmark model...');
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+        setLoadingProgress('Loading expression model...');
+        await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+        setModelsLoaded(true);
+        setPhase('intro');
+      } catch (err) {
+        console.error('Failed to load face models:', err);
+        toast({ title: 'Model Load Error', description: 'Failed to load face detection. Please refresh and try again.', variant: 'destructive' });
+      }
+    };
+    loadModels();
+  }, []);
+
+  // Attach stream to video
   useEffect(() => {
     const video = videoRef.current;
     const stream = streamRef.current;
     if (showVideo && video && stream && !video.srcObject) {
       video.srcObject = stream;
-      video.play().then(() => {
-        setCameraReady(true);
-      }).catch(console.error);
+      video.play().then(() => setCameraReady(true)).catch(console.error);
     }
   }, [showVideo, phase]);
 
-  // Start camera - called directly from button click
+  // Start camera
   const startCamera = useCallback(async () => {
     try {
-      // getUserMedia called directly in click handler
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       });
       streamRef.current = stream;
-      // Set phase to render video element, the useEffect above will attach the stream
       setPhase('camera');
     } catch (err) {
       console.error('Camera error:', err);
@@ -177,44 +126,142 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
     }
   }, [toast]);
 
-  // Face detection loop using canvas analysis
+  // Face detection loop using face-api.js
   useEffect(() => {
-    if (!showVideo || !cameraReady) return;
+    if (!showVideo || !cameraReady || !modelsLoaded) return;
 
     let running = true;
-    const detect = () => {
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+
+    const detect = async () => {
       if (!running) return;
-      
       const video = videoRef.current;
-      const canvas = detectionCanvasRef.current;
-      
-      if (video && canvas && video.readyState >= 2) {
-        const hasFace = detectFaceInCanvas(video, canvas);
-        setFaceDetected(hasFace);
-        
-        // Motion detection for challenge verification
-        if (phase === 'challenge') {
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (ctx) {
-            const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const motion = detectMotion(prevFrameRef.current, currentFrame);
-            motionAccRef.current = Math.max(motionAccRef.current, motion); // keep peak motion
-            setMotionDetected(motion > 0.005); // 0.5% = very sensitive to any movement
-            prevFrameRef.current = currentFrame;
-          }
-        }
+      if (!video || video.readyState < 2) {
+        animFrameRef.current = requestAnimationFrame(detect);
+        return;
       }
-      
-      animFrameRef.current = requestAnimationFrame(detect);
+
+      try {
+        const result = await faceapi
+          .detectSingleFace(video, options)
+          .withFaceLandmarks(true)
+          .withFaceExpressions();
+
+        if (result) {
+          setFaceDetected(true);
+          lastDetectionRef.current = result;
+
+          // During challenge phase, check specific actions
+          if (phase === 'challenge') {
+            const challenge = challenges[currentChallenge];
+            if (challenge) {
+              checkChallengeAction(challenge.id, result);
+            }
+          }
+        } else {
+          setFaceDetected(false);
+          lastDetectionRef.current = null;
+        }
+      } catch (e) {
+        // Silently continue
+      }
+
+      if (running) {
+        animFrameRef.current = requestAnimationFrame(detect);
+      }
     };
-    
+
     animFrameRef.current = requestAnimationFrame(detect);
-    
     return () => {
       running = false;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [showVideo, cameraReady, phase]);
+  }, [showVideo, cameraReady, modelsLoaded, phase, currentChallenge]);
+
+  // Check challenge-specific actions using landmarks and expressions
+  const checkChallengeAction = (challengeId: string, detection: any) => {
+    const landmarks = detection.landmarks;
+    const expressions = detection.expressions;
+    const data = challengeDataRef.current;
+
+    // Get face angle from landmarks (approximate yaw & pitch)
+    const nose = landmarks.getNose();
+    const jaw = landmarks.getJawOutline();
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+
+    // Yaw: nose tip relative to face center
+    const faceLeft = jaw[0].x;
+    const faceRight = jaw[jaw.length - 1].x;
+    const faceCenter = (faceLeft + faceRight) / 2;
+    const noseTip = nose[3]; // tip of nose
+    const yaw = (noseTip.x - faceCenter) / (faceRight - faceLeft);
+
+    // Pitch: nose tip Y relative to eye line Y  
+    const eyeLineY = (leftEye[0].y + rightEye[0].y) / 2;
+    const pitch = (noseTip.y - eyeLineY) / (jaw[8].y - eyeLineY);
+
+    // Set initial values
+    if (data.initialYaw === null) data.initialYaw = yaw;
+    if (data.initialPitch === null) data.initialPitch = pitch;
+
+    // Eye Aspect Ratio for blink detection
+    const leftEAR = getEAR(leftEye);
+    const rightEAR = getEAR(rightEye);
+    const avgEAR = (leftEAR + rightEAR) / 2;
+
+    // Mouth aspect ratio
+    const mouth = landmarks.getMouth();
+    const mouthOpen = getMouthAR(mouth);
+
+    switch (challengeId) {
+      case 'blink':
+        if (avgEAR < 0.2) data.blinkDetected = true;
+        data.actionDetected = data.blinkDetected;
+        break;
+      case 'turn_left':
+        if (yaw < data.initialYaw! - 0.15) data.headTurnDetected = true;
+        data.actionDetected = data.headTurnDetected;
+        break;
+      case 'turn_right':
+        if (yaw > data.initialYaw! + 0.15) data.headTurnDetected = true;
+        data.actionDetected = data.headTurnDetected;
+        break;
+      case 'nod':
+        if (Math.abs(pitch - data.initialPitch!) > 0.15) data.nodDetected = true;
+        data.actionDetected = data.nodDetected;
+        break;
+      case 'smile':
+        if (expressions.happy > 0.5) data.smileDetected = true;
+        data.actionDetected = data.smileDetected;
+        break;
+      case 'open_mouth':
+        if (mouthOpen > 0.35) data.mouthOpenDetected = true;
+        data.actionDetected = data.mouthOpenDetected;
+        break;
+      case 'raise_eyebrows':
+        if (expressions.surprised > 0.3) data.eyebrowsDetected = true;
+        data.actionDetected = data.eyebrowsDetected;
+        break;
+    }
+  };
+
+  // Eye Aspect Ratio calculation
+  function getEAR(eye: faceapi.Point[]): number {
+    if (eye.length < 6) return 0.3;
+    const v1 = Math.abs(eye[1].y - eye[5].y);
+    const v2 = Math.abs(eye[2].y - eye[4].y);
+    const h = Math.abs(eye[0].x - eye[3].x);
+    return h > 0 ? (v1 + v2) / (2 * h) : 0.3;
+  }
+
+  // Mouth Aspect Ratio
+  function getMouthAR(mouth: faceapi.Point[]): number {
+    if (mouth.length < 18) return 0;
+    const v = Math.abs(mouth[14].y - mouth[18].y);
+    const h = Math.abs(mouth[12].x - mouth[16].x);
+    return h > 0 ? v / h : 0;
+  }
 
   // Stop camera
   const stopCamera = useCallback(() => {
@@ -231,48 +278,61 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
   const startChallenges = useCallback(() => {
     setCurrentChallenge(0);
     setChallengesPassed([]);
-    prevFrameRef.current = null;
-    motionAccRef.current = 0;
+    challengeDataRef.current = {
+      initialYaw: null, initialPitch: null,
+      blinkDetected: false, headTurnDetected: false, nodDetected: false,
+      smileDetected: false, mouthOpenDetected: false, eyebrowsDetected: false,
+      actionDetected: false,
+    };
     setPhase('challenge');
-    const challenge = challenges[0];
-    speakInstruction(challenge.voice);
+    speakInstruction(challenges[0].voice);
   }, [challenges]);
 
-  // Challenge timer with motion-based verification
+  // Challenge timer with real face-api detection
   useEffect(() => {
     if (phase !== 'challenge') return;
     const challenge = challenges[currentChallenge];
     if (!challenge) return;
 
     setChallengeTimer(0);
-    let motionFrames = 0;
+    // Reset challenge data for new challenge
+    challengeDataRef.current = {
+      ...challengeDataRef.current,
+      initialYaw: null, initialPitch: null,
+      blinkDetected: false, headTurnDetected: false, nodDetected: false,
+      smileDetected: false, mouthOpenDetected: false, eyebrowsDetected: false,
+      actionDetected: false,
+    };
+
     const totalSteps = challenge.duration / 100;
     let step = 0;
 
     const interval = setInterval(() => {
       step++;
       setChallengeTimer((step / totalSteps) * 100);
-      
-      // Count frames where any motion was detected (very low threshold)
-      if (motionAccRef.current > 0.005) {
-        motionFrames++;
-        // Reset peak so we measure ongoing motion
-        motionAccRef.current = 0;
+
+      // Check if action detected early - pass immediately
+      if (challengeDataRef.current.actionDetected && step > 10) {
+        clearInterval(interval);
+        handleChallengePass();
+        return;
       }
 
       if (step >= totalSteps) {
         clearInterval(interval);
-        // Pass if motion was detected in at least 15% of frames (very lenient)
-        const passed = motionFrames > (totalSteps * 0.15);
-        console.log(`Challenge "${challenge.id}": motionFrames=${motionFrames}/${totalSteps}, passed=${passed}`);
+        const passed = challengeDataRef.current.actionDetected;
+        console.log(`Challenge "${challenge.id}": passed=${passed}`);
 
         if (!passed) {
           speakInstruction('Action not detected. Please try again.');
-          // Reset and re-run by bumping a retry counter
           setTimeout(() => {
-            prevFrameRef.current = null;
-            motionAccRef.current = 0;
-            // Force re-trigger useEffect by toggling challenge index
+            challengeDataRef.current = {
+              ...challengeDataRef.current,
+              initialYaw: null, initialPitch: null,
+              blinkDetected: false, headTurnDetected: false, nodDetected: false,
+              smileDetected: false, mouthOpenDetected: false, eyebrowsDetected: false,
+              actionDetected: false,
+            };
             setCurrentChallenge(-1);
             setTimeout(() => {
               setCurrentChallenge(currentChallenge);
@@ -282,27 +342,27 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
           return;
         }
 
-        const newPassed = [...challengesPassed, true];
-        setChallengesPassed(newPassed);
-
-        if (currentChallenge + 1 < challenges.length) {
-          const nextIdx = currentChallenge + 1;
-          prevFrameRef.current = null;
-          motionAccRef.current = 0;
-          setCurrentChallenge(nextIdx);
-          setTimeout(() => {
-            speakInstruction(challenges[nextIdx].voice);
-          }, 500);
-        } else {
-          speakInstruction('Great! Hold still while we capture your photo.');
-          setPhase('capturing');
-          setTimeout(() => captureSelfie(), 1500);
-        }
+        handleChallengePass();
       }
     }, 100);
 
     return () => clearInterval(interval);
   }, [phase, currentChallenge, challenges]);
+
+  const handleChallengePass = useCallback(() => {
+    const newPassed = [...challengesPassed, true];
+    setChallengesPassed(newPassed);
+
+    if (currentChallenge + 1 < challenges.length) {
+      const nextIdx = currentChallenge + 1;
+      setCurrentChallenge(nextIdx);
+      setTimeout(() => speakInstruction(challenges[nextIdx].voice), 500);
+    } else {
+      speakInstruction('Great! Hold still for your portrait photo.');
+      setPhase('capturing');
+      setTimeout(() => captureSelfie(), 1500);
+    }
+  }, [currentChallenge, challenges, challengesPassed]);
 
   // Capture selfie from video
   const captureSelfie = useCallback(async () => {
@@ -343,8 +403,6 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
     setChallengesPassed([]);
     setCurrentChallenge(0);
     setFaceDetected(false);
-    setMotionDetected(false);
-    prevFrameRef.current = null;
     setPhase('intro');
     stopCamera();
   };
@@ -360,6 +418,14 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
         </CardHeader>
         <CardContent className="space-y-4">
 
+          {/* LOADING MODELS */}
+          {phase === 'loading_models' && (
+            <div className="space-y-4 text-center py-8">
+              <Loader2 className="h-10 w-10 animate-spin text-accent-purple mx-auto" />
+              <p className="text-sm text-muted-foreground">{loadingProgress}</p>
+            </div>
+          )}
+
           {/* INTRO */}
           {phase === 'intro' && (
             <div className="space-y-4">
@@ -367,10 +433,9 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
                 <p className="text-sm font-medium text-foreground">How it works:</p>
                 <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
                   <li>You'll be asked to perform <span className="font-semibold">2 random actions</span></li>
-                  <li>Voice prompts will guide you through each step</li>
-                  <li>Your face must be detected in the frame</li>
-                  <li>Motion detection verifies your actions</li>
-                  <li>Ensure good lighting and remove glasses/hats</li>
+                  <li>AI detects your face, blinks, head turns, and expressions</li>
+                  <li>Actions are verified instantly using face detection</li>
+                  <li>Ensure good lighting and face the camera directly</li>
                 </ul>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/10 border border-accent/20">
@@ -384,7 +449,7 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
             </div>
           )}
 
-          {/* VIDEO ELEMENT - always mounted when needed so ref is available */}
+          {/* VIDEO ELEMENT */}
           {showVideo && (
             <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3] max-w-sm mx-auto">
               <video
@@ -414,14 +479,14 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                   <div className="text-center space-y-2">
                     <Loader2 className="h-8 w-8 animate-spin text-white mx-auto" />
-                    <p className="text-white text-sm font-medium">Capturing your photo...</p>
+                    <p className="text-white text-sm font-medium">Capturing your portrait...</p>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* CAMERA CONTROLS (pre-challenge) */}
+          {/* CAMERA CONTROLS */}
           {phase === 'camera' && (
             <div className="space-y-2">
               <Button variant="hero" className="w-full" onClick={startChallenges} disabled={!faceDetected}>
@@ -446,15 +511,15 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
                   {challenges[currentChallenge]?.instruction}
                 </p>
                 <Progress value={challengeTimer} className="h-2" />
-                {motionDetected && (
-                  <p className="text-xs text-green-500 font-medium">✓ Motion detected</p>
+                {challengeDataRef.current.actionDetected && (
+                  <p className="text-xs text-green-500 font-medium">✓ Action detected!</p>
                 )}
               </div>
 
               <div className="flex gap-2 justify-center">
                 {challenges.map((_, i) => (
                   <div key={i} className={`h-3 w-3 rounded-full transition-colors ${
-                    i < challengesPassed.length ? (challengesPassed[i] ? 'bg-green-500' : 'bg-red-500') :
+                    i < challengesPassed.length ? 'bg-green-500' :
                     i === currentChallenge ? 'bg-accent-purple animate-pulse' : 'bg-muted'
                   }`} />
                 ))}
@@ -467,7 +532,7 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
             <div className="space-y-4">
               <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                 <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
-                <p className="text-sm text-foreground font-medium">Liveness check passed! Your selfie has been captured.</p>
+                <p className="text-sm text-foreground font-medium">Liveness check passed! Your portrait has been captured.</p>
               </div>
               <div className="relative max-w-xs mx-auto">
                 <img src={selfiePreview} alt="Verified selfie" className="w-full rounded-lg border border-border" />
@@ -479,9 +544,8 @@ export const KYCSelfieUpload = ({ onComplete, onBack }: Props) => {
             </div>
           )}
 
-          {/* Hidden canvases for processing */}
+          {/* Hidden canvas for capture */}
           <canvas ref={canvasRef} className="hidden" />
-          <canvas ref={detectionCanvasRef} className="hidden" />
         </CardContent>
       </Card>
 
