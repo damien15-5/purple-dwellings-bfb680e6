@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Upload, Camera, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createWorker } from 'tesseract.js';
+import { createWorker, Worker } from 'tesseract.js';
 import { extractDataByDocType } from '@/utils/nigerianData';
 import imageCompression from 'browser-image-compression';
 
@@ -115,11 +115,42 @@ function preprocessForOCR(canvas: HTMLCanvasElement, img: HTMLImageElement): voi
 export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const workerReadyRef = useRef<boolean>(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState('');
+
+  // Pre-initialize Tesseract worker on mount for instant OCR
+  useEffect(() => {
+    let cancelled = false;
+    const initWorker = async () => {
+      try {
+        const w = await createWorker('eng', 1);
+        await w.setParameters({
+          tessedit_pageseg_mode: '6' as any,
+          preserve_interword_spaces: '1' as any,
+        });
+        if (!cancelled) {
+          workerRef.current = w;
+          workerReadyRef.current = true;
+          console.log('Tesseract worker pre-loaded and ready');
+        } else {
+          await w.terminate();
+        }
+      } catch (err) {
+        console.error('Failed to pre-load Tesseract worker:', err);
+      }
+    };
+    initWorker();
+    return () => {
+      cancelled = true;
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   const validateImage = (file: File): { valid: boolean; error?: string } => {
     if (file.size < 50000) return { valid: false, error: 'Image too small. Please capture a clearer photo.' };
@@ -166,41 +197,33 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
       });
 
       const canvas = document.createElement('canvas');
-      
-      // Apply advanced preprocessing
       preprocessForOCR(canvas, img);
 
-      setProgress(20);
-      setProgressText('Loading OCR engine...');
+      setProgress(30);
+      setProgressText('Extracting text...');
 
-      // Create tesseract worker with optimal settings
-      const worker = await createWorker('eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            const p = Math.round((m.progress || 0) * 100);
-            setProgress(20 + p * 0.7);
-            if (p < 30) setProgressText('Scanning document...');
-            else if (p < 60) setProgressText('Extracting text...');
-            else if (p < 90) setProgressText('Processing fields...');
-            else setProgressText('Finalizing extraction...');
-          }
-        },
-      });
+      // Use pre-loaded worker or create one on the fly
+      let worker = workerRef.current;
+      if (!worker || !workerReadyRef.current) {
+        setProgressText('Loading OCR engine...');
+        worker = await createWorker('eng', 1);
+        await worker.setParameters({
+          tessedit_pageseg_mode: '6' as any,
+          preserve_interword_spaces: '1' as any,
+        });
+        workerRef.current = worker;
+        workerReadyRef.current = true;
+      }
 
-      // Set tesseract parameters for maximum accuracy
-      await worker.setParameters({
-        tessedit_pageseg_mode: '6' as any, // Assume uniform block of text
-        preserve_interword_spaces: '1' as any,
-      });
+      setProgress(40);
+      setProgressText('Scanning document...');
 
-      // Use the preprocessed canvas for OCR
       const { data } = await worker.recognize(canvas);
-      await worker.terminate();
 
       console.log('OCR raw text:', data.text);
       console.log('OCR confidence:', data.confidence);
 
-      setProgress(95);
+      setProgress(90);
       setProgressText('Extracting fields...');
 
       const extracted = extractDataByDocType(data.text, docType);
@@ -211,7 +234,7 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
 
       setTimeout(() => {
         onComplete(imageFile, imagePreview, extracted, data.text);
-      }, 500);
+      }, 300);
     } catch (error: any) {
       console.error('OCR Error:', error);
       toast({ title: 'OCR Failed', description: error?.message || 'Unable to read document. Please retake photo with better lighting.', variant: 'destructive' });
