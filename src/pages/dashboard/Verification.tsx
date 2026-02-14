@@ -25,6 +25,7 @@ export const Verification = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [kycReference, setKycReference] = useState('');
+  const [existingKycId, setExistingKycId] = useState<string | null>(null);
 
   // Form state
   const [personalInfo, setPersonalInfo] = useState<PersonalInfoData>({
@@ -61,8 +62,9 @@ export const Verification = () => {
     const { data: kyc } = await supabase.from('kyc_documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (kyc) {
       setKycStatus(kyc.status);
-      if (kyc.status === 'verified') setStep(-1); // show verified state
-      if (kyc.status === 'pending') setStep(-2); // show pending state
+      setExistingKycId(kyc.id);
+      if (kyc.status === 'verified') setStep(-1);
+      if (kyc.status === 'pending' || kyc.status === 'verifying') setStep(-2);
     }
     setLoading(false);
   };
@@ -85,8 +87,7 @@ export const Verification = () => {
 
       const reference = `KYC-NG-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
 
-      // Insert KYC record first
-      const { data: kycRecord, error } = await supabase.from('kyc_documents').insert({
+      const kycPayload = {
         user_id: user.id,
         identity_type: docType,
         identity_number: verifiedData.documentNumber,
@@ -103,14 +104,33 @@ export const Verification = () => {
         selfie_url: selfieFileName,
         extracted_data: { ...ocrData, raw_text: ocrRawText },
         kyc_reference: reference,
-      } as any).select().single();
+      };
 
-      if (error) throw error;
+      let kycRecord: any;
+
+      // Check if there's an existing non-verified KYC to update instead of insert
+      if (existingKycId && kycStatus !== 'verified') {
+        // UPDATE existing record instead of inserting new one
+        const { data, error } = await supabase.from('kyc_documents')
+          .update(kycPayload as any)
+          .eq('id', existingKycId)
+          .select()
+          .single();
+        if (error) throw error;
+        kycRecord = data;
+      } else {
+        // INSERT new record
+        const { data, error } = await supabase.from('kyc_documents')
+          .insert(kycPayload as any)
+          .select()
+          .single();
+        if (error) throw error;
+        kycRecord = data;
+      }
 
       // Auto-verify via edge function
       toast({ title: 'Verifying...', description: 'AI is analyzing your documents. Please wait.' });
 
-      const { data: session } = await supabase.auth.getSession();
       const verifyRes = await supabase.functions.invoke('verify-kyc', {
         body: {
           kyc_id: kycRecord.id,
@@ -129,7 +149,6 @@ export const Verification = () => {
 
       if (verifyRes.error) {
         console.error('Auto-verify error:', verifyRes.error);
-        // Fallback to pending if auto-verify fails
         await supabase.from('kyc_documents').update({ status: 'pending' } as any).eq('id', kycRecord.id);
       }
 

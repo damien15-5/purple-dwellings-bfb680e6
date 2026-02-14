@@ -14,6 +14,104 @@ interface Props {
   onBack: () => void;
 }
 
+/**
+ * Enhanced image preprocessing for maximum OCR accuracy.
+ * Converts to high-contrast grayscale with adaptive thresholding.
+ */
+function preprocessForOCR(canvas: HTMLCanvasElement, img: HTMLImageElement): void {
+  const ctx = canvas.getContext('2d')!;
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  ctx.drawImage(img, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+
+  // Step 1: Convert to grayscale
+  const gray = new Float32Array(pixels.length / 4);
+  for (let i = 0; i < pixels.length; i += 4) {
+    gray[i / 4] = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+  }
+
+  // Step 2: Compute histogram for auto-levels
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < gray.length; i++) {
+    hist[Math.round(gray[i])]++;
+  }
+
+  // Find 1st and 99th percentile for contrast stretching
+  const total = gray.length;
+  let cumulative = 0;
+  let low = 0, high = 255;
+  for (let i = 0; i < 256; i++) {
+    cumulative += hist[i];
+    if (cumulative >= total * 0.01 && low === 0) low = i;
+    if (cumulative >= total * 0.99) { high = i; break; }
+  }
+  if (high <= low) { low = 0; high = 255; }
+
+  // Step 3: Apply contrast stretch + sharpening
+  const range = high - low || 1;
+  for (let i = 0; i < gray.length; i++) {
+    // Stretch contrast
+    let val = ((gray[i] - low) / range) * 255;
+    val = Math.max(0, Math.min(255, val));
+
+    // Boost contrast further with S-curve
+    val = val / 255;
+    val = val < 0.5
+      ? 2 * val * val
+      : 1 - 2 * (1 - val) * (1 - val);
+    val = val * 255;
+
+    const idx = i * 4;
+    pixels[idx] = pixels[idx + 1] = pixels[idx + 2] = Math.round(val);
+    pixels[idx + 3] = 255; // Full opacity
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Step 4: Apply unsharp mask for sharpening (simple approach)
+  // Re-read the contrast-enhanced image, blur it, then sharpen
+  const enhanced = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const sharpened = ctx.createImageData(canvas.width, canvas.height);
+  const w = canvas.width;
+  const h = canvas.height;
+  const strength = 1.5;
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = (y * w + x) * 4;
+      // Simple Laplacian sharpening
+      for (let c = 0; c < 3; c++) {
+        const center = enhanced.data[idx + c];
+        const top = enhanced.data[((y - 1) * w + x) * 4 + c];
+        const bottom = enhanced.data[((y + 1) * w + x) * 4 + c];
+        const left = enhanced.data[(y * w + (x - 1)) * 4 + c];
+        const right = enhanced.data[(y * w + (x + 1)) * 4 + c];
+        const laplacian = 4 * center - top - bottom - left - right;
+        sharpened.data[idx + c] = Math.max(0, Math.min(255, Math.round(center + strength * laplacian)));
+      }
+      sharpened.data[idx + 3] = 255;
+    }
+  }
+  // Copy edges
+  for (let x = 0; x < w; x++) {
+    for (const y of [0, h - 1]) {
+      const idx = (y * w + x) * 4;
+      for (let c = 0; c < 4; c++) sharpened.data[idx + c] = enhanced.data[idx + c];
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (const x of [0, w - 1]) {
+      const idx = (y * w + x) * 4;
+      for (let c = 0; c < 4; c++) sharpened.data[idx + c] = enhanced.data[idx + c];
+    }
+  }
+
+  ctx.putImageData(sharpened, 0, 0);
+}
+
 export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,10 +154,10 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
     if (!imageFile || !imagePreview) return;
     setProcessing(true);
     setProgress(10);
-    setProgressText('Initializing OCR engine...');
+    setProgressText('Preprocessing image for maximum clarity...');
 
     try {
-      // Convert file to a canvas for better OCR results
+      // Load image into canvas for preprocessing
       const img = new Image();
       img.src = imagePreview;
       await new Promise((resolve, reject) => {
@@ -68,37 +166,31 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
       });
 
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d')!;
       
-      // Draw and apply preprocessing for better OCR
-      ctx.drawImage(img, 0, 0);
-      // Convert to grayscale for better text recognition
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels = imageData.data;
-      for (let i = 0; i < pixels.length; i += 4) {
-        const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
-        // Apply contrast enhancement
-        const enhanced = gray > 128 ? Math.min(255, gray * 1.2) : Math.max(0, gray * 0.8);
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = enhanced;
-      }
-      ctx.putImageData(imageData, 0, 0);
+      // Apply advanced preprocessing
+      preprocessForOCR(canvas, img);
 
       setProgress(20);
       setProgressText('Loading OCR engine...');
 
+      // Create tesseract worker with optimal settings
       const worker = await createWorker('eng', 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const p = Math.round((m.progress || 0) * 100);
             setProgress(20 + p * 0.7);
-            if (p < 30) setProgressText('Detecting text...');
-            else if (p < 60) setProgressText('Reading data...');
-            else if (p < 90) setProgressText('Validating...');
-            else setProgressText('Almost done...');
+            if (p < 30) setProgressText('Scanning document...');
+            else if (p < 60) setProgressText('Extracting text...');
+            else if (p < 90) setProgressText('Processing fields...');
+            else setProgressText('Finalizing extraction...');
           }
         },
+      });
+
+      // Set tesseract parameters for maximum accuracy
+      await worker.setParameters({
+        tessedit_pageseg_mode: '6' as any, // Assume uniform block of text
+        preserve_interword_spaces: '1' as any,
       });
 
       // Use the preprocessed canvas for OCR

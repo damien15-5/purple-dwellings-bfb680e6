@@ -243,10 +243,10 @@ serve(async (req) => {
 
     if (aiVerdict === "rejected" || confidence < 30) {
       finalStatus = "rejected";
-    } else if (confidence >= 65 && aiVerdict !== "manual_review") {
+    } else if (confidence >= 66 && aiVerdict !== "manual_review") {
       finalStatus = "verified";
     } else {
-      finalStatus = "pending"; // needs manual review
+      finalStatus = "pending"; // needs manual review — will appear in admin documents section
     }
 
     verificationResults.final_status = finalStatus;
