@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Send, ShieldCheck, AlertCircle, Paperclip, X, Loader2, HandshakeIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { filterContactInfo } from '@/utils/contentFilter';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -244,16 +244,7 @@ export const ChatWithSeller = () => {
         fileType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
       }
 
-      // Filter contact information from text
-      const { filtered, blocked } = filterContactInfo(message);
-
-      if (blocked && message.trim()) {
-        toast.error('Contact details are removed for your security.', {
-          duration: 5000,
-        });
-      }
-
-      const messageContent = filtered || (fileType === 'image' ? '📷 Image' : '🎥 Video');
+      const messageContent = message.trim() || (fileType === 'image' ? '📷 Image' : '🎥 Video');
 
       const { error } = await supabase
         .from('messages')
@@ -288,6 +279,12 @@ export const ChatWithSeller = () => {
 
   const handleSendOffer = async () => {
     if (!offerAmount || !conversationId || !currentUserId || !property) return;
+
+    // Property owner cannot make an offer on their own property
+    if (currentUserId === property.user_id) {
+      toast.error('You cannot make an offer on your own property');
+      return;
+    }
 
     const amount = parseFloat(offerAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -566,51 +563,53 @@ export const ChatWithSeller = () => {
                 <p className="text-sm text-muted-foreground">Property Seller</p>
               </div>
             </div>
-            <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="gap-2 border-2 border-light-purple-accent hover:bg-light-purple-accent hover:text-white transition-all"
-                >
-                  <HandshakeIcon className="h-4 w-4" />
-                  Make Offer
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Make an Offer</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div>
-                    <Label htmlFor="header-offer-amount">Offer Amount (₦)</Label>
-                    <Input
-                      id="header-offer-amount"
-                      type="number"
-                      value={offerAmount}
-                      onChange={(e) => setOfferAmount(e.target.value)}
-                      placeholder="Enter your offer amount"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Original price: ₦{property?.price.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="header-offer-message">Message (Optional)</Label>
-                    <Textarea
-                      id="header-offer-message"
-                      value={offerMessage}
-                      onChange={(e) => setOfferMessage(e.target.value)}
-                      placeholder="Add a message with your offer..."
-                      className="mt-1"
-                    />
-                  </div>
-                  <Button onClick={handleSendOffer} className="w-full">
-                    Send Offer
+            {currentUserId !== property?.user_id && (
+              <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2 border-2 border-light-purple-accent hover:bg-light-purple-accent hover:text-white transition-all"
+                  >
+                    <HandshakeIcon className="h-4 w-4" />
+                    Make Offer
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Make an Offer</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="header-offer-amount">Offer Amount (₦)</Label>
+                      <Input
+                        id="header-offer-amount"
+                        type="number"
+                        value={offerAmount}
+                        onChange={(e) => setOfferAmount(e.target.value)}
+                        placeholder="Enter your offer amount"
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Original price: ₦{property?.price.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="header-offer-message">Message (Optional)</Label>
+                      <Textarea
+                        id="header-offer-message"
+                        value={offerMessage}
+                        onChange={(e) => setOfferMessage(e.target.value)}
+                        placeholder="Add a message with your offer..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button onClick={handleSendOffer} className="w-full">
+                      Send Offer
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </div>
@@ -625,7 +624,7 @@ export const ChatWithSeller = () => {
                 Make Payment
               </Button>
             </Link>
-            <Card className="h-[600px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
+            <Card className="h-[calc(100vh-280px)] min-h-[400px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
                 {messages.length === 0 ? (
@@ -659,7 +658,7 @@ export const ChatWithSeller = () => {
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-900 flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   <p>
-                    🛡️ <strong>Security Notice:</strong> Phone numbers, emails, and links are automatically removed. Media: Images (max 2MB), Videos (max 5MB).
+                    🛡️ Media: Images (max 2MB), Videos (max 5MB).
                   </p>
                 </div>
                 
@@ -700,52 +699,54 @@ export const ChatWithSeller = () => {
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
-                  <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="border-2 border-light-purple-border hover:bg-light-purple-accent/10"
-                      >
-                        <HandshakeIcon className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Make an Offer</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <Label htmlFor="offer-amount">Offer Amount (₦)</Label>
-                          <Input
-                            id="offer-amount"
-                            type="number"
-                            value={offerAmount}
-                            onChange={(e) => setOfferAmount(e.target.value)}
-                            placeholder="Enter your offer amount"
-                            className="mt-1"
-                          />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Original price: ₦{property?.price.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <Label htmlFor="offer-message">Message (Optional)</Label>
-                          <Textarea
-                            id="offer-message"
-                            value={offerMessage}
-                            onChange={(e) => setOfferMessage(e.target.value)}
-                            placeholder="Add a message with your offer..."
-                            className="mt-1"
-                          />
-                        </div>
-                        <Button onClick={handleSendOffer} className="w-full">
-                          Send Offer
+                  {currentUserId !== property?.user_id && (
+                    <Dialog open={offerDialogOpen} onOpenChange={setOfferDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="border-2 border-light-purple-border hover:bg-light-purple-accent/10"
+                        >
+                          <HandshakeIcon className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Make an Offer</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 mt-4">
+                          <div>
+                            <Label htmlFor="offer-amount">Offer Amount (₦)</Label>
+                            <Input
+                              id="offer-amount"
+                              type="number"
+                              value={offerAmount}
+                              onChange={(e) => setOfferAmount(e.target.value)}
+                              placeholder="Enter your offer amount"
+                              className="mt-1"
+                            />
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Original price: ₦{property?.price.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="offer-message">Message (Optional)</Label>
+                            <Textarea
+                              id="offer-message"
+                              value={offerMessage}
+                              onChange={(e) => setOfferMessage(e.target.value)}
+                              placeholder="Add a message with your offer..."
+                              className="mt-1"
+                            />
+                          </div>
+                          <Button onClick={handleSendOffer} className="w-full">
+                            Send Offer
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                   <Input
                     placeholder="Type your message..."
                     value={message}

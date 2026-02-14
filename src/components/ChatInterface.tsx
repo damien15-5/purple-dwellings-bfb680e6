@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Send, Paperclip, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { filterContactInfo } from '@/utils/contentFilter';
+
 
 interface Message {
   id: string;
@@ -235,18 +235,7 @@ export const ChatInterface = ({ propertyId, propertyOwnerId, propertyTitle }: Ch
         fileType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
       }
 
-      // Filter contact information
-      const { filtered, blocked } = filterContactInfo(newMessage);
-      
-      if (blocked && newMessage.trim()) {
-        toast({
-          title: 'Message Blocked',
-          description: 'Contact details are removed for your security.',
-          variant: 'destructive',
-        });
-      }
-
-      const messageContent = filtered || (fileType === 'image' ? '📷 Image' : '🎥 Video');
+      const messageContent = newMessage.trim() || (fileType === 'image' ? '📷 Image' : '🎥 Video');
 
       // Update last message in conversation
       await supabase

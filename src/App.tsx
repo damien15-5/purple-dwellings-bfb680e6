@@ -102,97 +102,101 @@ const App = () => {
         <BrowserRouter>
         <ScrollToTop />
         <AuthRedirectHandler />
-        <div className="flex flex-col min-h-screen">
-          <Navigation />
-          <FloatingMenu />
-          <main className="flex-grow">
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/browse" element={<Browse />} />
-              <Route path="/property/:id" element={<PropertyDetails />} />
-              <Route path="/seller/:sellerId" element={<SellerProperties />} />
-              <Route path="/edit-listing/:id" element={<EditListing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/verified" element={<VerifiedUser />} />
+        <Routes>
+          {/* Dashboard routes - no nav/footer */}
           <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<DashboardHome />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="verification" element={<Verification />} />
-            <Route path="my-listings" element={<MyListings />} />
-            <Route path="saved" element={<SavedProperties />} />
-            <Route path="offers" element={<OffersNegotiations />} />
-            <Route path="transactions" element={<Transactions />} />
-            <Route path="promotions" element={<Promotions />} />
-            <Route path="notifications" element={<Notifications />} />
-            <Route path="messages" element={<Messages />} />
-            <Route path="help" element={<HelpSupport />} />
+            <Route index element={<Suspense fallback={<LoadingFallback />}><DashboardHome /></Suspense>} />
+            <Route path="settings" element={<Suspense fallback={<LoadingFallback />}><Settings /></Suspense>} />
+            <Route path="verification" element={<Suspense fallback={<LoadingFallback />}><Verification /></Suspense>} />
+            <Route path="my-listings" element={<Suspense fallback={<LoadingFallback />}><MyListings /></Suspense>} />
+            <Route path="saved" element={<Suspense fallback={<LoadingFallback />}><SavedProperties /></Suspense>} />
+            <Route path="offers" element={<Suspense fallback={<LoadingFallback />}><OffersNegotiations /></Suspense>} />
+            <Route path="transactions" element={<Suspense fallback={<LoadingFallback />}><Transactions /></Suspense>} />
+            <Route path="promotions" element={<Suspense fallback={<LoadingFallback />}><Promotions /></Suspense>} />
+            <Route path="notifications" element={<Suspense fallback={<LoadingFallback />}><Notifications /></Suspense>} />
+            <Route path="messages" element={<Suspense fallback={<LoadingFallback />}><Messages /></Suspense>} />
+            <Route path="help" element={<Suspense fallback={<LoadingFallback />}><HelpSupport /></Suspense>} />
           </Route>
-              {/* Redirect old escrow routes */}
-              <Route path="/dashboard/escrow" element={<Navigate to="/dashboard/transactions" replace />} />
-              <Route path="/dashboard/escrows" element={<Navigate to="/dashboard/transactions" replace />} />
-              <Route path="/dashboard/documents" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard/favorites" element={<Browse />} />
-              <Route path="/dashboard/chats" element={<Navigate to="/dashboard/messages" replace />} />
-              <Route path="/dashboard/listings" element={<MyListings />} />
-              <Route path="/dashboard/settings" element={<AccountSettings />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/chat/:propertyId" element={<Chat />} />
-              <Route path="/pay/:id" element={<StartPayment />} />
-              {/* Redirect old escrow route */}
-              <Route path="/start-escrow/:id" element={<Navigate to="/browse" replace />} />
-              <Route path="/upload-documents/:id" element={<UploadDocuments />} />
-              <Route path="/upload-listing" element={<UploadListing />} />
-              <Route path="/promote-property" element={<PromoteProperty />} />
-              
-              <Route path="/my-listings" element={<MyListings />} />
-              <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
-              <Route path="/my-chats" element={<Navigate to="/dashboard/messages" replace />} />
-              <Route path="/account-settings" element={<AccountSettings />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/disclaimer" element={<Disclaimer />} />
-              <Route path="/about" element={<AboutUs />} />
-              <Route path="/vision" element={<OurVision />} />
-              <Route path="/terms" element={<TermsAndConditions />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/blog" element={<BlogRedirect />} />
-              <Route path="/support" element={<Support />} />
-              <Route path="/customer-service" element={<CustomerServiceDashboard />} />
-              <Route path="/ai-support" element={<CustomerServiceChat />} />
-              
-              {/* Hidden Admin Routes */}
-              <Route path="/damienxavorianezeani" element={<AdminLogin />} />
-              <Route
-                path="/damienxavorianezeani/*"
-                element={
-                  <ProtectedAdminRoute>
-                    <AdminLayout />
-                  </ProtectedAdminRoute>
-                }
-              >
-                <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="listings" element={<AdminListings />} />
-                <Route path="verification" element={<AdminVerification />} />
-                <Route path="escrow" element={<AdminEscrow />} />
-                <Route path="offers" element={<AdminOffers />} />
-                <Route path="messages" element={<AdminMessages />} />
-                <Route path="ai-logs" element={<AdminAILogs />} />
-                <Route path="tickets" element={<AdminTickets />} />
-                <Route path="reports" element={<AdminReports />} />
-                <Route path="settings" element={<AdminSettings />} />
-                <Route path="admin-management" element={<AdminManagement />} />
-              </Route>
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            </Suspense>
-          </main>
-          <Footer />
-        </div>
+          {/* Redirect old dashboard routes */}
+          <Route path="/dashboard/escrow" element={<Navigate to="/dashboard/transactions" replace />} />
+          <Route path="/dashboard/escrows" element={<Navigate to="/dashboard/transactions" replace />} />
+          <Route path="/dashboard/documents" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard/favorites" element={<Navigate to="/browse" replace />} />
+          <Route path="/dashboard/chats" element={<Navigate to="/dashboard/messages" replace />} />
+
+          {/* All other routes - with nav/footer */}
+          <Route path="*" element={
+            <div className="flex flex-col min-h-screen">
+              <Navigation />
+              <FloatingMenu />
+              <main className="flex-grow">
+                <Suspense fallback={<LoadingFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/browse" element={<Browse />} />
+                    <Route path="/property/:id" element={<PropertyDetails />} />
+                    <Route path="/seller/:sellerId" element={<SellerProperties />} />
+                    <Route path="/edit-listing/:id" element={<EditListing />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/verified" element={<VerifiedUser />} />
+                    <Route path="/how-it-works" element={<HowItWorks />} />
+                    <Route path="/chat/:propertyId" element={<Chat />} />
+                    <Route path="/pay/:id" element={<StartPayment />} />
+                    <Route path="/start-escrow/:id" element={<Navigate to="/browse" replace />} />
+                    <Route path="/upload-documents/:id" element={<UploadDocuments />} />
+                    <Route path="/upload-listing" element={<UploadListing />} />
+                    <Route path="/promote-property" element={<PromoteProperty />} />
+                    <Route path="/my-listings" element={<MyListings />} />
+                    <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
+                    <Route path="/my-chats" element={<Navigate to="/dashboard/messages" replace />} />
+                    <Route path="/account-settings" element={<AccountSettings />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/disclaimer" element={<Disclaimer />} />
+                    <Route path="/about" element={<AboutUs />} />
+                    <Route path="/vision" element={<OurVision />} />
+                    <Route path="/terms" element={<TermsAndConditions />} />
+                    <Route path="/faq" element={<FAQ />} />
+                    <Route path="/blog" element={<BlogRedirect />} />
+                    <Route path="/support" element={<Support />} />
+                    <Route path="/customer-service" element={<CustomerServiceDashboard />} />
+                    <Route path="/ai-support" element={<CustomerServiceChat />} />
+                    <Route path="/dashboard/listings" element={<MyListings />} />
+                    <Route path="/dashboard/settings" element={<AccountSettings />} />
+                    
+                    {/* Hidden Admin Routes */}
+                    <Route path="/damienxavorianezeani" element={<AdminLogin />} />
+                    <Route
+                      path="/damienxavorianezeani/*"
+                      element={
+                        <ProtectedAdminRoute>
+                          <AdminLayout />
+                        </ProtectedAdminRoute>
+                      }
+                    >
+                      <Route path="dashboard" element={<AdminDashboard />} />
+                      <Route path="users" element={<AdminUsers />} />
+                      <Route path="listings" element={<AdminListings />} />
+                      <Route path="verification" element={<AdminVerification />} />
+                      <Route path="escrow" element={<AdminEscrow />} />
+                      <Route path="offers" element={<AdminOffers />} />
+                      <Route path="messages" element={<AdminMessages />} />
+                      <Route path="ai-logs" element={<AdminAILogs />} />
+                      <Route path="tickets" element={<AdminTickets />} />
+                      <Route path="reports" element={<AdminReports />} />
+                      <Route path="settings" element={<AdminSettings />} />
+                      <Route path="admin-management" element={<AdminManagement />} />
+                    </Route>
+                    
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <Footer />
+            </div>
+          } />
+        </Routes>
       </BrowserRouter>
       </AdminProvider>
     </TooltipProvider>

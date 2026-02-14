@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,6 @@ const getHypeMultiplier = (date: string, propertyId: string) => {
     hash = ((hash << 5) - hash) + seed.charCodeAt(i);
     hash |= 0;
   }
-  // Range: 3.5x to 8.5x
   const normalized = (Math.abs(hash) % 1000) / 1000;
   return 3.5 + (normalized * 5);
 };
@@ -25,8 +24,25 @@ const getHypedViews = (actualViews: number, propertyId: string) => {
   return Math.round((actualViews || 1) * multiplier);
 };
 
+type StackedPromotion = {
+  property_id: string;
+  total_days: number;
+  total_amount: number;
+  latest_expires_at: string;
+  latest_started_at: string;
+  is_active: boolean;
+  property: {
+    title: string;
+    images: string[];
+    city: string;
+    state: string;
+    views: number;
+    clicks: number;
+  } | null;
+};
+
 export const Promotions = () => {
-  const [promotions, setPromotions] = useState<any[]>([]);
+  const [promotions, setPromotions] = useState<StackedPromotion[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,16 +59,43 @@ export const Promotions = () => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    setPromotions(data || []);
+    // Stack promotions by property_id
+    const stackedMap = new Map<string, StackedPromotion>();
+    for (const promo of (data || [])) {
+      const existing = stackedMap.get(promo.property_id);
+      if (existing) {
+        existing.total_days += promo.days_promoted;
+        existing.total_amount += Number(promo.amount_paid);
+        if (new Date(promo.expires_at) > new Date(existing.latest_expires_at)) {
+          existing.latest_expires_at = promo.expires_at;
+          existing.is_active = promo.is_active;
+        }
+        if (new Date(promo.started_at) < new Date(existing.latest_started_at)) {
+          existing.latest_started_at = promo.started_at;
+        }
+      } else {
+        stackedMap.set(promo.property_id, {
+          property_id: promo.property_id,
+          total_days: promo.days_promoted,
+          total_amount: Number(promo.amount_paid),
+          latest_expires_at: promo.expires_at,
+          latest_started_at: promo.started_at,
+          is_active: promo.is_active,
+          property: promo.properties,
+        });
+      }
+    }
+
+    setPromotions(Array.from(stackedMap.values()));
     setLoading(false);
   };
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);
 
-  const getStatus = (promo: any) => {
+  const getStatus = (promo: StackedPromotion) => {
     if (!promo.is_active) return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: Clock };
-    if (new Date(promo.expires_at) < new Date()) return { label: 'Expired', color: 'bg-muted text-muted-foreground', icon: XCircle };
+    if (new Date(promo.latest_expires_at) < new Date()) return { label: 'Expired', color: 'bg-muted text-muted-foreground', icon: XCircle };
     return { label: 'Active', color: 'bg-green-100 text-green-800', icon: CheckCircle };
   };
 
@@ -77,7 +120,7 @@ export const Promotions = () => {
   const activeCount = promotions.filter(p => getStatus(p).label === 'Active').length;
   const totalHypedViews = promotions
     .filter(p => getStatus(p).label === 'Active')
-    .reduce((sum, p) => sum + getHypedViews(p.properties?.views || 0, p.property_id), 0);
+    .reduce((sum, p) => sum + getHypedViews(p.property?.views || 0, p.property_id), 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -97,7 +140,6 @@ export const Promotions = () => {
         </Link>
       </div>
 
-      {/* Stats Summary */}
       {promotions.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Card>
@@ -118,7 +160,7 @@ export const Promotions = () => {
           <Card className="col-span-2 md:col-span-1">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-primary">{promotions.length}</p>
-              <p className="text-xs text-muted-foreground">Total Promotions</p>
+              <p className="text-xs text-muted-foreground">Total Properties</p>
             </CardContent>
           </Card>
         </div>
@@ -139,24 +181,24 @@ export const Promotions = () => {
         <div className="space-y-3">
           {promotions.map(promo => {
             const status = getStatus(promo);
-            const remaining = getRemainingTime(promo.expires_at);
+            const remaining = getRemainingTime(promo.latest_expires_at);
             const StatusIcon = status.icon;
-            const hypedViews = getHypedViews(promo.properties?.views || 0, promo.property_id);
+            const hypedViews = getHypedViews(promo.property?.views || 0, promo.property_id);
             const isActive = status.label === 'Active';
             return (
-              <Card key={promo.id} className={remaining.urgent && isActive ? 'border-yellow-400' : ''}>
+              <Card key={promo.property_id} className={remaining.urgent && isActive ? 'border-yellow-400' : ''}>
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
                     <img
-                      src={promo.properties?.images?.[0] || '/placeholder.svg'}
-                      alt={promo.properties?.title}
+                      src={promo.property?.images?.[0] || '/placeholder.svg'}
+                      alt={promo.property?.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{promo.properties?.title}</h3>
+                    <h3 className="font-semibold text-foreground truncate">{promo.property?.title}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {promo.properties?.city}, {promo.properties?.state}
+                      {promo.property?.city}, {promo.property?.state}
                     </p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge className={`${status.color} border-0 text-xs`}>
@@ -178,8 +220,8 @@ export const Promotions = () => {
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
-                    <p className="font-semibold text-foreground">{formatPrice(promo.amount_paid)}</p>
-                    <p className="text-xs text-muted-foreground">{promo.days_promoted} day{promo.days_promoted > 1 ? 's' : ''}</p>
+                    <p className="font-semibold text-foreground">{formatPrice(promo.total_amount)}</p>
+                    <p className="text-xs text-muted-foreground">{promo.total_days} day{promo.total_days > 1 ? 's' : ''}</p>
                     {(status.label === 'Active' || status.label === 'Expired') && (
                       <Link to={`/promote-property?propertyId=${promo.property_id}`}>
                         <Button variant="outline" size="sm" className="text-xs h-7">
