@@ -24,6 +24,7 @@ interface AdminUser {
   created_at: string;
   last_login: string | null;
   is_active: boolean;
+  telegram_username: string | null;
 }
 
 const AdminManagement = () => {
@@ -35,6 +36,7 @@ const AdminManagement = () => {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newSecondPassword, setNewSecondPassword] = useState('');
+  const [newTelegramUsername, setNewTelegramUsername] = useState('');
 
   useEffect(() => {
     if (admin?.role === 'super_admin') {
@@ -50,7 +52,7 @@ const AdminManagement = () => {
         .order('created_at', { ascending: false });
 
       if (data) {
-        setAdmins(data as AdminUser[]);
+        setAdmins(data as any[]);
       }
     } catch (error) {
       console.error('Error loading admins:', error);
@@ -85,7 +87,8 @@ const AdminManagement = () => {
         password_hash: newPassword,
         second_password_hash: newSecondPassword,
         role: 'sub_admin',
-      });
+        telegram_username: newTelegramUsername || null,
+      } as any);
 
       if (error) throw error;
 
@@ -98,6 +101,7 @@ const AdminManagement = () => {
       setNewUsername('');
       setNewPassword('');
       setNewSecondPassword('');
+      setNewTelegramUsername('');
       loadAdmins();
     } catch (error: any) {
       toast({
@@ -216,6 +220,17 @@ const AdminManagement = () => {
                   type="password"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Telegram Username (without @)</Label>
+                <Input
+                  value={newTelegramUsername}
+                  onChange={(e) => setNewTelegramUsername(e.target.value.replace('@', ''))}
+                  placeholder="e.g. john_doe"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This links their Telegram account as an admin on the bot
+                </p>
+              </div>
               <Button onClick={handleCreateAdmin} className="w-full">
                 Create Sub-Admin
               </Button>
@@ -251,6 +266,9 @@ const AdminManagement = () => {
                     <Badge variant={adminUser.role === 'super_admin' ? 'default' : 'secondary'}>
                       {adminUser.role.replace('_', ' ')}
                     </Badge>
+                    {(adminUser as any).telegram_username && (
+                      <Badge variant="outline">📱 @{(adminUser as any).telegram_username}</Badge>
+                    )}
                     {adminUser.is_active ? (
                       <Badge variant="outline">Active</Badge>
                     ) : (
