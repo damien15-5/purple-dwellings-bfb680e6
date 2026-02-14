@@ -4,6 +4,7 @@ import { ProfileInfoSection } from '@/components/settings/ProfileInfoSection';
 import { ChangePasswordSection } from '@/components/settings/ChangePasswordSection';
 import { NotificationPrefsSection } from '@/components/settings/NotificationPrefsSection';
 import { BankAccountSection } from '@/components/settings/BankAccountSection';
+import { TelegramConnectionSection } from '@/components/settings/TelegramConnectionSection';
 
 export const Settings = () => {
   const [userId, setUserId] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export const Settings = () => {
 
       <ProfileInfoSection profile={profile} setProfile={setProfile} userId={userId} nameSaved={nameSaved} />
       <ChangePasswordSection />
+      <TelegramConnectionSection userId={userId} />
       <NotificationPrefsSection
         notifications={notifications}
         setNotifications={setNotifications}

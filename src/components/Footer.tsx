@@ -9,7 +9,7 @@ export const Footer = () => {
       links: [
         { label: 'About Us', to: '/about' },
         { label: 'Our Vision', to: '/vision' },
-        { label: 'Contact Us', to: '/contact' },
+        { label: 'Support', to: '/support' },
         { label: 'Blog', to: '/blog' },
       ],
     },
