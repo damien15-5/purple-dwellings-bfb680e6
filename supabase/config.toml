@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.verify-promotion-payment]
 verify_jwt = false
+
+[functions.telegram-webhook]
+verify_jwt = false
+
+[functions.telegram-notify]
+verify_jwt = false

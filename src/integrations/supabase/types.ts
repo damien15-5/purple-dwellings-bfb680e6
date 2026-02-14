@@ -1175,6 +1175,96 @@ export type Database = {
           },
         ]
       }
+      telegram_admin_chats: {
+        Row: {
+          admin_id: string
+          chat_id: number
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          username: string | null
+        }
+        Insert: {
+          admin_id: string
+          chat_id: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          username?: string | null
+        }
+        Update: {
+          admin_id?: string
+          chat_id?: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      telegram_notifications: {
+        Row: {
+          chat_id: number
+          delivered: boolean | null
+          id: string
+          message_text: string
+          message_type: string
+          reference_id: string | null
+          reference_type: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          chat_id: number
+          delivered?: boolean | null
+          id?: string
+          message_text: string
+          message_type: string
+          reference_id?: string | null
+          reference_type?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          chat_id?: number
+          delivered?: boolean | null
+          id?: string
+          message_text?: string
+          message_type?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
+      telegram_user_links: {
+        Row: {
+          chat_id: number
+          created_at: string | null
+          id: string
+          is_verified: boolean | null
+          user_id: string
+          username: string | null
+          verification_code: string | null
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          user_id: string
+          username?: string | null
+          verification_code?: string | null
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          user_id?: string
+          username?: string | null
+          verification_code?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           created_at: string

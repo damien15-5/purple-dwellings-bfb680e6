@@ -85,6 +85,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Notify admin via Telegram
+    try {
+      for (const promo of promotions || []) {
+        const { data: prop } = await supabase.from('properties').select('title, user_id').eq('id', promo.property_id).single();
+        if (prop) {
+          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-notify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` },
+            body: JSON.stringify({
+              type: 'promotion_purchased',
+              data: { propertyTitle: prop.title, amount: promo.days_promoted * 1000, days: promo.days_promoted, userId: prop.user_id },
+            }),
+          });
+        }
+      }
+    } catch (e) { console.error('Telegram notify error:', e); }
+
     return new Response(
       JSON.stringify({ success: true, message: 'Promotions activated' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

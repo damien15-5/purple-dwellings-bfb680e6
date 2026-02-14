@@ -321,6 +321,25 @@ export const UploadListing = () => {
 
       if (insertError) throw insertError;
 
+      // Notify admin via Telegram
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({
+            type: 'new_listing',
+            data: {
+              title: `${formData.propertyType} in ${formData.city}`,
+              price: formData.price,
+              propertyType: formData.propertyType === 'Others' ? formData.otherPropertyType : formData.propertyType,
+              state: formData.state,
+              city: formData.city,
+              userId,
+            },
+          }),
+        });
+      } catch (e) { console.error('Telegram notify error:', e); }
+
       toast.success('Property published successfully!');
       navigate('/dashboard/listings');
     } catch (error: any) {
