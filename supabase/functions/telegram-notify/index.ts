@@ -256,6 +256,22 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'offer_responded': {
+        const { userId, sellerName, propertyTitle: offerRespTitle, amount, accepted, sellerResponse } = data;
+        const emoji = accepted ? '✅' : '❌';
+        const status = accepted ? 'ACCEPTED' : 'REJECTED';
+        let msg = `${emoji} <b>Offer ${status}!</b>\n\n`;
+        msg += `🏠 Property: "${offerRespTitle}"\n`;
+        msg += `💰 Your offer: ₦${Number(amount).toLocaleString()}\n`;
+        msg += `👤 By: ${sellerName}\n`;
+        if (sellerResponse) msg += `💬 Response: "${sellerResponse}"\n`;
+        msg += `\n📱 Open Xavorian to ${accepted ? 'proceed with payment' : 'make a new offer'}.`;
+        await notifyUser(userId, msg);
+        // Also notify admins
+        await notifyAdmins(`${emoji} <b>Offer ${status}</b>\n\n${sellerName} ${status.toLowerCase()} ₦${Number(amount).toLocaleString()} offer on "${offerRespTitle}"`);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Unknown type' }), { status: 400, headers: corsHeaders });
     }
