@@ -127,7 +127,7 @@ export const Messages = () => {
         }
       }
 
-      // Mark messages from other person as read
+      // Mark messages from other person as read & reset unread count
       if (currentUserId) {
         await supabase
           .from('messages')
@@ -135,6 +135,22 @@ export const Messages = () => {
           .eq('conversation_id', convId)
           .neq('sender_id', currentUserId)
           .eq('is_read', false);
+
+        // Reset unread counter for current user
+        const updateField = currentUserId === selectedConversation?.buyer_id 
+          ? { buyer_unread: 0 } 
+          : { seller_unread: 0 };
+        await supabase
+          .from('conversations')
+          .update(updateField)
+          .eq('id', convId);
+
+        // Update local state
+        setConversations(prev => prev.map(c => 
+          c.id === convId 
+            ? { ...c, ...(currentUserId === c.buyer_id ? { buyer_unread: 0 } : { seller_unread: 0 }) }
+            : c
+        ));
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
@@ -223,6 +239,17 @@ export const Messages = () => {
 
   const handleSendOffer = async () => {
     if (!offerAmount || !selectedConversation || !currentUserId) return;
+
+    // Property owner cannot make an offer on their own property
+    const isOwner = currentUserId === selectedConversation.property?.user_id;
+    if (isOwner) {
+      toast({
+        title: 'Cannot make offer',
+        description: 'You cannot make an offer on your own property.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const amount = parseFloat(offerAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -600,11 +627,14 @@ export const Messages = () => {
                           <p className="font-medium text-xs sm:text-sm truncate">
                             {conversation.property?.title || 'Property'}
                           </p>
-                          {(conversation.buyer_unread > 0 || conversation.seller_unread > 0) && (
-                            <Badge className="bg-accent-purple text-white flex-shrink-0 text-xs">
-                              {conversation.buyer_unread || conversation.seller_unread}
-                            </Badge>
-                          )}
+                          {(() => {
+                            const unread = currentUserId === conversation.buyer_id 
+                              ? conversation.buyer_unread 
+                              : conversation.seller_unread;
+                            return unread > 0 ? (
+                              <span className="w-3 h-3 bg-primary rounded-full flex-shrink-0" />
+                            ) : null;
+                          })()}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {conversation.last_message || 'No messages yet'}
@@ -652,9 +682,6 @@ export const Messages = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm sm:text-base truncate">
                           {selectedConversation.property?.title}
-                        </p>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                          Contact info available after escrow
                         </p>
                       </div>
                     </div>

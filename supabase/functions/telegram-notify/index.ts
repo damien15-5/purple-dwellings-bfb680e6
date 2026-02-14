@@ -272,6 +272,32 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'payment_made': {
+        const { buyerId, sellerId, propertyTitle: payPropTitle, amount: payAmount, paymentMethod } = data;
+        const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', buyerId).single();
+        const { data: seller } = await supabase.from('profiles').select('full_name').eq('id', sellerId).single();
+        const buyerName = buyer?.full_name || 'Buyer';
+        const sellerNamePay = seller?.full_name || 'Seller';
+        
+        // Notify buyer
+        await notifyUser(buyerId, `✅ <b>Payment Successful!</b>\n\n🏠 Property: "${payPropTitle}"\n💰 Amount: ₦${Number(payAmount).toLocaleString()}\n💳 Method: ${paymentMethod || 'Paystack'}\n\n📱 Open Xavorian to view your receipt.`);
+        // Notify seller
+        await notifyUser(sellerId, `💰 <b>Payment Received!</b>\n\n🏠 Property: "${payPropTitle}"\n💰 Amount: ₦${Number(payAmount).toLocaleString()}\n👤 From: ${buyerName}\n\n📱 Open Xavorian to view details.`);
+        // Notify admins
+        await notifyAdmins(`💳 <b>Payment Made</b>\n\n🏠 "${payPropTitle}"\n💰 ₦${Number(payAmount).toLocaleString()}\n👤 Buyer: ${buyerName}\n👤 Seller: ${sellerNamePay}\n💳 ${paymentMethod || 'Paystack'}`);
+        break;
+      }
+
+      case 'payment_verified': {
+        const { buyerId: vBuyerId, sellerId: vSellerId, propertyTitle: vPropTitle, amount: vAmount } = data;
+        const { data: vBuyer } = await supabase.from('profiles').select('full_name').eq('id', vBuyerId).single();
+        
+        await notifyUser(vBuyerId, `✅ <b>Payment Verified!</b>\n\n🏠 "${vPropTitle}"\n💰 ₦${Number(vAmount).toLocaleString()}\n\nYour payment has been verified successfully.`);
+        await notifyUser(vSellerId, `✅ <b>Payment Verified!</b>\n\n🏠 "${vPropTitle}"\n💰 ₦${Number(vAmount).toLocaleString()}\n👤 From: ${vBuyer?.full_name || 'Buyer'}\n\nPayment has been verified.`);
+        await notifyAdmins(`✅ <b>Payment Verified</b>\n\n🏠 "${vPropTitle}"\n💰 ₦${Number(vAmount).toLocaleString()}`);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Unknown type' }), { status: 400, headers: corsHeaders });
     }
