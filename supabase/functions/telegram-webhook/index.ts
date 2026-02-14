@@ -106,9 +106,10 @@ async function handleAdminSetup(chatId: number, username: string) {
 
 async function handleUserLink(chatId: number, username: string, text: string) {
   const email = text.trim().toLowerCase();
-  const { data: profile } = await supabase.from('profiles').select('id, full_name, email').eq('email', email).single();
+  // Use ilike for case-insensitive match
+  const { data: profile } = await supabase.from('profiles').select('id, full_name, email').ilike('email', email).single();
   if (!profile) {
-    await sendTelegram(chatId, '❌ No account found with that email. Please check and try again.');
+    await sendTelegram(chatId, '❌ No account found with that email. Please check and try again.\n\n<i>Note: If you just created your account, please wait a moment and try again.</i>');
     return;
   }
   const { error } = await supabase.from('telegram_user_links').upsert(
@@ -125,7 +126,8 @@ async function handleUserLink(chatId: number, username: string, text: string) {
     {
       keyboard: [
         [{ text: '🏠 My Listings' }, { text: '📊 My Stats' }],
-        [{ text: '⭐ My Promotions' }, { text: '💬 Support' }],
+        [{ text: '⭐ My Promotions' }, { text: '🤝 My Offers' }],
+        [{ text: '💳 My Transactions' }, { text: '💬 Support' }],
       ],
       resize_keyboard: true,
       persistent: true,
@@ -224,6 +226,77 @@ async function handleUserPromotions(chatId: number) {
     }
     await sendTelegram(chatId, msg);
   }
+}
+
+async function handleUserOffers(chatId: number) {
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) { await sendTelegram(chatId, '❌ Account not linked.'); return; }
+
+  const { data: offers } = await supabase
+    .from('escrow_transactions')
+    .select('id, offer_amount, offer_status, offer_message, seller_response, created_at, property:properties(title, price), buyer:profiles!escrow_transactions_buyer_id_fkey(full_name), seller:profiles!escrow_transactions_seller_id_fkey(full_name)')
+    .or(`buyer_id.eq.${link.user_id},seller_id.eq.${link.user_id}`)
+    .not('offer_amount', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!offers || offers.length === 0) {
+    await sendTelegram(chatId, '📭 You have no offers yet.');
+    return;
+  }
+
+  let msg = `🤝 <b>Your Offers (${offers.length})</b>\n\n`;
+  for (const o of offers) {
+    const prop = o.property as any;
+    const buyer = o.buyer as any;
+    const seller = o.seller as any;
+    const statusEmoji = o.offer_status === 'accepted' ? '✅' : o.offer_status === 'rejected' ? '❌' : '⏳';
+    
+    msg += `${statusEmoji} <b>${prop?.title || 'Property'}</b>\n`;
+    msg += `💰 Offer: ₦${Number(o.offer_amount).toLocaleString()} (Listed: ₦${Number(prop?.price || 0).toLocaleString()})\n`;
+    msg += `👤 From: ${buyer?.full_name || 'N/A'} → ${seller?.full_name || 'N/A'}\n`;
+    msg += `📊 Status: <b>${o.offer_status || 'none'}</b>\n`;
+    if (o.offer_message) msg += `💬 "${o.offer_message.substring(0, 80)}${o.offer_message.length > 80 ? '...' : ''}"\n`;
+    if (o.seller_response) msg += `📝 Response: "${o.seller_response.substring(0, 80)}"\n`;
+    msg += `📅 ${new Date(o.created_at).toLocaleDateString()}\n\n`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
+async function handleUserTransactions(chatId: number) {
+  const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
+  if (!link) { await sendTelegram(chatId, '❌ Account not linked.'); return; }
+
+  const { data: transactions } = await supabase
+    .from('purchase_transactions')
+    .select('id, transaction_amount, status, payment_method, created_at, payment_verified_at, property:properties(title), buyer_profile:profiles!purchase_transactions_buyer_id_fkey(full_name), seller_profile:profiles!purchase_transactions_seller_id_fkey(full_name)')
+    .or(`buyer_id.eq.${link.user_id},seller_id.eq.${link.user_id}`)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!transactions || transactions.length === 0) {
+    await sendTelegram(chatId, '📭 You have no transactions yet.');
+    return;
+  }
+
+  let msg = `💳 <b>Your Transactions (${transactions.length})</b>\n\n`;
+  for (const t of transactions) {
+    const prop = t.property as any;
+    const buyer = t.buyer_profile as any;
+    const seller = t.seller_profile as any;
+    const statusEmoji = t.status === 'successful' ? '✅' : t.status === 'pending' ? '⏳' : '❌';
+    
+    msg += `${statusEmoji} <b>${prop?.title || 'Property'}</b>\n`;
+    msg += `💰 ₦${Number(t.transaction_amount).toLocaleString()}\n`;
+    msg += `👤 ${buyer?.full_name || 'N/A'} → ${seller?.full_name || 'N/A'}\n`;
+    msg += `💳 ${t.payment_method === 'paystack' ? 'Paystack' : 'Bank Transfer'}\n`;
+    msg += `📊 Status: <b>${t.status}</b>\n`;
+    if (t.payment_verified_at) msg += `✅ Verified: ${new Date(t.payment_verified_at).toLocaleDateString()}\n`;
+    msg += `📅 ${new Date(t.created_at).toLocaleDateString()}\n\n`;
+  }
+
+  await sendTelegram(chatId, msg);
 }
 
 // ==================== ADMIN COMMANDS ====================
@@ -1057,6 +1130,8 @@ Deno.serve(async (req) => {
           case '🏠 My Listings': await handleUserListings(chatId); break;
           case '📊 My Stats': await handleUserStats(chatId); break;
           case '⭐ My Promotions': await handleUserPromotions(chatId); break;
+          case '🤝 My Offers': await handleUserOffers(chatId); break;
+          case '💳 My Transactions': await handleUserTransactions(chatId); break;
           case '💬 Support':
             await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.');
             break;
@@ -1064,10 +1139,11 @@ Deno.serve(async (req) => {
             if (!text.startsWith('/')) {
               await handleUserReplyToAdmin(chatId, text);
             } else {
-              await sendTelegram(chatId, '📋 Use the menu buttons below to navigate.\n\n🏠 My Listings - View your properties\n📊 My Stats - See your statistics\n⭐ My Promotions - Check promotions\n💬 Support - Message support team');
+              await sendTelegram(chatId, '📋 Use the menu buttons below to navigate.\n\n🏠 My Listings - View your properties\n📊 My Stats - See your statistics\n⭐ My Promotions - Check promotions\n🤝 My Offers - View offers\n💳 My Transactions - Payment history\n💬 Support - Message support team');
             }
         }
       } else {
+        // Not linked - treat as email for linking (case insensitive)
         if (text.includes('@') && text.includes('.')) {
           await handleUserLink(chatId, username, text);
         } else {

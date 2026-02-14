@@ -89,12 +89,14 @@ export const Signup = () => {
 
       if (data.user) {
         // Profile is automatically created by database trigger
-        // Send new user signup notification to Telegram
-        try {
-          await supabase.functions.invoke('telegram-notify', {
-            body: { type: 'new_user', data: { fullName, email, accountType } },
-          });
-        } catch (e) { console.error('Telegram notify error:', e); }
+        // Delay Telegram notification to allow profile trigger to complete
+        setTimeout(async () => {
+          try {
+            await supabase.functions.invoke('telegram-notify', {
+              body: { type: 'new_user', data: { fullName, email, accountType, userId: data.user!.id } },
+            });
+          } catch (e) { console.error('Telegram notify error:', e); }
+        }, 2000);
         
         // Move to KYC step
         setStep(2);
