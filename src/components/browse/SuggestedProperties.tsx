@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Star } from 'lucide-react';
 import { useRef } from 'react';
+import { Badge } from '@/components/ui/badge';
 
 interface SuggestedProperty {
   id: string;
@@ -9,6 +10,7 @@ interface SuggestedProperty {
   price: number;
   location: string;
   bedrooms: number;
+  isPromoted?: boolean;
 }
 
 interface SuggestedPropertiesProps {
@@ -81,6 +83,14 @@ export const SuggestedProperties = ({ properties }: SuggestedPropertiesProps) =>
                   alt={property.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+                {property.isPromoted && (
+                  <div className="absolute top-2 left-2 z-10">
+                    <Badge className="bg-primary/90 backdrop-blur-sm text-primary-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
+                      <Star className="h-3 w-3 fill-current" />
+                      Promoted
+                    </Badge>
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <h3 className="font-semibold text-base line-clamp-1">

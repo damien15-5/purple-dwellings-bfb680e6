@@ -163,16 +163,8 @@ export const PropertyCard = memo(({
             containerClassName="w-full h-full"
           />
 
-          {featured && (
-            <div className="absolute top-2 left-2 z-10">
-              <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5">
-                Guest favorite
-              </Badge>
-            </div>
-          )}
-
           {isPromoted && (
-            <div className={`absolute ${featured ? 'top-8' : 'top-2'} left-2 z-10`}>
+            <div className="absolute top-2 left-2 z-10">
               <Badge className="bg-primary/90 backdrop-blur-sm text-primary-foreground border-0 shadow-sm font-medium text-xs px-2 py-0.5 gap-1">
                 <Star className="h-3 w-3 fill-current" />
                 Promoted

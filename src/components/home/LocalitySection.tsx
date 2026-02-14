@@ -13,6 +13,7 @@ type Property = {
   type: string;
   status: string;
   distance?: string;
+  isPromoted?: boolean;
 };
 
 type LocalitySectionProps = {
@@ -67,6 +68,7 @@ export const LocalitySection = ({ properties, userLocation = "Lagos", onProperty
                 key={property.id}
                 {...property}
                 variant="medium"
+                isPromoted={property.isPromoted}
                 onView={() => onPropertyView(property.id)}
               />
             ))}

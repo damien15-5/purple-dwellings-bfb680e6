@@ -14,6 +14,7 @@ type Property = {
   status: string;
   views: number;
   clicks: number;
+  isPromoted?: boolean;
 };
 
 type FeaturedPropertiesSectionProps = {
@@ -67,8 +68,9 @@ export const FeaturedPropertiesSection = ({ properties, onPropertyView }: Featur
                 key={property.id}
                 {...property}
                 variant="large"
-                featured={true}
-                priority={index < 3} // Prioritize first 3 images
+                featured={false}
+                isPromoted={property.isPromoted}
+                priority={index < 3}
                 onView={() => onPropertyView(property.id)}
               />
             ))}

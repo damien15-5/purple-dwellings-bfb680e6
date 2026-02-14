@@ -11,6 +11,7 @@ type Property = {
   type: string;
   status: string;
   matchScore?: number;
+  isPromoted?: boolean;
 };
 
 type RecommendationsSectionProps = {
@@ -58,6 +59,7 @@ export const RecommendationsSection = ({ properties, onPropertyView }: Recommend
                 key={property.id}
                 {...property}
                 variant="medium"
+                isPromoted={property.isPromoted}
                 onView={() => onPropertyView(property.id)}
               />
             ))}
