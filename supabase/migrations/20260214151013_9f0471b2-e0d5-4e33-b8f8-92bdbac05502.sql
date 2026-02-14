@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_admin_chats ADD COLUMN IF NOT EXISTS reply_target_user_id uuid;

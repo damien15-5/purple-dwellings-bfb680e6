@@ -335,6 +335,7 @@ export const UploadListing = () => {
               state: formData.state,
               city: formData.city,
               userId,
+              images: imageUrls,
             },
           }),
         });
