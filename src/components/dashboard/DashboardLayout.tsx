@@ -7,8 +7,7 @@ import {
   ListChecks, 
   Heart, 
   Handshake, 
-  Lock, 
-  FileCheck, 
+  CreditCard, 
   Bell, 
   MessageSquare, 
   HelpCircle,
@@ -21,14 +20,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
 const navItems = [
-  { to: '/dashboard', icon: Home, label: 'Home', end: true },
+  { to: '/dashboard', icon: Home, label: 'Dashboard', end: true },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
   { to: '/dashboard/verification', icon: Shield, label: 'Verification' },
   { to: '/dashboard/my-listings', icon: ListChecks, label: 'My Listings' },
   { to: '/dashboard/saved', icon: Heart, label: 'Saved Properties' },
   { to: '/dashboard/offers', icon: Handshake, label: 'Offers & Negotiations' },
-  { to: '/dashboard/escrow', icon: Lock, label: 'Transactions' },
-  { to: '/dashboard/documents', icon: FileCheck, label: 'Document Verification' },
+  { to: '/dashboard/transactions', icon: CreditCard, label: 'Transactions' },
   { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
   { to: '/dashboard/messages', icon: MessageSquare, label: 'Messages' },
   { to: '/dashboard/help', icon: HelpCircle, label: 'Help & Support' },

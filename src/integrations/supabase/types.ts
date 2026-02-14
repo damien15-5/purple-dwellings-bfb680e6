@@ -1014,6 +1014,88 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_transactions: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string
+          payment_timing: string
+          payment_verified_at: string | null
+          paystack_access_code: string | null
+          paystack_reference: string | null
+          property_id: string | null
+          seller_account_name: string | null
+          seller_account_number: string | null
+          seller_bank_name: string | null
+          seller_id: string
+          status: string
+          transaction_amount: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_timing?: string
+          payment_verified_at?: string | null
+          paystack_access_code?: string | null
+          paystack_reference?: string | null
+          property_id?: string | null
+          seller_account_name?: string | null
+          seller_account_number?: string | null
+          seller_bank_name?: string | null
+          seller_id: string
+          status?: string
+          transaction_amount: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_timing?: string
+          payment_verified_at?: string | null
+          paystack_access_code?: string | null
+          paystack_reference?: string | null
+          property_id?: string | null
+          seller_account_name?: string | null
+          seller_account_number?: string | null
+          seller_bank_name?: string | null
+          seller_id?: string
+          status?: string
+          transaction_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_transactions_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_transactions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_transactions_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_properties: {
         Row: {
           created_at: string | null
