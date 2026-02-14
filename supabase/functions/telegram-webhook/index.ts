@@ -6,7 +6,6 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-// The ONE admin chat ID - only the first admin to register is accepted
 const MAX_ADMINS = 1;
 
 const corsHeaders = {
@@ -36,6 +35,17 @@ async function sendPhoto(chatId: number, photoUrl: string, caption?: string, rep
   });
 }
 
+async function sendDocument(chatId: number, fileBuffer: Uint8Array, filename: string, caption?: string) {
+  const formData = new FormData();
+  formData.append('chat_id', chatId.toString());
+  formData.append('document', new Blob([fileBuffer]), filename);
+  if (caption) formData.append('caption', caption);
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendDocument`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 async function getSignedUrl(bucket: string, path: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
   if (error) { console.error('Signed URL error:', error); return null; }
@@ -47,8 +57,6 @@ async function getPublicUrl(bucket: string, path: string): string {
   return data.publicUrl;
 }
 
-// State for admin messaging - stored as a simple map in memory per request
-// We use a DB approach: store pending reply target in telegram_admin_chats
 async function setAdminReplyTarget(chatId: number, targetUserId: string) {
   await supabase.from('telegram_admin_chats').update({ reply_target_user_id: targetUserId } as any).eq('chat_id', chatId);
 }
@@ -63,11 +71,9 @@ async function clearAdminReplyTarget(chatId: number) {
 }
 
 async function handleAdminSetup(chatId: number, username: string) {
-  // Check if max admins already registered
   const { count } = await supabase.from('telegram_admin_chats').select('*', { count: 'exact', head: true }).eq('is_active', true);
   
   if ((count || 0) >= MAX_ADMINS) {
-    // Check if THIS chat is already the admin
     const { data: existing } = await supabase.from('telegram_admin_chats').select('id').eq('chat_id', chatId).eq('is_active', true).single();
     if (!existing) {
       await sendTelegram(chatId, '❌ <b>Access Denied</b>\n\nAdmin registration is locked. Only the platform owner can be registered as admin.');
@@ -84,12 +90,13 @@ async function handleAdminSetup(chatId: number, username: string) {
     return;
   }
   await sendTelegram(chatId, 
-    '✅ <b>Admin registered!</b>\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below to manage the platform.\n\nTo message a user, use: /msg user_email message',
+    '✅ <b>Admin registered!</b>\n\nYou will now receive notifications for:\n• 🔐 KYC submissions\n• 🏠 New listings\n• 🎫 Support tickets\n• ⭐ Property promotions\n• 👤 New user signups\n\nUse the menu below to manage the platform.\n\n<b>Search Commands:</b>\n/searchuser name or email\n/searchkyc name or status\n/searchlisting title or city\n/searchpromo title\n\n<b>Export Commands:</b>\n/exportusers\n/exportkyc\n/exportlistings\n/exportpromos\n\nTo message a user: /msg email message',
     {
       keyboard: [
         [{ text: '📊 Dashboard Stats' }, { text: '🔐 Pending KYC' }],
         [{ text: '🎫 Open Tickets' }, { text: '🏠 Recent Listings' }],
         [{ text: '👤 Total Users' }, { text: '⭐ Active Promotions' }],
+        [{ text: '🔍 Search Help' }],
       ],
       resize_keyboard: true,
       persistent: true,
@@ -125,6 +132,8 @@ async function handleUserLink(chatId: number, username: string, text: string) {
     }
   );
 }
+
+// ==================== USER COMMANDS ====================
 
 async function handleUserListings(chatId: number) {
   const { data: link } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
@@ -201,8 +210,7 @@ async function handleUserPromotions(chatId: number) {
     const isActive = p.is_active && new Date(p.expires_at) > new Date();
     const remaining = Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     
-    // Hyped views (3.5x to 8.5x)
-    const hash = Math.abs([...p.property_id].reduce((a, c) => ((a << 5) - a) + c.charCodeAt(0), 0));
+    const hash = Math.abs([...p.property_id].reduce((a: number, c: string) => ((a << 5) - a) + c.charCodeAt(0), 0));
     const multiplier = 3.5 + ((hash % 1000) / 1000) * 5;
     const hypedViews = Math.round(((prop?.views || 1)) * multiplier);
 
@@ -217,6 +225,8 @@ async function handleUserPromotions(chatId: number) {
     await sendTelegram(chatId, msg);
   }
 }
+
+// ==================== ADMIN COMMANDS ====================
 
 async function handleDashboardStats(chatId: number) {
   const [users, listings, pendingKyc, openTickets, activePromos] = await Promise.all([
@@ -258,20 +268,13 @@ async function handlePendingKYC(chatId: number) {
     msg += `📅 Submitted: ${kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString() : 'N/A'}`;
     if (tgLink?.username) msg += `\n📱 Telegram: @${tgLink.username}`;
 
-    // Send document image
     if (kyc.document_image_url) {
       const signedUrl = await getSignedUrl('kyc-documents', kyc.document_image_url);
-      if (signedUrl) {
-        await sendPhoto(chatId, signedUrl, `📄 <b>ID Document</b> - ${kyc.full_name || 'User'}`);
-      }
+      if (signedUrl) await sendPhoto(chatId, signedUrl, `📄 <b>ID Document</b> - ${kyc.full_name || 'User'}`);
     }
-
-    // Send selfie image
     if (kyc.selfie_url) {
       const signedUrl = await getSignedUrl('kyc-documents', kyc.selfie_url);
-      if (signedUrl) {
-        await sendPhoto(chatId, signedUrl, `🤳 <b>Selfie</b> - ${kyc.full_name || 'User'}`);
-      }
+      if (signedUrl) await sendPhoto(chatId, signedUrl, `🤳 <b>Selfie</b> - ${kyc.full_name || 'User'}`);
     }
 
     await sendTelegram(chatId, msg, {
@@ -280,9 +283,7 @@ async function handlePendingKYC(chatId: number) {
           { text: '✅ Approve', callback_data: `kyc_approve_${kyc.id}` },
           { text: '❌ Reject', callback_data: `kyc_reject_${kyc.id}` },
         ],
-        [
-          { text: '💬 Message User', callback_data: `msg_user_${kyc.user_id}` },
-        ],
+        [{ text: '💬 Message User', callback_data: `msg_user_${kyc.user_id}` }],
       ],
     });
   }
@@ -321,9 +322,7 @@ async function handleOpenTickets(chatId: number) {
           { text: '✅ Resolve', callback_data: `ticket_resolve_${ticket.source}_${ticket.id}` },
           { text: '📝 In Progress', callback_data: `ticket_progress_${ticket.source}_${ticket.id}` },
         ],
-        [
-          { text: '💬 Message User', callback_data: `msg_user_${ticket.user_id}` },
-        ],
+        [{ text: '💬 Message User', callback_data: `msg_user_${ticket.user_id}` }],
       ],
     });
   }
@@ -344,10 +343,8 @@ async function handleRecentListings(chatId: number) {
   for (const p of listings) {
     const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', p.user_id).single();
     
-    // Send first image if available
     if (p.images && p.images.length > 0) {
       const imgUrl = p.images[0];
-      // Property images are in public bucket
       const fullUrl = imgUrl.startsWith('http') ? imgUrl : getPublicUrl('property-images', imgUrl);
       await sendPhoto(chatId, fullUrl, `🏠 <b>${p.title}</b>\n💰 ₦${Number(p.price).toLocaleString()}\n📍 ${p.city || ''}, ${p.state || ''}`);
     }
@@ -361,9 +358,7 @@ async function handleRecentListings(chatId: number) {
     msg += `📅 Listed: ${new Date(p.created_at).toLocaleDateString()}`;
 
     await sendTelegram(chatId, msg, {
-      inline_keyboard: [[
-        { text: '💬 Message Seller', callback_data: `msg_user_${p.user_id}` },
-      ]],
+      inline_keyboard: [[{ text: '💬 Message Seller', callback_data: `msg_user_${p.user_id}` }]],
     });
   }
 }
@@ -380,6 +375,7 @@ async function handleTotalUsers(chatId: number) {
   (recent || []).forEach((u, i) => {
     msg += `${i + 1}. ${u.full_name} (${u.email}) - ${new Date(u.created_at!).toLocaleDateString()}\n`;
   });
+  msg += `\n<i>Search: /searchuser name or email\nExport: /exportusers</i>`;
 
   await sendTelegram(chatId, msg);
 }
@@ -404,9 +400,382 @@ async function handleActivePromotions(chatId: number) {
     msg += `💰 ₦${Number(p.amount_paid).toLocaleString()} for ${p.days_promoted} days\n`;
     msg += `📅 Expires: ${new Date(p.expires_at).toLocaleDateString()}\n\n`;
   }
+  msg += `<i>Search: /searchpromo title\nExport: /exportpromos</i>`;
 
   await sendTelegram(chatId, msg);
 }
+
+// ==================== SEARCH COMMANDS ====================
+
+async function handleSearchUsers(chatId: number, query: string) {
+  if (!query.trim()) {
+    await sendTelegram(chatId, '📝 Usage: /searchuser <name or email>\n\nExample:\n/searchuser john\n/searchuser john@gmail.com');
+    return;
+  }
+
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, phone, account_type, created_at')
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!users || users.length === 0) {
+    await sendTelegram(chatId, `🔍 No users found for "<b>${query}</b>".`);
+    return;
+  }
+
+  let msg = `🔍 <b>User Search: "${query}"</b>\nFound: ${users.length} result(s)\n\n`;
+  for (const u of users) {
+    // Get KYC status
+    const { data: kyc } = await supabase.from('kyc_documents').select('status').eq('user_id', u.id).single();
+    const { count: listingsCount } = await supabase.from('properties').select('*', { count: 'exact', head: true }).eq('user_id', u.id);
+    
+    msg += `👤 <b>${u.full_name}</b>\n`;
+    msg += `📧 ${u.email}\n`;
+    msg += `📱 ${u.phone || 'No phone'}\n`;
+    msg += `🏷 Account: ${u.account_type || 'buyer'}\n`;
+    msg += `🔐 KYC: ${kyc?.status || 'none'}\n`;
+    msg += `🏠 Listings: ${listingsCount || 0}\n`;
+    msg += `📅 Joined: ${new Date(u.created_at!).toLocaleDateString()}\n\n`;
+  }
+
+  await sendTelegram(chatId, msg, {
+    inline_keyboard: users.slice(0, 3).map(u => ([
+      { text: `💬 Message ${u.full_name.split(' ')[0]}`, callback_data: `msg_user_${u.id}` },
+    ])),
+  });
+}
+
+async function handleSearchKYC(chatId: number, query: string) {
+  if (!query.trim()) {
+    await sendTelegram(chatId, '📝 Usage: /searchkyc <name, email, or status>\n\nStatus options: pending, verified, rejected\n\nExamples:\n/searchkyc pending\n/searchkyc john\n/searchkyc verified');
+    return;
+  }
+
+  const statusFilter = ['pending', 'verified', 'rejected'].includes(query.toLowerCase());
+  
+  let kycQuery = supabase
+    .from('kyc_documents')
+    .select('id, user_id, full_name, identity_type, identity_number, status, submitted_at, document_image_url, selfie_url')
+    .order('submitted_at', { ascending: false })
+    .limit(10);
+
+  if (statusFilter) {
+    kycQuery = kycQuery.eq('status', query.toLowerCase());
+  } else {
+    kycQuery = kycQuery.or(`full_name.ilike.%${query}%,identity_number.ilike.%${query}%`);
+  }
+
+  const { data: kycResults } = await kycQuery;
+
+  if (!kycResults || kycResults.length === 0) {
+    // If searching by name didn't work, try by email via profiles
+    if (!statusFilter) {
+      const { data: profiles } = await supabase.from('profiles').select('id').ilike('email', `%${query}%`).limit(10);
+      if (profiles && profiles.length > 0) {
+        const userIds = profiles.map(p => p.id);
+        const { data: kycByEmail } = await supabase
+          .from('kyc_documents')
+          .select('id, user_id, full_name, identity_type, identity_number, status, submitted_at, document_image_url, selfie_url')
+          .in('user_id', userIds)
+          .limit(10);
+        
+        if (kycByEmail && kycByEmail.length > 0) {
+          await displayKYCResults(chatId, kycByEmail, query);
+          return;
+        }
+      }
+    }
+    await sendTelegram(chatId, `🔍 No KYC records found for "<b>${query}</b>".`);
+    return;
+  }
+
+  await displayKYCResults(chatId, kycResults, query);
+}
+
+async function displayKYCResults(chatId: number, results: any[], query: string) {
+  await sendTelegram(chatId, `🔍 <b>KYC Search: "${query}"</b>\nFound: ${results.length} result(s)\n`);
+
+  for (const kyc of results) {
+    const { data: profile } = await supabase.from('profiles').select('email').eq('id', kyc.user_id).single();
+    const statusEmoji = kyc.status === 'verified' ? '✅' : kyc.status === 'pending' ? '⏳' : '❌';
+
+    if (kyc.document_image_url) {
+      const signedUrl = await getSignedUrl('kyc-documents', kyc.document_image_url);
+      if (signedUrl) await sendPhoto(chatId, signedUrl, `📄 ID - ${kyc.full_name || 'User'}`);
+    }
+    if (kyc.selfie_url) {
+      const signedUrl = await getSignedUrl('kyc-documents', kyc.selfie_url);
+      if (signedUrl) await sendPhoto(chatId, signedUrl, `🤳 Selfie - ${kyc.full_name || 'User'}`);
+    }
+
+    let msg = `${statusEmoji} <b>${kyc.full_name || 'N/A'}</b>\n`;
+    msg += `📧 ${profile?.email || 'N/A'}\n`;
+    msg += `🪪 ${kyc.identity_type || 'N/A'} - ${kyc.identity_number || 'N/A'}\n`;
+    msg += `📊 Status: <b>${kyc.status}</b>\n`;
+    msg += `📅 ${kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString() : 'N/A'}`;
+
+    const buttons: any[] = [
+      [{ text: '💬 Message User', callback_data: `msg_user_${kyc.user_id}` }],
+    ];
+    if (kyc.status === 'pending') {
+      buttons.unshift([
+        { text: '✅ Approve', callback_data: `kyc_approve_${kyc.id}` },
+        { text: '❌ Reject', callback_data: `kyc_reject_${kyc.id}` },
+      ]);
+    }
+
+    await sendTelegram(chatId, msg, { inline_keyboard: buttons });
+  }
+}
+
+async function handleSearchListings(chatId: number, query: string) {
+  if (!query.trim()) {
+    await sendTelegram(chatId, '📝 Usage: /searchlisting <title, city, state, or status>\n\nStatus options: published, draft, pending\n\nExamples:\n/searchlisting Lagos\n/searchlisting 3 bedroom\n/searchlisting published');
+    return;
+  }
+
+  const statusFilter = ['published', 'draft', 'pending'].includes(query.toLowerCase());
+
+  let listingQuery = supabase
+    .from('properties')
+    .select('id, title, price, property_type, state, city, status, created_at, user_id, images, views, clicks')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (statusFilter) {
+    listingQuery = listingQuery.eq('status', query.toLowerCase());
+  } else {
+    listingQuery = listingQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,address.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%,property_type.ilike.%${query}%`);
+  }
+
+  const { data: listings } = await listingQuery;
+
+  if (!listings || listings.length === 0) {
+    await sendTelegram(chatId, `🔍 No listings found for "<b>${query}</b>".`);
+    return;
+  }
+
+  await sendTelegram(chatId, `🔍 <b>Listing Search: "${query}"</b>\nFound: ${listings.length} result(s)\n`);
+
+  for (const p of listings) {
+    const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', p.user_id).single();
+
+    if (p.images && p.images.length > 0) {
+      const imgUrl = p.images[0];
+      const fullUrl = imgUrl.startsWith('http') ? imgUrl : getPublicUrl('property-images', imgUrl);
+      await sendPhoto(chatId, fullUrl, `🏠 ${p.title}`);
+    }
+
+    let msg = `🏠 <b>${p.title}</b>\n`;
+    msg += `💰 ₦${Number(p.price).toLocaleString()}\n`;
+    msg += `📍 ${p.city || ''}, ${p.state || ''}\n`;
+    msg += `🏷 ${p.property_type} | 📊 ${p.status}\n`;
+    msg += `👀 ${p.views || 0} views | 👆 ${p.clicks || 0} clicks\n`;
+    msg += `👤 ${owner?.full_name || 'N/A'} (${owner?.email || 'N/A'})\n`;
+    msg += `📅 ${new Date(p.created_at).toLocaleDateString()}`;
+
+    await sendTelegram(chatId, msg, {
+      inline_keyboard: [[{ text: '💬 Message Seller', callback_data: `msg_user_${p.user_id}` }]],
+    });
+  }
+}
+
+async function handleSearchPromotions(chatId: number, query: string) {
+  if (!query.trim()) {
+    await sendTelegram(chatId, '📝 Usage: /searchpromo <property title or user email>\n\nExamples:\n/searchpromo luxury\n/searchpromo john@email.com');
+    return;
+  }
+
+  // Search by property title
+  const { data: promos } = await supabase
+    .from('property_promotions')
+    .select('*, properties(title, price, state, city, views)')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Filter by query matching property title or user
+  const filtered = (promos || []).filter(p => {
+    const prop = p.properties as any;
+    return (prop?.title || '').toLowerCase().includes(query.toLowerCase());
+  });
+
+  // Also search by user email
+  if (filtered.length === 0) {
+    const { data: profiles } = await supabase.from('profiles').select('id').ilike('email', `%${query}%`).limit(5);
+    if (profiles && profiles.length > 0) {
+      const { data: userPromos } = await supabase
+        .from('property_promotions')
+        .select('*, properties(title, price, state, city, views)')
+        .in('user_id', profiles.map(p => p.id))
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (userPromos && userPromos.length > 0) {
+        await displayPromoResults(chatId, userPromos, query);
+        return;
+      }
+    }
+    await sendTelegram(chatId, `🔍 No promotions found for "<b>${query}</b>".`);
+    return;
+  }
+
+  await displayPromoResults(chatId, filtered, query);
+}
+
+async function displayPromoResults(chatId: number, promos: any[], query: string) {
+  let msg = `🔍 <b>Promotion Search: "${query}"</b>\nFound: ${promos.length} result(s)\n\n`;
+
+  for (const p of promos) {
+    const prop = p.properties as any;
+    const isActive = p.is_active && new Date(p.expires_at) > new Date();
+    const remaining = Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', p.user_id).single();
+
+    msg += `${isActive ? '🟢' : '🔴'} <b>${prop?.title || 'N/A'}</b>\n`;
+    msg += `👤 ${owner?.full_name || 'N/A'} (${owner?.email || 'N/A'})\n`;
+    msg += `💰 ₦${Number(p.amount_paid).toLocaleString()} for ${p.days_promoted} days\n`;
+    msg += `📅 Expires: ${new Date(p.expires_at).toLocaleDateString()}`;
+    if (isActive) msg += ` (${remaining}d left)`;
+    msg += `\n\n`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
+// ==================== CSV EXPORT COMMANDS ====================
+
+async function handleExportUsers(chatId: number) {
+  await sendTelegram(chatId, '⏳ Generating users CSV...');
+
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, phone, account_type, created_at')
+    .order('created_at', { ascending: false });
+
+  if (!users || users.length === 0) {
+    await sendTelegram(chatId, '📭 No users to export.');
+    return;
+  }
+
+  // Get KYC status for each
+  const rows: string[] = ['Name,Email,Phone,Account Type,KYC Status,Listings,Joined'];
+  for (const u of users) {
+    const { data: kyc } = await supabase.from('kyc_documents').select('status').eq('user_id', u.id).single();
+    const { count } = await supabase.from('properties').select('*', { count: 'exact', head: true }).eq('user_id', u.id);
+    
+    const name = (u.full_name || '').replace(/,/g, ' ');
+    rows.push(`"${name}","${u.email}","${u.phone || ''}","${u.account_type || 'buyer'}","${kyc?.status || 'none'}","${count || 0}","${new Date(u.created_at!).toLocaleDateString()}"`);
+  }
+
+  const csv = rows.join('\n');
+  const encoder = new TextEncoder();
+  const buffer = encoder.encode(csv);
+  await sendDocument(chatId, buffer, `xavorian_users_${new Date().toISOString().split('T')[0]}.csv`, `📊 Users Export - ${users.length} records`);
+}
+
+async function handleExportKYC(chatId: number) {
+  await sendTelegram(chatId, '⏳ Generating KYC CSV...');
+
+  const { data: kycRecords } = await supabase
+    .from('kyc_documents')
+    .select('user_id, full_name, identity_type, identity_number, status, submitted_at, verified_at, state, lga')
+    .order('submitted_at', { ascending: false });
+
+  if (!kycRecords || kycRecords.length === 0) {
+    await sendTelegram(chatId, '📭 No KYC records to export.');
+    return;
+  }
+
+  const rows: string[] = ['Name,Email,ID Type,ID Number,Status,State,LGA,Submitted,Verified'];
+  for (const k of kycRecords) {
+    const { data: profile } = await supabase.from('profiles').select('email').eq('id', k.user_id).single();
+    const name = (k.full_name || '').replace(/,/g, ' ');
+    rows.push(`"${name}","${profile?.email || ''}","${k.identity_type || ''}","${k.identity_number || ''}","${k.status || ''}","${k.state || ''}","${k.lga || ''}","${k.submitted_at ? new Date(k.submitted_at).toLocaleDateString() : ''}","${k.verified_at ? new Date(k.verified_at).toLocaleDateString() : ''}"`);
+  }
+
+  const csv = rows.join('\n');
+  const buffer = new TextEncoder().encode(csv);
+  await sendDocument(chatId, buffer, `xavorian_kyc_${new Date().toISOString().split('T')[0]}.csv`, `🔐 KYC Export - ${kycRecords.length} records`);
+}
+
+async function handleExportListings(chatId: number) {
+  await sendTelegram(chatId, '⏳ Generating listings CSV...');
+
+  const { data: listings } = await supabase
+    .from('properties')
+    .select('id, title, price, property_type, state, city, status, views, clicks, created_at, user_id')
+    .order('created_at', { ascending: false });
+
+  if (!listings || listings.length === 0) {
+    await sendTelegram(chatId, '📭 No listings to export.');
+    return;
+  }
+
+  const rows: string[] = ['Title,Price,Type,City,State,Status,Views,Clicks,Owner,Email,Listed'];
+  for (const p of listings) {
+    const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', p.user_id).single();
+    const title = (p.title || '').replace(/,/g, ' ');
+    rows.push(`"${title}","₦${Number(p.price).toLocaleString()}","${p.property_type}","${p.city || ''}","${p.state || ''}","${p.status}","${p.views || 0}","${p.clicks || 0}","${(owner?.full_name || '').replace(/,/g, ' ')}","${owner?.email || ''}","${new Date(p.created_at).toLocaleDateString()}"`);
+  }
+
+  const csv = rows.join('\n');
+  const buffer = new TextEncoder().encode(csv);
+  await sendDocument(chatId, buffer, `xavorian_listings_${new Date().toISOString().split('T')[0]}.csv`, `🏠 Listings Export - ${listings.length} records`);
+}
+
+async function handleExportPromotions(chatId: number) {
+  await sendTelegram(chatId, '⏳ Generating promotions CSV...');
+
+  const { data: promos } = await supabase
+    .from('property_promotions')
+    .select('*, properties(title, price)')
+    .order('created_at', { ascending: false });
+
+  if (!promos || promos.length === 0) {
+    await sendTelegram(chatId, '📭 No promotions to export.');
+    return;
+  }
+
+  const rows: string[] = ['Property,Amount Paid,Days,Started,Expires,Active,Owner Email'];
+  for (const p of promos) {
+    const prop = p.properties as any;
+    const { data: owner } = await supabase.from('profiles').select('email').eq('id', p.user_id).single();
+    const isActive = p.is_active && new Date(p.expires_at) > new Date();
+    rows.push(`"${(prop?.title || '').replace(/,/g, ' ')}","₦${Number(p.amount_paid).toLocaleString()}","${p.days_promoted}","${new Date(p.started_at).toLocaleDateString()}","${new Date(p.expires_at).toLocaleDateString()}","${isActive ? 'Yes' : 'No'}","${owner?.email || ''}"`);
+  }
+
+  const csv = rows.join('\n');
+  const buffer = new TextEncoder().encode(csv);
+  await sendDocument(chatId, buffer, `xavorian_promotions_${new Date().toISOString().split('T')[0]}.csv`, `⭐ Promotions Export - ${promos.length} records`);
+}
+
+// ==================== SEARCH HELP ====================
+
+async function handleSearchHelp(chatId: number) {
+  await sendTelegram(chatId, 
+    `🔍 <b>Search & Export Commands</b>\n\n` +
+    `<b>Search:</b>\n` +
+    `/searchuser <name or email>\n` +
+    `/searchkyc <name, email, or status>\n` +
+    `/searchlisting <title, city, or status>\n` +
+    `/searchpromo <property title or email>\n\n` +
+    `<b>KYC Status filters:</b> pending, verified, rejected\n` +
+    `<b>Listing Status filters:</b> published, draft, pending\n\n` +
+    `<b>Export as CSV:</b>\n` +
+    `/exportusers - All users\n` +
+    `/exportkyc - All KYC records\n` +
+    `/exportlistings - All listings\n` +
+    `/exportpromos - All promotions\n\n` +
+    `<b>Messaging:</b>\n` +
+    `/msg email@example.com Your message\n` +
+    `/cancel - Stop messaging mode`
+  );
+}
+
+// ==================== GENERAL SEARCH ====================
 
 async function handleSearch(chatId: number, query: string) {
   const { data: properties } = await supabase
@@ -438,11 +807,13 @@ async function handleSearch(chatId: number, query: string) {
   if ((!properties || properties.length === 0) && (!users || users.length === 0)) {
     msg += 'No results found.';
   }
+  msg += `\n<i>For detailed search use:\n/searchuser, /searchkyc, /searchlisting, /searchpromo</i>`;
   await sendTelegram(chatId, msg);
 }
 
+// ==================== MESSAGING ====================
+
 async function handleAdminMessage(chatId: number, text: string) {
-  // /msg email@example.com Hello there
   const parts = text.replace('/msg ', '').trim();
   const spaceIdx = parts.indexOf(' ');
   if (spaceIdx === -1) {
@@ -469,11 +840,12 @@ async function handleAdminMessage(chatId: number, text: string) {
 }
 
 async function handleDirectMessageToUser(chatId: number, userId: string) {
-  // Set reply target so next admin text goes to this user
   await setAdminReplyTarget(chatId, userId);
   const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', userId).single();
   await sendTelegram(chatId, `💬 You're now messaging <b>${profile?.full_name || 'User'}</b> (${profile?.email || 'N/A'}).\n\nType your message and it will be sent to them.\n\nType /cancel to stop messaging.`);
 }
+
+// ==================== CALLBACKS ====================
 
 async function handleCallbackQuery(callbackQuery: any) {
   const data = callbackQuery.data as string;
@@ -490,9 +862,7 @@ async function handleCallbackQuery(callbackQuery: any) {
 
     if (kyc?.user_id) {
       const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', kyc.user_id).single();
-      if (link) {
-        await sendTelegram(link.chat_id, '🎉 <b>Your KYC verification has been approved!</b>\n\nYou can now upload property listings on Xavorian.');
-      }
+      if (link) await sendTelegram(link.chat_id, '🎉 <b>Your KYC verification has been approved!</b>\n\nYou can now upload property listings on Xavorian.');
     }
   } else if (data.startsWith('kyc_reject_')) {
     const kycId = data.replace('kyc_reject_', '');
@@ -502,9 +872,7 @@ async function handleCallbackQuery(callbackQuery: any) {
 
     if (kyc?.user_id) {
       const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', kyc.user_id).single();
-      if (link) {
-        await sendTelegram(link.chat_id, '❌ <b>Your KYC verification was rejected.</b>\n\nPlease resubmit with clearer documents.');
-      }
+      if (link) await sendTelegram(link.chat_id, '❌ <b>Your KYC verification was rejected.</b>\n\nPlease resubmit with clearer documents.');
     }
   } else if (data.startsWith('ticket_resolve_')) {
     const parts = data.replace('ticket_resolve_', '').split('_');
@@ -535,13 +903,10 @@ async function isAdmin(chatId: number): Promise<boolean> {
 }
 
 async function handleUserReplyToAdmin(chatId: number, text: string) {
-  // A linked user is replying - forward to admin
   const { data: link } = await supabase.from('telegram_user_links').select('user_id, username').eq('chat_id', chatId).eq('is_verified', true).single();
   if (!link) return false;
 
   const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', link.user_id).single();
-  
-  // Get admin chat ids
   const { data: admins } = await supabase.from('telegram_admin_chats').select('chat_id').eq('is_active', true);
   if (!admins || admins.length === 0) return false;
 
@@ -551,6 +916,8 @@ async function handleUserReplyToAdmin(chatId: number, text: string) {
   await sendTelegram(chatId, '✅ Your message has been sent to Xavorian Support.');
   return true;
 }
+
+// ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -575,7 +942,6 @@ Deno.serve(async (req) => {
   try {
     const update = await req.json();
     
-    // Handle webhook setup request
     if (update.setup_webhook === true) {
       const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-webhook`;
       const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook`, {
@@ -616,23 +982,44 @@ Deno.serve(async (req) => {
     const adminCheck = await isAdmin(chatId);
 
     if (adminCheck) {
-      // Check if /cancel
       if (text === '/cancel') {
         await clearAdminReplyTarget(chatId);
         await sendTelegram(chatId, '✅ Messaging mode cancelled.');
         return new Response('OK', { headers: corsHeaders });
       }
 
-      // Check if /msg command
       if (text.startsWith('/msg ')) {
         await handleAdminMessage(chatId, text);
         return new Response('OK', { headers: corsHeaders });
       }
 
-      // Check if admin is in reply mode
+      // Search commands
+      if (text.startsWith('/searchuser ')) {
+        await handleSearchUsers(chatId, text.replace('/searchuser ', '').trim());
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text.startsWith('/searchkyc ')) {
+        await handleSearchKYC(chatId, text.replace('/searchkyc ', '').trim());
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text.startsWith('/searchlisting ')) {
+        await handleSearchListings(chatId, text.replace('/searchlisting ', '').trim());
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text.startsWith('/searchpromo ')) {
+        await handleSearchPromotions(chatId, text.replace('/searchpromo ', '').trim());
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Export commands
+      if (text === '/exportusers') { await handleExportUsers(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text === '/exportkyc') { await handleExportKYC(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text === '/exportlistings') { await handleExportListings(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text === '/exportpromos') { await handleExportPromotions(chatId); return new Response('OK', { headers: corsHeaders }); }
+
+      // Check reply mode
       const replyTarget = await getAdminReplyTarget(chatId);
       if (replyTarget) {
-        // Send message to user
         const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', replyTarget).eq('is_verified', true).single();
         if (link) {
           await sendTelegram(link.chat_id, `📩 <b>Message from Xavorian Support</b>\n\n${text}\n\n<i>Reply to respond.</i>`);
@@ -643,7 +1030,7 @@ Deno.serve(async (req) => {
         return new Response('OK', { headers: corsHeaders });
       }
 
-      // Regular admin commands
+      // Menu button commands
       switch (text) {
         case '📊 Dashboard Stats': await handleDashboardStats(chatId); break;
         case '🔐 Pending KYC': await handlePendingKYC(chatId); break;
@@ -651,30 +1038,29 @@ Deno.serve(async (req) => {
         case '🏠 Recent Listings': await handleRecentListings(chatId); break;
         case '👤 Total Users': await handleTotalUsers(chatId); break;
         case '⭐ Active Promotions': await handleActivePromotions(chatId); break;
+        case '🔍 Search Help': await handleSearchHelp(chatId); break;
         default:
           if (text.startsWith('/search ')) {
             await handleSearch(chatId, text.replace('/search ', ''));
           } else if (!text.startsWith('/')) {
             await handleSearch(chatId, text);
           } else {
-            await sendTelegram(chatId, 'Unknown command. Use the menu buttons or type a search query.\n\nTo message a user: /msg email@example.com Your message');
+            await sendTelegram(chatId, 'Unknown command. Use the menu buttons or:\n\n/searchuser, /searchkyc, /searchlisting, /searchpromo\n/exportusers, /exportkyc, /exportlistings, /exportpromos\n/msg email message');
           }
       }
     } else {
-      // User commands (linked users)
+      // User commands
       const { data: userLink } = await supabase.from('telegram_user_links').select('user_id').eq('chat_id', chatId).eq('is_verified', true).single();
       
       if (userLink) {
-        // Linked user - handle user commands
         switch (text) {
           case '🏠 My Listings': await handleUserListings(chatId); break;
           case '📊 My Stats': await handleUserStats(chatId); break;
           case '⭐ My Promotions': await handleUserPromotions(chatId); break;
           case '💬 Support':
-            await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.\n\nOr visit our help center on the website.');
+            await sendTelegram(chatId, '💬 <b>Contact Support</b>\n\nType your message below and it will be forwarded to Xavorian Support.');
             break;
           default:
-            // Forward to admin as support message
             if (!text.startsWith('/')) {
               await handleUserReplyToAdmin(chatId, text);
             } else {
@@ -682,7 +1068,6 @@ Deno.serve(async (req) => {
             }
         }
       } else {
-        // Not linked - treat as email for linking
         if (text.includes('@') && text.includes('.')) {
           await handleUserLink(chatId, username, text);
         } else {
