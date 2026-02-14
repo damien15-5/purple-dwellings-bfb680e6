@@ -124,33 +124,57 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
   const [progressText, setProgressText] = useState('');
 
   // Pre-initialize Tesseract worker on mount for instant OCR
-  useEffect(() => {
-    let cancelled = false;
-    const initWorker = async () => {
+  const initWorker = useCallback(async (): Promise<Worker | null> => {
+    // If already ready, return existing
+    if (workerRef.current && workerReadyRef.current) return workerRef.current;
+
+    const createWithRetry = async (attempt = 1): Promise<Worker> => {
       try {
-        const w = await createWorker('eng', 1);
+        const w = await createWorker('eng', 1, {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
+        });
         await w.setParameters({
           tessedit_pageseg_mode: '6' as any,
           preserve_interword_spaces: '1' as any,
         });
-        if (!cancelled) {
-          workerRef.current = w;
-          workerReadyRef.current = true;
-          console.log('Tesseract worker pre-loaded and ready');
-        } else {
-          await w.terminate();
-        }
+        return w;
       } catch (err) {
-        console.error('Failed to pre-load Tesseract worker:', err);
+        if (attempt < 3) {
+          console.warn(`Tesseract init attempt ${attempt} failed, retrying...`);
+          await new Promise(r => setTimeout(r, 500 * attempt));
+          return createWithRetry(attempt + 1);
+        }
+        throw err;
       }
     };
-    initWorker();
+
+    try {
+      const w = await createWithRetry();
+      workerRef.current = w;
+      workerReadyRef.current = true;
+      console.log('Tesseract worker ready');
+      return w;
+    } catch (err) {
+      console.error('Failed to init Tesseract worker:', err);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    initWorker().then(w => {
+      if (cancelled && w) w.terminate();
+    });
     return () => {
       cancelled = true;
-      workerRef.current?.terminate();
-      workerRef.current = null;
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+        workerReadyRef.current = false;
+      }
     };
-  }, []);
+  }, [initWorker]);
 
   const validateImage = (file: File): { valid: boolean; error?: string } => {
     if (file.size < 50000) return { valid: false, error: 'Image too small. Please capture a clearer photo.' };
@@ -202,18 +226,9 @@ export const KYCDocumentUpload = ({ docType, onComplete, onBack }: Props) => {
       setProgress(30);
       setProgressText('Extracting text...');
 
-      // Use pre-loaded worker or create one on the fly
-      let worker = workerRef.current;
-      if (!worker || !workerReadyRef.current) {
-        setProgressText('Loading OCR engine...');
-        worker = await createWorker('eng', 1);
-        await worker.setParameters({
-          tessedit_pageseg_mode: '6' as any,
-          preserve_interword_spaces: '1' as any,
-        });
-        workerRef.current = worker;
-        workerReadyRef.current = true;
-      }
+      // Use pre-loaded worker or init with retry
+      const worker = await initWorker();
+      if (!worker) throw new Error('OCR engine failed to load. Please check your internet connection and try again.');
 
       setProgress(40);
       setProgressText('Scanning document...');
