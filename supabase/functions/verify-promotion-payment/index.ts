@@ -33,21 +33,55 @@ Deno.serve(async (req) => {
     // Activate all promotions with this reference
     const { data: promotions } = await supabase
       .from('property_promotions')
-      .select('id, days_promoted')
+      .select('id, days_promoted, property_id')
       .eq('paystack_reference', reference);
 
     if (promotions && promotions.length > 0) {
       const now = new Date();
       for (const promo of promotions) {
-        const expiresAt = new Date(now.getTime() + promo.days_promoted * 24 * 60 * 60 * 1000);
-        await supabase
+        // Check if there's an existing active promotion for this property
+        const { data: existing } = await supabase
           .from('property_promotions')
-          .update({
-            is_active: true,
-            started_at: now.toISOString(),
-            expires_at: expiresAt.toISOString(),
-          })
-          .eq('id', promo.id);
+          .select('id, expires_at, days_promoted, amount_paid')
+          .eq('property_id', promo.property_id)
+          .eq('is_active', true)
+          .gt('expires_at', now.toISOString())
+          .neq('id', promo.id)
+          .order('expires_at', { ascending: false })
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          // Stack: extend the existing promotion
+          const existingPromo = existing[0];
+          const currentExpiry = new Date(existingPromo.expires_at);
+          const newExpiry = new Date(currentExpiry.getTime() + promo.days_promoted * 24 * 60 * 60 * 1000);
+          
+          await supabase
+            .from('property_promotions')
+            .update({
+              days_promoted: existingPromo.days_promoted + promo.days_promoted,
+              amount_paid: Number(existingPromo.amount_paid) + Number(promo.days_promoted) * 1000,
+              expires_at: newExpiry.toISOString(),
+            })
+            .eq('id', existingPromo.id);
+
+          // Delete the new duplicate record since we merged it
+          await supabase
+            .from('property_promotions')
+            .delete()
+            .eq('id', promo.id);
+        } else {
+          // No existing active promotion, activate this one
+          const expiresAt = new Date(now.getTime() + promo.days_promoted * 24 * 60 * 60 * 1000);
+          await supabase
+            .from('property_promotions')
+            .update({
+              is_active: true,
+              started_at: now.toISOString(),
+              expires_at: expiresAt.toISOString(),
+            })
+            .eq('id', promo.id);
+        }
       }
     }
 
