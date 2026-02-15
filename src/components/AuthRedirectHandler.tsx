@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 export const AuthRedirectHandler = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const handled = useRef(false);
 
   useEffect(() => {
@@ -21,33 +22,42 @@ export const AuthRedirectHandler = () => {
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
 
-    if (!accessToken || !refreshToken) return;
+    if (!accessToken || !refreshToken) {
+      handled.current = false;
+      return;
+    }
+
+    // Clear the hash from URL immediately to prevent re-processing
+    window.history.replaceState(null, '', location.pathname);
 
     const processOAuth = async () => {
       try {
-        const { error } = await supabase.auth.setSession({
+        const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
 
-        // Clear the hash from URL immediately
-        window.history.replaceState(null, '', window.location.pathname);
-
         if (error) {
           console.error('OAuth session error:', error);
-          navigate('/login');
+          navigate('/login', { replace: true });
           return;
         }
 
-        navigate('/dashboard');
+        if (data.session) {
+          // Mark as logged in for notification tracking
+          sessionStorage.setItem('xavorian_just_logged_in', 'true');
+          navigate('/dashboard', { replace: true });
+        } else {
+          navigate('/login', { replace: true });
+        }
       } catch (err) {
         console.error('Error processing OAuth callback:', err);
-        navigate('/login');
+        navigate('/login', { replace: true });
       }
     };
 
     processOAuth();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   return null;
 };
