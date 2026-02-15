@@ -1,50 +1,52 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
-const PRODUCTION_DOMAIN = 'https://xavorian.xyz';
-
 export const AuthRedirectHandler = () => {
   const navigate = useNavigate();
+  const handled = useRef(false);
 
   useEffect(() => {
-    // Check if we're on a non-production domain with OAuth tokens
-    const currentUrl = window.location.href;
+    if (handled.current) return;
+
     const hash = window.location.hash;
-    
-    // If we have OAuth tokens in the URL and we're not on the production domain
-    if (hash.includes('access_token') && !currentUrl.startsWith(PRODUCTION_DOMAIN)) {
-      // Redirect to production domain with the same hash
-      window.location.href = `${PRODUCTION_DOMAIN}/dashboard${hash}`;
-      return;
-    }
 
-    // Handle the OAuth callback on production domain
-    if (hash.includes('access_token')) {
-      const handleOAuthCallback = async () => {
-        try {
-          // Supabase will automatically detect and process the tokens from the URL
-          const { data: { session }, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error('OAuth callback error:', error);
-            navigate('/login');
-            return;
-          }
+    // Only act when there are OAuth tokens in the URL hash
+    if (!hash.includes('access_token')) return;
 
-          if (session) {
-            // Clear the hash from URL
-            window.history.replaceState(null, '', window.location.pathname);
-            navigate('/dashboard');
-          }
-        } catch (err) {
-          console.error('Error processing OAuth callback:', err);
+    handled.current = true;
+
+    // Extract tokens from hash
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (!accessToken || !refreshToken) return;
+
+    const processOAuth = async () => {
+      try {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        // Clear the hash from URL immediately
+        window.history.replaceState(null, '', window.location.pathname);
+
+        if (error) {
+          console.error('OAuth session error:', error);
           navigate('/login');
+          return;
         }
-      };
 
-      handleOAuthCallback();
-    }
+        navigate('/dashboard');
+      } catch (err) {
+        console.error('Error processing OAuth callback:', err);
+        navigate('/login');
+      }
+    };
+
+    processOAuth();
   }, [navigate]);
 
   return null;
