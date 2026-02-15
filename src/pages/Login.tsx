@@ -67,14 +67,20 @@ export const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Bypass Lovable auth-bridge to use our own Google OAuth via Supabase
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin + '/dashboard',
+          skipBrowserRedirect: true,
         },
       });
 
       if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
     } catch (error: any) {
       toast({
         title: 'Google login failed',
