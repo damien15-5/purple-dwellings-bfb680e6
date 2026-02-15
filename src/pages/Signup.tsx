@@ -81,7 +81,7 @@ export const Signup = () => {
             age: ageNum,
             account_type: accountType,
           },
-          emailRedirectTo: window.location.origin + '/verified',
+          emailRedirectTo: 'https://xavorian.xyz/verified',
         },
       });
 
@@ -164,7 +164,7 @@ export const Signup = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/dashboard',
+          redirectTo: 'https://xavorian.xyz/dashboard',
           skipBrowserRedirect: true,
         },
       });
