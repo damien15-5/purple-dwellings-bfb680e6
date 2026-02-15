@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 import xavorianLogo from '@/assets/xavorian-logo.png';
 import houseBackground from '@/assets/house-background.jpg';
 
@@ -68,8 +67,11 @@ export const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      const { error } = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/dashboard',
+        },
       });
 
       if (error) throw error;
