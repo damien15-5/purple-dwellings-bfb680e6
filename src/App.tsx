@@ -104,7 +104,7 @@ const App = () => {
         <AuthRedirectHandler />
         <Routes>
           {/* Dashboard routes - no nav/footer */}
-          <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Suspense fallback={<LoadingFallback />}><DashboardLayout /></Suspense>}>
             <Route index element={<Suspense fallback={<LoadingFallback />}><DashboardHome /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<LoadingFallback />}><Settings /></Suspense>} />
             <Route path="verification" element={<Suspense fallback={<LoadingFallback />}><Verification /></Suspense>} />
