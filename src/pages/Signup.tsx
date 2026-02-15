@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable/index';
 import xavorianLogo from '@/assets/xavorian-logo.png';
 import houseBackground from '@/assets/house-background.jpg';
 import { CheckCircle2 } from 'lucide-react';
@@ -81,7 +82,7 @@ export const Signup = () => {
             age: ageNum,
             account_type: accountType,
           },
-          emailRedirectTo: 'https://xavorian-demo.vercel.app/verified',
+          emailRedirectTo: window.location.origin + '/verified',
         },
       });
 
@@ -161,11 +162,8 @@ export const Signup = () => {
 
   const handleGoogleSignup = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://xavorian-demo.vercel.app/dashboard',
-        },
+      const { error } = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
       });
 
       if (error) throw error;
