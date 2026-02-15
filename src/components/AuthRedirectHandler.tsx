@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
-const PRODUCTION_DOMAIN = 'https://xavorian-demo.vercel.app';
+const PRODUCTION_DOMAIN = 'https://xavorian.xyz';
 
 export const AuthRedirectHandler = () => {
   const navigate = useNavigate();
