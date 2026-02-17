@@ -64,7 +64,7 @@ export const Verification = () => {
       setKycStatus(kyc.status);
       setExistingKycId(kyc.id);
       if (kyc.status === 'verified') setStep(-1);
-      if (kyc.status === 'pending' || kyc.status === 'verifying') setStep(-2);
+      if (kyc.status === 'pending') setStep(-2);
     }
     setLoading(false);
   };
@@ -91,7 +91,7 @@ export const Verification = () => {
         user_id: user.id,
         identity_type: docType,
         identity_number: verifiedData.documentNumber,
-        status: 'verifying',
+        status: 'pending',
         full_name: personalInfo.full_name,
         date_of_birth: personalInfo.date_of_birth || null,
         gender: personalInfo.gender,
@@ -108,9 +108,11 @@ export const Verification = () => {
 
       let kycRecord: any;
 
-      // Check if there's an existing non-verified KYC to update instead of insert
-      if (existingKycId && kycStatus !== 'verified') {
-        // UPDATE existing record instead of inserting new one
+      // Delete ALL existing KYC records for this user, then insert fresh
+      await supabase.from('kyc_documents').delete().eq('user_id', user.id).neq('status', 'verified');
+      
+      if (existingKycId && kycStatus === 'verified') {
+        // If already verified, update the existing verified record
         const { data, error } = await supabase.from('kyc_documents')
           .update(kycPayload as any)
           .eq('id', existingKycId)
@@ -119,7 +121,8 @@ export const Verification = () => {
         if (error) throw error;
         kycRecord = data;
       } else {
-        // INSERT new record
+        // Delete any remaining records (including verified) and insert new
+        await supabase.from('kyc_documents').delete().eq('user_id', user.id);
         const { data, error } = await supabase.from('kyc_documents')
           .insert(kycPayload as any)
           .select()
