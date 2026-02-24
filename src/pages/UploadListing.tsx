@@ -202,6 +202,18 @@ export const UploadListing = () => {
       return;
     }
 
+    // Check if seller has verified bank account
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('bank_verified, account_number')
+      .eq('id', userId)
+      .single();
+
+    if (!profile?.bank_verified || !profile?.account_number) {
+      toast.error('You must verify your bank account before publishing a listing. Go to Settings → Bank Account.');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress('Optimizing images...');
 
