@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface VerifyRequest {
@@ -241,13 +241,8 @@ serve(async (req) => {
     let finalStatus: string;
     const aiVerdict = ai?.overall_verdict;
 
-    if (aiVerdict === "rejected" || confidence < 30) {
-      finalStatus = "rejected";
-    } else if (confidence >= 66 && aiVerdict !== "manual_review") {
-      finalStatus = "verified";
-    } else {
-      finalStatus = "pending"; // needs manual review — will appear in admin documents section
-    }
+    // Always set to pending for manual admin review - no auto-reject or auto-verify
+    finalStatus = "pending";
 
     verificationResults.final_status = finalStatus;
 
