@@ -117,7 +117,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       if (data.authorization_url) {
         toast({
           title: 'Redirecting to Payment',
-          description: 'You will pay ₦100 to verify your account. This amount will be refunded by Paystack.',
+          description: 'You will pay ₦100 to verify your account. Your bank will only be marked as verified after successful payment.',
         });
         setTimeout(() => {
           window.location.href = data.authorization_url;

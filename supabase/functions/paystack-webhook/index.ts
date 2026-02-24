@@ -47,7 +47,39 @@ Deno.serve(async (req) => {
       const { reference, amount, metadata, paid_at, channel, status: paystackStatus } = event.data;
       const txHash = metadata?.tx_hash;
 
-      console.log('Processing payment:', { reference, txHash, paystackStatus });
+      console.log('Processing payment:', { reference, txHash, paystackStatus, metadata });
+
+      // Handle account initialization payment (₦100 bank verification)
+      if (metadata?.type === 'account_initialization') {
+        console.log('Processing account initialization payment for user:', metadata.user_id);
+        
+        // Verify payment with Paystack
+        const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: { 'Authorization': `Bearer ${paystackSecretKey}` },
+        });
+        const verifyData = await verifyResponse.json();
+
+        if (verifyData.status && verifyData.data?.status === 'success') {
+          // Mark bank as verified
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ bank_verified: true })
+            .eq('id', metadata.user_id);
+
+          if (updateError) {
+            console.error('Error marking bank verified:', updateError);
+          } else {
+            console.log('Bank account verified successfully for user:', metadata.user_id);
+          }
+        } else {
+          console.error('Account init payment verification failed:', verifyData);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Find escrow transaction by tx_hash or reference
       let escrow;
@@ -77,7 +109,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check for idempotency - if already processed, return success
+      // Check for idempotency
       if (escrow.status === 'funded' && escrow.payment_verified_at) {
         console.log('Payment already processed, returning success');
         return new Response(
@@ -87,30 +119,18 @@ Deno.serve(async (req) => {
       }
 
       // Verify payment with Paystack API
-      console.log('Verifying payment with Paystack API...');
       const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          'Authorization': `Bearer ${paystackSecretKey}`,
-        },
+        headers: { 'Authorization': `Bearer ${paystackSecretKey}` },
       });
-
       const verifyData = await verifyResponse.json();
-      console.log('Paystack verification response:', verifyData.status, verifyData.data?.status);
 
       if (!verifyData.status || verifyData.data?.status !== 'success') {
         console.error('Payment verification failed:', verifyData);
-        
-        // Log failed verification
         await supabase.from('transactions').insert({
           tx_hash: escrow.tx_hash || txHash,
           event_type: 'payment_verification_failed',
-          payload: {
-            reference,
-            paystack_response: verifyData,
-            webhook_data: event.data,
-          },
+          payload: { reference, paystack_response: verifyData, webhook_data: event.data },
         });
-
         await supabase.from('audit_logs').insert({
           escrow_id: escrow.id,
           action: 'payment_verification_failed',
@@ -118,7 +138,6 @@ Deno.serve(async (req) => {
           after_state: { status: 'pending_payment' },
           reason: 'Paystack verification returned non-success status',
         });
-
         return new Response(
           JSON.stringify({ success: false, error: 'Payment verification failed' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,40 +147,29 @@ Deno.serve(async (req) => {
       // Payment verified successfully
       console.log('Payment verified successfully');
 
-      // Create payment record
       const { error: paymentError } = await supabase
         .from('payment_records')
         .insert({
           escrow_id: escrow.id,
           tx_hash: escrow.tx_hash || txHash,
           paystack_reference: reference,
-          amount: amount / 100, // Convert from kobo
+          amount: amount / 100,
           status: 'success',
           payment_method: channel,
           paid_at: new Date(paid_at).toISOString(),
           webhook_data: event.data,
         });
+      if (paymentError) console.error('Error creating payment record:', paymentError);
 
-      if (paymentError) {
-        console.error('Error creating payment record:', paymentError);
-      }
-
-      // Log transaction event
       await supabase.from('transactions').insert({
         tx_hash: escrow.tx_hash || txHash,
         event_type: 'payment_verified',
-        payload: {
-          reference,
-          amount: amount / 100,
-          channel,
-          paystack_verification: verifyData.data,
-        },
+        payload: { reference, amount: amount / 100, channel, paystack_verification: verifyData.data },
       });
 
-      // Update escrow status to funded and set inspection period (21 days)
       const inspectionStartDate = new Date();
       const inspectionEndDate = new Date();
-      inspectionEndDate.setDate(inspectionEndDate.getDate() + 21); // 21 days inspection period
+      inspectionEndDate.setDate(inspectionEndDate.getDate() + 21);
 
       const { error: updateError } = await supabase
         .from('escrow_transactions')
@@ -174,22 +182,14 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', escrow.id);
+      if (updateError) console.error('Error updating escrow status:', updateError);
 
-      if (updateError) {
-        console.error('Error updating escrow status:', updateError);
-      }
-
-      // Log audit entry
       await supabase.from('audit_logs').insert({
         escrow_id: escrow.id,
         actor_id: escrow.buyer_id,
         action: 'payment_confirmed',
         before_state: { status: escrow.status },
-        after_state: { 
-          status: 'funded',
-          inspection_start: inspectionStartDate.toISOString(),
-          inspection_end: inspectionEndDate.toISOString(),
-        },
+        after_state: { status: 'funded', inspection_start: inspectionStartDate.toISOString(), inspection_end: inspectionEndDate.toISOString() },
         reason: 'Payment verified and confirmed by Paystack',
       });
 

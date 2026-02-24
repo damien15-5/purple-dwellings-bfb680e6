@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
 
     const subaccountCode = subaccountData.data.subaccount_code;
 
-    // Save to profiles
+    // Save bank details to profiles but do NOT mark as verified yet
+    // bank_verified will be set to true only after successful payment
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
         account_number,
         account_name,
         paystack_subaccount_code: subaccountCode,
-        bank_verified: true,
+        bank_verified: false,
       })
       .eq('id', user_id);
 
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
         amount: 10000, // ₦100 in kobo
         reference,
         currency: 'NGN',
-        callback_url: `${req.headers.get('origin')}/dashboard/settings?bank_verified=true`,
+        callback_url: 'https://xavorian.xyz/dashboard/settings?bank_verified=pending',
         metadata: {
           type: 'account_initialization',
           user_id,
