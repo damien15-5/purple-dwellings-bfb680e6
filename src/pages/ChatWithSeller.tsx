@@ -226,7 +226,9 @@ export const ChatWithSeller = () => {
 
     if (uploadError) throw uploadError;
 
-    return fileName;
+    // Return the full public URL instead of just the path
+    const { data: publicUrlData } = supabase.storage.from('chat-media').getPublicUrl(fileName);
+    return publicUrlData.publicUrl;
   };
 
   const handleSend = async () => {
@@ -266,6 +268,29 @@ export const ChatWithSeller = () => {
           last_message_time: new Date().toISOString(),
         })
         .eq('id', conversationId);
+
+      // Send Telegram notification to the other user
+      try {
+        const recipientId = currentUserId === property?.user_id 
+          ? (await supabase.from('conversations').select('buyer_id').eq('id', conversationId).single()).data?.buyer_id
+          : property?.user_id;
+        
+        if (recipientId) {
+          const { data: senderProfile } = await supabase.from('profiles').select('full_name').eq('id', currentUserId).single();
+          await supabase.functions.invoke('telegram-notify', {
+            body: {
+              type: 'new_message',
+              data: {
+                userId: recipientId,
+                senderName: senderProfile?.full_name || 'Someone',
+                propertyTitle: property?.title || '',
+              },
+            },
+          });
+        }
+      } catch (tgErr) {
+        console.error('Telegram notify error:', tgErr);
+      }
 
       setMessage('');
       clearSelectedFile();
