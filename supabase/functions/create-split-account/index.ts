@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -38,19 +38,14 @@ Deno.serve(async (req) => {
       throw new Error('User profile not found');
     }
 
-    // Check name match (strict)
-    const profileName = profile.full_name.trim().toLowerCase();
-    const resolvedName = account_name.trim().toLowerCase();
-    if (!resolvedName.includes(profileName) && !profileName.includes(resolvedName)) {
-      // Try matching individual words
-      const profileWords = profileName.split(/\s+/);
-      const resolvedWords = resolvedName.split(/\s+/);
-      const matchCount = profileWords.filter(w => resolvedWords.includes(w)).length;
-      if (matchCount < 2) {
-        throw new Error(
-          `Account name "${account_name}" does not match your profile name "${profile.full_name}". Please update your profile name or use a matching bank account.`
-        );
-      }
+    // Check name match (relaxed - at least 1 word must match)
+    const profileWords = profile.full_name.trim().toLowerCase().split(/\s+/);
+    const resolvedWords = account_name.trim().toLowerCase().split(/\s+/);
+    const matchCount = profileWords.filter(w => resolvedWords.includes(w)).length;
+    if (matchCount < 1) {
+      throw new Error(
+        `Account name "${account_name}" does not match your profile name "${profile.full_name}". Please update your profile name or use a matching bank account.`
+      );
     }
 
     // Create Paystack subaccount
