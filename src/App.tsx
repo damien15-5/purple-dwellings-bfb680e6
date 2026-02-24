@@ -38,6 +38,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword").then(m => ({ 
 const VerifiedUser = lazy(() => import("./pages/VerifiedUser").then(m => ({ default: m.VerifiedUser })));
 const ChatWithSeller = lazy(() => import("./pages/ChatWithSeller").then(m => ({ default: m.ChatWithSeller })));
 const StartPayment = lazy(() => import("./pages/StartPayment").then(m => ({ default: m.StartPayment })));
+const StartEscrow = lazy(() => import("./pages/StartEscrow").then(m => ({ default: m.StartEscrow })));
 const UploadDocuments = lazy(() => import("./pages/UploadDocuments").then(m => ({ default: m.UploadDocuments })));
 const UploadListing = lazy(() => import("./pages/UploadListing").then(m => ({ default: m.UploadListing })));
 const PromoteProperty = lazy(() => import("./pages/PromoteProperty").then(m => ({ default: m.PromoteProperty })));
@@ -144,7 +145,7 @@ const App = () => {
                     <Route path="/how-it-works" element={<HowItWorks />} />
                     <Route path="/chat/:propertyId" element={<Chat />} />
                     <Route path="/pay/:id" element={<StartPayment />} />
-                    <Route path="/start-escrow/:id" element={<Navigate to="/browse" replace />} />
+                    <Route path="/start-escrow/:id" element={<StartEscrow />} />
                     <Route path="/upload-documents/:id" element={<UploadDocuments />} />
                     <Route path="/upload-listing" element={<UploadListing />} />
                     <Route path="/promote-property" element={<PromoteProperty />} />
