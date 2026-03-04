@@ -14,6 +14,34 @@ import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 import { uploadToGCS } from '@/utils/gcsUpload';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
+const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(videoFile);
+    video.src = url;
+    video.onloadeddata = () => {
+      video.currentTime = 1; // Seek to 1 second
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('Canvas not supported')); return; }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to create thumbnail'));
+      }, 'image/webp', 0.7);
+    };
+    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load video')); };
+  });
+};
+
 export type UploadFormData = {
   // Basic details
   propertyType: string;
