@@ -14,6 +14,34 @@ import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 import { uploadToGCS } from '@/utils/gcsUpload';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
+const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(videoFile);
+    video.src = url;
+    video.onloadeddata = () => {
+      video.currentTime = 1; // Seek to 1 second
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('Canvas not supported')); return; }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to create thumbnail'));
+      }, 'image/webp', 0.7);
+    };
+    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load video')); };
+  });
+};
+
 export type UploadFormData = {
   // Basic details
   propertyType: string;
@@ -174,8 +202,8 @@ export const UploadListing = () => {
       const imageCount = images.filter(f => f.type.startsWith('image/')).length;
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
       
-      if (imageCount < 3) {
-        toast.error('Please upload at least 3 images');
+      if (images.length === 0) {
+        toast.error('Please upload at least 1 image or video');
         return;
       }
 
@@ -223,34 +251,35 @@ export const UploadListing = () => {
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
 
       // Optimize and upload images to GCS with aggressive compression
-      setUploadProgress(`Compressing ${imageFiles.length} images to WebP...`);
-      
-      const imageUploads = imageFiles.map(async (image, index) => {
-        // Aggressive WebP compression for small file sizes
-        const optimizedImage = await optimizeImageForWeb(image, {
-          maxSizeMB: 0.1, // Target ~100KB per image
-          maxWidthOrHeight: 1200,
-          quality: 0.6,
+      let imageUrls: string[] = [];
+      if (imageFiles.length > 0) {
+        setUploadProgress(`Compressing ${imageFiles.length} images to WebP...`);
+        
+        const imageUploads = imageFiles.map(async (image, index) => {
+          const optimizedImage = await optimizeImageForWeb(image, {
+            maxSizeMB: 0.1,
+            maxWidthOrHeight: 1200,
+            quality: 0.6,
+          });
+          
+          console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
+          
+          const result = await uploadToGCS(
+            optimizedImage,
+            `property-images/${userId}`,
+            `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
+          );
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to upload image');
+          }
+          
+          return result.url!;
         });
-        
-        console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
-        
-        // Upload to Google Cloud Storage
-        const result = await uploadToGCS(
-          optimizedImage,
-          `property-images/${userId}`,
-          `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
-        );
-        
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to upload image');
-        }
-        
-        return result.url!;
-      });
 
-      setUploadProgress('Uploading images to cloud...');
-      const imageUrls = await Promise.all(imageUploads);
+        setUploadProgress('Uploading images to cloud...');
+        imageUrls = await Promise.all(imageUploads);
+      }
 
       // Upload videos to GCS
       let videoUrl: string | null = null;
@@ -269,6 +298,25 @@ export const UploadListing = () => {
         }
         
         videoUrl = result.url!;
+
+        // If no images uploaded, generate thumbnail from video
+        if (imageUrls.length === 0) {
+          setUploadProgress('Generating video thumbnail...');
+          try {
+            const thumbnailBlob = await generateVideoThumbnail(video);
+            const thumbnailFile = new File([thumbnailBlob], 'video-thumbnail.webp', { type: 'image/webp' });
+            const thumbResult = await uploadToGCS(
+              thumbnailFile,
+              `property-images/${userId}`,
+              `${Date.now()}_video_thumbnail.webp`
+            );
+            if (thumbResult.success && thumbResult.url) {
+              imageUrls = [thumbResult.url];
+            }
+          } catch (thumbError) {
+            console.warn('Failed to generate video thumbnail:', thumbError);
+          }
+        }
       }
 
       setUploadProgress('Publishing listing...');

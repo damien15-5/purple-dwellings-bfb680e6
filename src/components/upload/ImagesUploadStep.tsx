@@ -52,7 +52,7 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
         <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">
           Upload Property Images & Video
         </h2>
-        <p className="text-muted-foreground text-lg">Upload at least 3 high-quality images (max 15) and optionally 1 video</p>
+        <p className="text-muted-foreground text-lg">Upload at least 1 image or video (max 15 images, 1 video)</p>
       </div>
 
       {/* Info Card */}
@@ -87,7 +87,7 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
           <p className="text-muted-foreground">Drag and drop or browse files</p>
           <div className="mt-2 px-4 py-2 bg-primary/10 rounded-full">
             <p className="text-sm font-semibold text-primary">
-              {images.filter(f => f.type.startsWith('image/')).length}/{MAX_IMAGES} images • {images.filter(f => f.type.startsWith('video/')).length}/{MAX_VIDEOS} video (min 3 images required)
+              {images.filter(f => f.type.startsWith('image/')).length}/{MAX_IMAGES} images • {images.filter(f => f.type.startsWith('video/')).length}/{MAX_VIDEOS} video (min 1 media required)
             </p>
           </div>
         </div>
@@ -143,36 +143,16 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
       )}
 
       {/* Status Message */}
-      {(() => {
-        const imageCount = images.filter(f => f.type.startsWith('image/')).length;
-        if (images.length > 0 && imageCount < 3) {
-          return (
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                <p className="text-sm font-medium text-primary">
-                  Upload {3 - imageCount} more image{3 - imageCount !== 1 ? 's' : ''} to continue
-                </p>
-              </div>
-            </div>
-          );
-        }
-        
-        if (imageCount >= 3) {
-          return (
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
-                <Check className="w-4 h-4 text-primary" />
-                <p className="text-sm font-medium text-primary">
-                  Ready to proceed! You can upload more media if needed
-                </p>
-              </div>
-            </div>
-          );
-        }
-        
-        return null;
-      })()}
+      {images.length > 0 && (
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+            <Check className="w-4 h-4 text-primary" />
+            <p className="text-sm font-medium text-primary">
+              Ready to proceed! You can upload more media if needed
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
