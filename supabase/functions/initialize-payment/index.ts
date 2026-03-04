@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
           amount: Math.round(purchase.transaction_amount * 100),
           reference,
           currency: 'NGN',
-          callback_url: `${req.headers.get('origin')}/payment-confirmation?purchase=${purchaseId}`,
+          callback_url: `https://xavorian.xyz/payment-confirmation?purchase=${purchaseId}`,
           metadata: {
             purchase_id: purchaseId,
             property_id: purchase.property_id,
