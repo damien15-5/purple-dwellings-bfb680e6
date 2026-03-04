@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Play, ChevronLeft, ChevronRight, Eye, Car, Wifi, Dumbbell, Waves, ShieldCheck, Zap, Droplets, AirVent, Trees } from 'lucide-react';
+import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Play, ChevronLeft, ChevronRight, Eye, Car, Wifi, Dumbbell, Waves, ShieldCheck, Zap, Droplets, AirVent, Trees, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
