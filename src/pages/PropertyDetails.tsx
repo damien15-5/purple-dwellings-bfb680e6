@@ -514,26 +514,33 @@ export const PropertyDetails = () => {
 
                 {/* Blurred Action Buttons */}
                 <div className="space-y-2.5">
-                  <Button 
-                    onClick={async () => {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (!session) {
-                        toast({
-                          title: 'Login Required',
-                          description: 'Please log in to message the seller',
-                        });
-                        navigate('/login');
-                        return;
-                      }
-                      navigate(`/chat/${property.id}`);
-                    }}
-                    className="w-full relative overflow-hidden group bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/90 hover:via-primary hover:to-primary text-white shadow-xl hover:shadow-2xl transition-all duration-300 border-0" 
-                    size="lg"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                    <MessageSquare className="w-5 h-5 mr-2 relative z-10" />
-                    <span className="relative z-10 font-semibold">Message Seller</span>
-                  </Button>
+                  {isPaidFor ? (
+                    <div className="w-full flex items-center justify-center gap-2 h-12 rounded-lg bg-green-600 text-white font-semibold">
+                      <CheckCircle2 className="w-5 h-5" />
+                      Property Paid For
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={async () => {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session) {
+                          toast({
+                            title: 'Login Required',
+                            description: 'Please log in to message the seller',
+                          });
+                          navigate('/login');
+                          return;
+                        }
+                        navigate(`/chat/${property.id}`);
+                      }}
+                      className="w-full relative overflow-hidden group bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/90 hover:via-primary hover:to-primary text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-300 border-0" 
+                      size="lg"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <MessageSquare className="w-5 h-5 mr-2 relative z-10" />
+                      <span className="relative z-10 font-semibold">Message Seller</span>
+                    </Button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
