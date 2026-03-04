@@ -135,6 +135,18 @@ export const PropertyDetails = () => {
         setIsFavorite(!!savedInDb.data || savedInLocal);
       }
 
+      // Check if property has been paid for (funded/completed escrow)
+      const { data: paidEscrow } = await supabase
+        .from('escrow_transactions')
+        .select('id')
+        .eq('property_id', data.id)
+        .in('status', ['funded', 'completed', 'inspection_period'])
+        .limit(1);
+      
+      if (paidEscrow && paidEscrow.length > 0) {
+        setIsPaidFor(true);
+      }
+
       // Combine images and video into mediaItems
       const items: { type: 'image' | 'video'; url: string }[] = [];
       if (data.images) {
