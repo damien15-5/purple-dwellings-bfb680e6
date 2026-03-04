@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         amount,
         reference,
         currency: 'NGN',
-        callback_url: `${req.headers.get('origin')}/payment-confirmation?escrow=${escrowId}`,
+        callback_url: `https://xavorian.xyz/payment-confirmation?escrow=${escrowId}`,
         metadata: {
           escrow_id: escrowId,
           property_id: escrow.property_id,
