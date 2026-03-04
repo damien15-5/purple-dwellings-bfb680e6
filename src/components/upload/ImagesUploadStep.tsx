@@ -87,7 +87,7 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
           <p className="text-muted-foreground">Drag and drop or browse files</p>
           <div className="mt-2 px-4 py-2 bg-primary/10 rounded-full">
             <p className="text-sm font-semibold text-primary">
-              {images.filter(f => f.type.startsWith('image/')).length}/{MAX_IMAGES} images • {images.filter(f => f.type.startsWith('video/')).length}/{MAX_VIDEOS} video (min 3 images required)
+              {images.filter(f => f.type.startsWith('image/')).length}/{MAX_IMAGES} images • {images.filter(f => f.type.startsWith('video/')).length}/{MAX_VIDEOS} video (min 1 media required)
             </p>
           </div>
         </div>
