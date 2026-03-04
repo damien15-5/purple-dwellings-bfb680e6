@@ -84,6 +84,7 @@ export const PropertyDetails = () => {
   const [sellerName, setSellerName] = useState('Seller');
   const [sellerAvatar, setSellerAvatar] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<{ type: 'image' | 'video'; url: string }[]>([]);
+  const [isPaidFor, setIsPaidFor] = useState(false);
 
   useEffect(() => {
     fetchProperty();
