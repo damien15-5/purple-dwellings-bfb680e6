@@ -17,7 +17,8 @@ export const PaymentConfirmation = () => {
 
   const verifyPayment = async () => {
     const purchaseId = searchParams.get('purchase');
-    const reference = searchParams.get('reference');
+    const escrowId = searchParams.get('escrow');
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
     const isPromotion = searchParams.get('promotion') === 'true';
     const promoRef = searchParams.get('ref');
 
@@ -41,6 +42,71 @@ export const PaymentConfirmation = () => {
       return;
     }
 
+    // Handle escrow payment verification
+    if (escrowId) {
+      try {
+        // First check if already funded (webhook may have processed it)
+        const { data: escrow } = await supabase
+          .from('escrow_transactions')
+          .select('status, payment_verified_at')
+          .eq('id', escrowId)
+          .single();
+
+        if (escrow?.status === 'funded' && escrow?.payment_verified_at) {
+          setStatus('success');
+          toast.success('Payment confirmed successfully');
+          return;
+        }
+
+        // Try manual verification
+        const { data: verifyResp, error: verifyErr } = await supabase.functions.invoke('verify-payment', {
+          body: { escrowId, reference }
+        });
+
+        if (!verifyErr && verifyResp?.success) {
+          setStatus('success');
+          toast.success('Payment confirmed successfully');
+          return;
+        }
+
+        // Wait for webhook and retry
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        const { data: retryEscrow } = await supabase
+          .from('escrow_transactions')
+          .select('status, payment_verified_at')
+          .eq('id', escrowId)
+          .single();
+
+        if (retryEscrow?.status === 'funded' && retryEscrow?.payment_verified_at) {
+          setStatus('success');
+          toast.success('Payment confirmed successfully');
+        } else {
+          // One more retry after another 3 seconds
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          const { data: finalEscrow } = await supabase
+            .from('escrow_transactions')
+            .select('status, payment_verified_at')
+            .eq('id', escrowId)
+            .single();
+
+          if (finalEscrow?.status === 'funded' && finalEscrow?.payment_verified_at) {
+            setStatus('success');
+            toast.success('Payment confirmed successfully');
+          } else {
+            setStatus('failed');
+            toast.error('Payment verification is taking longer than expected. Check your transactions page.');
+          }
+        }
+      } catch (error: any) {
+        console.error('Escrow payment verification error:', error);
+        setStatus('failed');
+        toast.error('Failed to verify payment');
+      }
+      return;
+    }
+
+    // Handle purchase transaction payment
     if (!purchaseId) {
       setStatus('failed');
       toast.error('Invalid payment reference');
@@ -95,6 +161,14 @@ export const PaymentConfirmation = () => {
     }
   };
 
+  const getRedirectPath = () => {
+    const isPromo = searchParams.get('promotion') === 'true';
+    const escrowId = searchParams.get('escrow');
+    if (isPromo) return '/dashboard/promotions';
+    if (escrowId) return '/dashboard/escrow';
+    return '/dashboard/transactions';
+  };
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background">
@@ -120,11 +194,8 @@ export const PaymentConfirmation = () => {
               Your payment has been confirmed. You can view this transaction in your dashboard.
             </p>
             <div className="space-y-3">
-              <Button onClick={() => {
-                const isPromo = searchParams.get('promotion') === 'true';
-                navigate(isPromo ? '/dashboard/promotions' : '/dashboard/transactions');
-              }} className="w-full" size="lg">
-                {searchParams.get('promotion') === 'true' ? 'View Promotions' : 'View Transactions'}
+              <Button onClick={() => navigate(getRedirectPath())} className="w-full" size="lg">
+                View Transactions
               </Button>
               <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">
                 Browse More Properties
@@ -141,12 +212,12 @@ export const PaymentConfirmation = () => {
       <Card className="max-w-md w-full">
         <CardContent className="text-center py-12">
           <XCircle className="h-24 w-24 text-destructive mx-auto mb-6" />
-          <h1 className="text-3xl font-bold mb-4">Payment Failed</h1>
+          <h1 className="text-3xl font-bold mb-4">Verification Pending</h1>
           <p className="text-muted-foreground mb-8">
-            We couldn't verify your payment. Please try again or contact support.
+            Payment verification is still processing. Please check your transactions page in a few moments.
           </p>
           <div className="space-y-3">
-            <Button onClick={() => navigate('/dashboard/transactions')} className="w-full">
+            <Button onClick={() => navigate(getRedirectPath())} className="w-full">
               View Transactions
             </Button>
             <Button onClick={() => navigate('/browse')} variant="outline" className="w-full">

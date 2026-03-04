@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -27,16 +27,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Locate escrow by tx_hash, reference, or id
-    let { data: escrow } = await supabase
-      .from('escrow_transactions')
-      .select('*')
-      .or([
-        tx_hash ? `tx_hash.eq.${tx_hash}` : '',
-        reference ? `paystack_reference.eq.${reference}` : '',
-        escrowId ? `id.eq.${escrowId}` : '',
-      ].filter(Boolean).join(','))
-      .single();
+    // Locate escrow
+    let escrow = null;
+
+    if (escrowId) {
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('id', escrowId)
+        .single();
+      escrow = data;
+    }
+
+    if (!escrow && tx_hash) {
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('tx_hash', tx_hash)
+        .single();
+      escrow = data;
+    }
+
+    if (!escrow && reference) {
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('paystack_reference', reference)
+        .single();
+      escrow = data;
+    }
 
     if (!escrow) {
       return new Response(
@@ -53,7 +72,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If no reference on escrow, try to find a payment record by tx_hash then use its reference
+    // Find reference to verify
     let ref = reference || escrow.paystack_reference;
 
     if (!ref) {
@@ -75,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify payment with Paystack
-    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${ref}` , {
+    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${ref}`, {
       headers: { Authorization: `Bearer ${paystackSecretKey}` },
     });
     const verifyData = await verifyResponse.json();
@@ -88,7 +107,6 @@ Deno.serve(async (req) => {
     });
 
     if (!verifyData.status || verifyData.data?.status !== 'success') {
-      // Mark failed if currently pending
       await supabase.from('audit_logs').insert({
         escrow_id: escrow.id,
         actor_id: escrow.buyer_id,
@@ -120,7 +138,7 @@ Deno.serve(async (req) => {
       webhook_data: verifyData.data,
     });
 
-    // Update escrow to funded + inspection window 21 days
+    // Update escrow to funded
     const inspectionStartDate = new Date();
     const inspectionEndDate = new Date();
     inspectionEndDate.setDate(inspectionEndDate.getDate() + 21);
