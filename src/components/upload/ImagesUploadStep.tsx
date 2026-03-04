@@ -52,7 +52,7 @@ export const ImagesUploadStep = ({ images, setImages, hasReceipt, setHasReceipt,
         <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent mb-2">
           Upload Property Images & Video
         </h2>
-        <p className="text-muted-foreground text-lg">Upload at least 3 high-quality images (max 15) and optionally 1 video</p>
+        <p className="text-muted-foreground text-lg">Upload at least 1 image or video (max 15 images, 1 video)</p>
       </div>
 
       {/* Info Card */}
