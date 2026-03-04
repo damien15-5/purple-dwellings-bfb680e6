@@ -174,8 +174,8 @@ export const UploadListing = () => {
       const imageCount = images.filter(f => f.type.startsWith('image/')).length;
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
       
-      if (imageCount < 3) {
-        toast.error('Please upload at least 3 images');
+      if (images.length === 0) {
+        toast.error('Please upload at least 1 image or video');
         return;
       }
 
