@@ -470,10 +470,10 @@ export const UploadListing = () => {
             <AmenitiesStep formData={formData} updateFormData={updateFormData} />
           )}
           {currentStep === 3 && (
-            <ImagesUploadStep images={images} setImages={setImages} />
+            <ImagesUploadStep images={images} setImages={setImages} hasReceipt={false} setHasReceipt={() => {}} propertyType={formData.propertyType} />
           )}
           {currentStep === 4 && (
-            <ReviewStep formData={formData} images={images} />
+            <ReviewStep formData={formData} images={images} documents={[]} onEdit={(step) => setCurrentStep(step)} />
           )}
 
           <div className="flex justify-between mt-8 pt-6 border-t border-border/50">
