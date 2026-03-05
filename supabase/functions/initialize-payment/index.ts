@@ -17,12 +17,14 @@ Deno.serve(async (req) => {
     );
 
     const { purchaseId, escrowId } = await req.json();
-
     console.log('Initializing payment for:', { purchaseId, escrowId });
 
     const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+    if (!paystackSecretKey) {
+      throw new Error('Paystack secret key not configured');
+    }
 
-    // Handle escrow transaction payment (from offers flow)
+    // Handle escrow transaction payment
     if (escrowId) {
       const { data: escrow, error: escrowError } = await supabase
         .from('escrow_transactions')
@@ -54,17 +56,10 @@ Deno.serve(async (req) => {
         .eq('id', escrow.buyer_id)
         .single();
 
-      // Get seller's subaccount for split payment
-      const { data: seller } = await supabase
-        .from('profiles')
-        .select('paystack_subaccount_code, full_name')
-        .eq('id', escrow.seller_id)
-        .single();
-
       const reference = `ESC-${escrowId.substring(0, 8)}-${Date.now()}`;
       const amount = Math.round((escrow.offer_amount || escrow.transaction_amount) * 100);
 
-      // Build Paystack payload with split payment if seller has subaccount
+      // No split payment - 100% goes to seller directly (0% platform fee)
       const paystackBody: any = {
         email: buyer?.email || '',
         amount,
@@ -80,16 +75,6 @@ Deno.serve(async (req) => {
           type: 'escrow_payment',
         },
       };
-
-      // Add split payment - full amount to seller (no platform fee)
-      if (seller?.paystack_subaccount_code) {
-        paystackBody.subaccount = seller.paystack_subaccount_code;
-        paystackBody.bearer = 'account'; // Seller bears Paystack fees
-        paystackBody.transaction_charge = 0; // Platform takes nothing
-        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
-      } else {
-        console.log('WARNING: Seller has no subaccount, payment goes to main account');
-      }
 
       const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
@@ -129,7 +114,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Handle purchase transaction payment (original flow)
+    // Handle purchase transaction payment
     if (purchaseId) {
       const { data: purchase, error: purchaseError } = await supabase
         .from('purchase_transactions')
