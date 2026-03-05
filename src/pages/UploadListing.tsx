@@ -23,7 +23,7 @@ const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
     const url = URL.createObjectURL(videoFile);
     video.src = url;
     video.onloadeddata = () => {
-      video.currentTime = 1;
+      video.currentTime = 1; // Seek to 1 second
     };
     video.onseeked = () => {
       const canvas = document.createElement('canvas');
@@ -43,6 +43,7 @@ const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
 };
 
 export type UploadFormData = {
+  // Basic details
   propertyType: string;
   otherPropertyType: string;
   listingType: string;
@@ -53,6 +54,8 @@ export type UploadFormData = {
   price: string;
   size: string;
   description: string;
+  
+  // Amenities
   bedrooms: string;
   bathrooms: string;
   toilets: string;
@@ -74,10 +77,14 @@ export type UploadFormData = {
   hasInternet: boolean;
   hasPlayground: boolean;
   furnishingStatus: string;
+  
+  // Finishing
   flooringType: string;
   kitchenType: string;
   hasAirConditioning: boolean;
   hasWaterHeater: boolean;
+  
+  // Conditional fields
   dailyPrice?: string;
   weeklyPrice?: string;
   monthlyPrice?: string;
@@ -95,8 +102,6 @@ const STEPS = [
   { id: 3, name: 'Images' },
   { id: 4, name: 'Review' },
 ];
-
-const KYC_THRESHOLD = 150;
 
 export const UploadListing = () => {
   const navigate = useNavigate();
@@ -145,7 +150,6 @@ export const UploadListing = () => {
   
   const [images, setImages] = useState<File[]>([]);
   const [isKycVerified, setIsKycVerified] = useState<boolean | null>(null);
-  const [kycRequired, setKycRequired] = useState(false);
   const [kycLoading, setKycLoading] = useState(true);
 
   useEffect(() => {
@@ -158,15 +162,6 @@ export const UploadListing = () => {
       }
       setUserId(session.user.id);
 
-      // Check platform property count for KYC threshold
-      const { count: totalProperties } = await supabase
-        .from('properties')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'published');
-
-      const isKycMandatory = (totalProperties || 0) >= KYC_THRESHOLD;
-      setKycRequired(isKycMandatory);
-
       // Check KYC status
       const { data: kyc } = await supabase
         .from('kyc_documents')
@@ -176,8 +171,7 @@ export const UploadListing = () => {
         .limit(1)
         .maybeSingle();
 
-      const verified = kyc?.status === 'verified';
-      setIsKycVerified(verified);
+      setIsKycVerified(kyc?.status === 'verified');
       setKycLoading(false);
     };
     checkAuth();
@@ -188,13 +182,16 @@ export const UploadListing = () => {
   };
 
   const handleNext = async () => {
+    // Validation for each step
     if (currentStep === 1) {
       const required = ['propertyType', 'listingType', 'state', 'city', 'price', 'size', 'description'];
       const missing = required.filter(field => !formData[field as keyof UploadFormData]);
+      
       if (missing.length > 0) {
         toast.error('Please fill in all required fields');
         return;
       }
+      
       if (formData.propertyType === 'Others' && !formData.otherPropertyType) {
         toast.error('Please specify the property type');
         return;
@@ -202,11 +199,15 @@ export const UploadListing = () => {
     }
     
     if (currentStep === 3) {
+      const imageCount = images.filter(f => f.type.startsWith('image/')).length;
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
+      
       if (images.length === 0) {
         toast.error('Please upload at least 1 image or video');
         return;
       }
+
+      // Validate video files
       for (const video of videoFiles) {
         const validation = await validateVideo(video);
         if (!validation.valid) {
@@ -245,46 +246,73 @@ export const UploadListing = () => {
     setUploadProgress('Optimizing images...');
 
     try {
+      // Separate images and videos
       const imageFiles = images.filter(f => f.type.startsWith('image/'));
       const videoFiles = images.filter(f => f.type.startsWith('video/'));
 
+      // Optimize and upload images to GCS with aggressive compression
       let imageUrls: string[] = [];
       if (imageFiles.length > 0) {
         setUploadProgress(`Compressing ${imageFiles.length} images to WebP...`);
+        
         const imageUploads = imageFiles.map(async (image, index) => {
           const optimizedImage = await optimizeImageForWeb(image, {
             maxSizeMB: 0.1,
             maxWidthOrHeight: 1200,
             quality: 0.6,
           });
+          
           console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
+          
           const result = await uploadToGCS(
             optimizedImage,
             `property-images/${userId}`,
             `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
           );
-          if (!result.success) throw new Error(result.error || 'Failed to upload image');
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to upload image');
+          }
+          
           return result.url!;
         });
+
         setUploadProgress('Uploading images to cloud...');
         imageUrls = await Promise.all(imageUploads);
       }
 
+      // Upload videos to GCS
       let videoUrl: string | null = null;
       if (videoFiles.length > 0) {
         setUploadProgress('Uploading video to cloud...');
         const video = videoFiles[0];
-        const result = await uploadToGCS(video, `property-videos/${userId}`, `${Date.now()}_${video.name}`);
-        if (!result.success) throw new Error(result.error || 'Failed to upload video');
+        
+        const result = await uploadToGCS(
+          video,
+          `property-videos/${userId}`,
+          `${Date.now()}_${video.name}`
+        );
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to upload video');
+        }
+        
         videoUrl = result.url!;
 
+        // If no images uploaded, generate thumbnail from video
         if (imageUrls.length === 0) {
           setUploadProgress('Generating video thumbnail...');
           try {
             const thumbnailBlob = await generateVideoThumbnail(video);
             const thumbnailFile = new File([thumbnailBlob], 'video-thumbnail.webp', { type: 'image/webp' });
-            const thumbResult = await uploadToGCS(thumbnailFile, `property-images/${userId}`, `${Date.now()}_video_thumbnail.webp`);
-            if (thumbResult.success && thumbResult.url) imageUrls = [thumbResult.url];
+            const thumbResult = await uploadToGCS(
+              thumbnailFile,
+              `property-images/${userId}`,
+              `${Date.now()}_video_thumbnail.webp`
+            );
+            if (thumbResult.success && thumbResult.url) {
+              imageUrls = [thumbResult.url];
+            }
           } catch (thumbError) {
             console.warn('Failed to generate video thumbnail:', thumbError);
           }
@@ -293,6 +321,7 @@ export const UploadListing = () => {
 
       setUploadProgress('Publishing listing...');
 
+      // Insert property
       const { error: insertError } = await supabase
         .from('properties')
         .insert({
@@ -391,8 +420,7 @@ export const UploadListing = () => {
     );
   }
 
-  // Only block for KYC if threshold reached AND user is not verified
-  if (kycRequired && isKycVerified === false) {
+  if (isKycVerified === false) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background flex items-center justify-center px-4">
         <Card className="max-w-lg w-full p-8 text-center space-y-6">
@@ -401,7 +429,7 @@ export const UploadListing = () => {
           </div>
           <h2 className="text-2xl font-bold text-foreground">KYC Verification Required</h2>
           <p className="text-muted-foreground">
-            Our platform has reached {KYC_THRESHOLD} listings. Identity verification (KYC) is now mandatory for all new listings to ensure trust and safety.
+            You must complete your identity verification (KYC) before you can upload properties. This helps us ensure trust and safety on our platform.
           </p>
           <Button
             onClick={() => navigate('/dashboard/verification')}
@@ -417,12 +445,14 @@ export const UploadListing = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background relative overflow-hidden">
+      {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 -right-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
         <div className="absolute bottom-20 -left-40 w-96 h-96 bg-accent-purple/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
       </div>
 
       <div className="container mx-auto px-4 py-12 max-w-5xl relative z-10">
+        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-accent-purple to-primary-light bg-clip-text text-transparent">
             List Your Property
@@ -430,6 +460,7 @@ export const UploadListing = () => {
           <p className="text-lg text-muted-foreground">Complete all steps to publish your listing</p>
         </div>
 
+        {/* Progress Steps */}
         <Card className="mb-8 p-6 border-border/50 bg-card/80 backdrop-blur-sm shadow-lg">
           <div className="flex items-center justify-between">
             {STEPS.map((step, index) => (
@@ -453,63 +484,98 @@ export const UploadListing = () => {
                   </span>
                 </div>
                 {index < STEPS.length - 1 && (
-                  <div className={`hidden sm:block w-16 md:w-24 h-1 mx-2 rounded-full transition-all ${
-                    currentStep > step.id ? 'bg-gradient-to-r from-primary to-primary-light' : 'bg-muted/30'
-                  }`} />
+                  <div className="relative w-20 h-2 mx-3">
+                    <div className="absolute inset-0 bg-muted/50 rounded-full" />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-r from-primary to-primary-light rounded-full transition-all duration-500 ${
+                        currentStep > step.id ? 'w-full' : 'w-0'
+                      }`}
+                    />
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </Card>
 
-        <Card className="p-6 md:p-8 border-border/50 bg-card/80 backdrop-blur-sm shadow-lg">
+        {/* Step Content */}
+        <Card className="p-8 border-border/50 bg-card/80 backdrop-blur-sm shadow-xl mb-6 hover:shadow-2xl transition-shadow duration-300">
           {currentStep === 1 && (
             <BasicDetails formData={formData} updateFormData={updateFormData} />
           )}
+          
           {currentStep === 2 && (
             <AmenitiesStep formData={formData} updateFormData={updateFormData} />
           )}
+          
           {currentStep === 3 && (
-            <ImagesUploadStep images={images} setImages={setImages} hasReceipt={false} setHasReceipt={() => {}} propertyType={formData.propertyType} />
+            <ImagesUploadStep 
+              images={images} 
+              setImages={setImages}
+              hasReceipt={false}
+              setHasReceipt={() => {}}
+              propertyType={formData.propertyType}
+            />
           )}
+          
           {currentStep === 4 && (
-            <ReviewStep formData={formData} images={images} documents={[]} onEdit={(step) => setCurrentStep(step)} />
+            <ReviewStep 
+              formData={formData} 
+              images={images}
+              documents={[]}
+              onEdit={(step) => setCurrentStep(step)}
+            />
           )}
+        </Card>
 
-          <div className="flex justify-between mt-8 pt-6 border-t border-border/50">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1 || uploading}
-              className="px-8"
-            >
-              Back
-            </Button>
-            {currentStep < STEPS.length ? (
-              <Button
-                onClick={handleNext}
-                className="px-8 bg-gradient-to-r from-primary to-primary-light hover:opacity-90"
-              >
-                Next Step
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={uploading}
-                className="px-8 bg-gradient-to-r from-primary to-primary-light hover:opacity-90"
-              >
-                {uploading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>{uploadProgress || 'Publishing...'}</span>
-                  </div>
-                ) : (
-                  'Publish Listing'
-                )}
-              </Button>
+        {/* Navigation Buttons */}
+        <div className="flex justify-between items-center">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 1 || uploading}
+            className="px-10 h-12 text-base font-semibold border-2 hover:border-primary hover:bg-primary/5"
+          >
+            Back
+          </Button>
+          
+          <div className="text-center">
+            <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
+              Step {currentStep} of {STEPS.length}
+            </div>
+            {uploadProgress && (
+              <p className="text-xs text-primary mt-2 flex items-center justify-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {uploadProgress}
+              </p>
             )}
           </div>
-        </Card>
+
+          {currentStep < STEPS.length ? (
+            <Button 
+              onClick={handleNext} 
+              disabled={uploading} 
+              className="px-10 h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary-light hover:shadow-primary shadow-lg"
+            >
+              Next →
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={uploading} 
+              className="px-10 h-12 text-base font-semibold bg-gradient-to-r from-primary via-accent-purple to-primary-light hover:shadow-primary shadow-lg"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                'Publish Listing'
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

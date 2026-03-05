@@ -39,23 +39,48 @@ Deno.serve(async (req) => {
     }
 
     // Check name match (relaxed - at least 1 word must match)
-    const profileWords = (profile.full_name || '').trim().toLowerCase().split(/\s+/);
+    const profileWords = profile.full_name.trim().toLowerCase().split(/\s+/);
     const resolvedWords = account_name.trim().toLowerCase().split(/\s+/);
-    const matchCount = profileWords.filter((w: string) => resolvedWords.includes(w)).length;
+    const matchCount = profileWords.filter(w => resolvedWords.includes(w)).length;
     if (matchCount < 1) {
       throw new Error(
         `Account name "${account_name}" does not match your profile name "${profile.full_name}". Please update your profile name or use a matching bank account.`
       );
     }
 
-    // Save bank details to profiles - no split payment, no subaccount needed
-    // Bank will be verified after ₦100 payment
+    // Create Paystack subaccount
+    const subaccountRes = await fetch('https://api.paystack.co/subaccount', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        business_name: account_name,
+        bank_code,
+        account_number,
+        percentage_charge: 0, // We handle splits manually
+        primary_contact_email: profile.email,
+      }),
+    });
+
+    const subaccountData = await subaccountRes.json();
+
+    if (!subaccountData.status) {
+      throw new Error(subaccountData.message || 'Failed to create subaccount');
+    }
+
+    const subaccountCode = subaccountData.data.subaccount_code;
+
+    // Save bank details to profiles but do NOT mark as verified yet
+    // bank_verified will be set to true only after successful payment
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         bank_name,
         account_number,
         account_name,
+        paystack_subaccount_code: subaccountCode,
         bank_verified: false,
       })
       .eq('id', user_id);
@@ -82,6 +107,7 @@ Deno.serve(async (req) => {
         metadata: {
           type: 'account_initialization',
           user_id,
+          subaccount_code: subaccountCode,
           auto_refund: true,
         },
       }),
@@ -96,6 +122,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        subaccount_code: subaccountCode,
         authorization_url: paymentData.data.authorization_url,
         reference,
       }),
@@ -103,7 +130,7 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error creating bank account:', msg);
+    console.error('Error creating split account:', msg);
     return new Response(
       JSON.stringify({ success: false, error: msg }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

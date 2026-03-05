@@ -71,7 +71,6 @@ type Property = {
   city?: string;
   state?: string;
   street?: string;
-  views?: number;
 };
 
 export const PropertyDetails = () => {
@@ -110,12 +109,6 @@ export const PropertyDetails = () => {
 
       setProperty(data);
 
-      // Increment view count
-      await supabase
-        .from('properties')
-        .update({ views: (data.views || 0) + 1 })
-        .eq('id', data.id);
-
       // Fetch seller info
       const { data: sellerData } = await supabase
         .from('profiles')
@@ -142,7 +135,7 @@ export const PropertyDetails = () => {
         setIsFavorite(!!savedInDb.data || savedInLocal);
       }
 
-      // Check if property has been paid for
+      // Check if property has been paid for (funded/completed escrow)
       const { data: paidEscrow } = await supabase
         .from('escrow_transactions')
         .select('id')
@@ -206,33 +199,61 @@ export const PropertyDetails = () => {
 
   const handleFavorite = async () => {
     if (!property) return;
+    
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!isFavorite) {
+      // Save to localStorage
       localStorage.setItem(`saved_${property.id}`, 'true');
+      
+      // Try to save to database if user is logged in
       if (user) {
-        await supabase.from('saved_properties').insert({ user_id: user.id, property_id: property.id });
+        await supabase
+          .from('saved_properties')
+          .insert({
+            user_id: user.id,
+            property_id: property.id
+          });
       }
+      
       setIsFavorite(true);
-      toast({ title: 'Saved to favorites', description: 'Property saved to your dashboard' });
+      toast({
+        title: 'Saved to favorites',
+        description: 'Property saved to your dashboard',
+      });
     } else {
+      // Remove from localStorage
       localStorage.removeItem(`saved_${property.id}`);
+      
+      // Remove from database if user is logged in
       if (user) {
-        await supabase.from('saved_properties').delete().eq('user_id', user.id).eq('property_id', property.id);
+        await supabase
+          .from('saved_properties')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('property_id', property.id);
       }
+      
       setIsFavorite(false);
-      toast({ title: 'Removed from favorites', description: 'Property removed from your favorites' });
+      toast({
+        title: 'Removed from favorites',
+        description: 'Property removed from your favorites',
+      });
     }
   };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
-    toast({ title: 'Link copied!', description: 'Property link copied to clipboard' });
+    toast({
+      title: 'Link copied!',
+      description: 'Property link copied to clipboard',
+    });
   };
 
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
+        {/* Back Button */}
         <Link to="/browse" className="inline-flex items-center text-muted-foreground hover:text-primary mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Browse
@@ -241,12 +262,21 @@ export const PropertyDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Images & Videos */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Main Media Display */}
             {mediaItems.length > 0 && (
               <div className="relative h-[250px] sm:h-[350px] md:h-[400px] lg:h-[500px] rounded-xl overflow-hidden card-glow bg-black">
                 {mediaItems[selectedImage]?.type === 'image' ? (
-                  <img src={mediaItems[selectedImage].url} alt={property.title} className="w-full h-full object-contain md:object-cover" />
+                  <img
+                    src={mediaItems[selectedImage].url}
+                    alt={property.title}
+                    className="w-full h-full object-contain md:object-cover"
+                  />
                 ) : (
-                  <video controls className="w-full h-full object-contain md:object-cover" src={mediaItems[selectedImage]?.url}>
+                  <video 
+                    controls 
+                    className="w-full h-full object-contain md:object-cover"
+                    src={mediaItems[selectedImage]?.url}
+                  >
                     Your browser does not support the video tag.
                   </video>
                 )}
@@ -262,9 +292,16 @@ export const PropertyDetails = () => {
               </div>
             )}
 
+            {/* Thumbnail Carousel */}
             {mediaItems.length > 1 && (
               <div className="relative px-8 sm:px-12">
-                <Carousel opts={{ align: "start", loop: false }} className="w-full">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: false,
+                  }}
+                  className="w-full"
+                >
                   <CarouselContent>
                     {mediaItems.map((item, index) => (
                       <CarouselItem key={index} className="basis-1/3 sm:basis-1/4">
@@ -294,7 +331,7 @@ export const PropertyDetails = () => {
               </div>
             )}
 
-            {/* Property specs */}
+            {/* Property specs and breakdown */}
             <div className="bg-white rounded-xl p-8 card-glow space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {property.bedrooms > 0 && (
@@ -338,10 +375,13 @@ export const PropertyDetails = () => {
                     <DialogTitle className="text-xl">{property.title} — Full Details</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-6 pt-4">
+                    {/* Description */}
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">Description</h3>
                       <p className="text-muted-foreground leading-relaxed">{property.description}</p>
                     </div>
+
+                    {/* Basic Info */}
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">Property Info</h3>
                       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -357,6 +397,8 @@ export const PropertyDetails = () => {
                         {property.land_size && <div><span className="text-muted-foreground">Land Size:</span> {property.land_size} sqm</div>}
                       </div>
                     </div>
+
+                    {/* Rooms & Spaces */}
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">Rooms & Spaces</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
@@ -368,6 +410,8 @@ export const PropertyDetails = () => {
                         {property.area && <div>📐 {property.area} sqm</div>}
                       </div>
                     </div>
+
+                    {/* Pricing */}
                     {(property.daily_price || property.weekly_price || property.monthly_price || property.service_fee || property.agency_fee || property.agreement_fee) && (
                       <div>
                         <h3 className="font-semibold text-foreground mb-2">Pricing Details</h3>
@@ -381,6 +425,8 @@ export const PropertyDetails = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Amenities */}
                     {property.amenities && property.amenities.length > 0 && (
                       <div>
                         <h3 className="font-semibold text-foreground mb-2">Amenities</h3>
@@ -391,6 +437,8 @@ export const PropertyDetails = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Features */}
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">Features</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -413,6 +461,8 @@ export const PropertyDetails = () => {
                         {property.has_water_heater && <div className="flex items-center gap-2">✅ Water Heater</div>}
                       </div>
                     </div>
+
+                    {/* Location */}
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">Location</h3>
                       <div className="text-sm text-muted-foreground space-y-1">
@@ -434,7 +484,12 @@ export const PropertyDetails = () => {
                 {property.location_link.includes('iframe') ? (
                   <div className="rounded-lg overflow-hidden" dangerouslySetInnerHTML={{ __html: property.location_link }} />
                 ) : (
-                  <a href={property.location_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                  <a
+                    href={property.location_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
                     <MapPin className="w-5 h-5" />
                     View on Google Maps
                   </a>
@@ -446,6 +501,7 @@ export const PropertyDetails = () => {
           {/* Right Column - Booking Card */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
+              {/* Price Card */}
               <div className="bg-white rounded-xl p-6 card-glow space-y-6">
                 <div>
                   <h1 className="text-2xl font-bold text-foreground mb-2">{property.title}</h1>
@@ -454,13 +510,9 @@ export const PropertyDetails = () => {
                     <MapPin className="w-4 h-4 mr-1" />
                     {property.address}
                   </div>
-                  {/* View count */}
-                  <div className="flex items-center text-muted-foreground text-sm mt-2">
-                    <Eye className="w-4 h-4 mr-1" />
-                    {(property.views || 0) + 1} views
-                  </div>
                 </div>
 
+                {/* Blurred Action Buttons */}
                 <div className="space-y-2.5">
                   {isPaidFor ? (
                     <div className="w-full flex items-center justify-center gap-2 h-12 rounded-lg bg-green-600 text-white font-semibold">
@@ -472,7 +524,10 @@ export const PropertyDetails = () => {
                       onClick={async () => {
                         const { data: { session } } = await supabase.auth.getSession();
                         if (!session) {
-                          toast({ title: 'Login Required', description: 'Please log in to message the seller' });
+                          toast({
+                            title: 'Login Required',
+                            description: 'Please log in to message the seller',
+                          });
                           navigate('/login');
                           return;
                         }
@@ -500,6 +555,7 @@ export const PropertyDetails = () => {
                 </div>
               </div>
 
+              {/* Seller Info */}
               <div className="bg-white rounded-xl p-6 card-glow">
                 <h3 className="font-semibold text-foreground mb-4">Listed By</h3>
                 <Link 
