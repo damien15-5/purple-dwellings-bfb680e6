@@ -764,6 +764,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_verified_badge: boolean | null
           notification_email: boolean | null
           notification_messages: boolean | null
           notification_offers: boolean | null
@@ -788,6 +789,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_verified_badge?: boolean | null
           notification_email?: boolean | null
           notification_messages?: boolean | null
           notification_offers?: boolean | null
@@ -812,6 +814,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_verified_badge?: boolean | null
           notification_email?: boolean | null
           notification_messages?: boolean | null
           notification_offers?: boolean | null
@@ -1362,6 +1365,7 @@ export type Database = {
       }
       generate_cs_ticket_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
+      get_published_property_count: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
