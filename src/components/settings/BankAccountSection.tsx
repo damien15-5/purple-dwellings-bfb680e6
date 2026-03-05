@@ -111,13 +111,13 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Failed to create account');
+      if (!data?.success) throw new Error(data?.error || 'Failed to save account');
 
       // Redirect to payment
       if (data.authorization_url) {
         toast({
           title: 'Redirecting to Payment',
-          description: 'You will pay ₦100 to verify your account. Your bank will only be marked as verified after successful payment.',
+          description: 'You will pay ₦100 to verify your account. This will be refunded by Paystack.',
         });
         setTimeout(() => {
           window.location.href = data.authorization_url;
@@ -130,7 +130,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
     }
   };
 
-  if (bankDetails.bank_verified && bankDetails.paystack_subaccount_code) {
+  if (bankDetails.bank_verified) {
     return (
       <Card className="card-glow">
         <CardHeader>
