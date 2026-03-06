@@ -64,7 +64,6 @@ Deno.serve(async (req) => {
       const reference = `ESC-${escrowId.substring(0, 8)}-${Date.now()}`;
       const amount = Math.round(escrow.total_amount * 100);
 
-      // Build Paystack payload with split payment if seller has subaccount
       const paystackBody: any = {
         email: buyer?.email || '',
         amount,
@@ -80,16 +79,6 @@ Deno.serve(async (req) => {
           type: 'escrow_payment',
         },
       };
-
-      // Add split payment - full amount to seller (no platform fee)
-      if (seller?.paystack_subaccount_code) {
-        paystackBody.subaccount = seller.paystack_subaccount_code;
-        paystackBody.bearer = 'account'; // Seller bears Paystack fees
-        paystackBody.transaction_charge = 0; // Platform takes nothing
-        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
-      } else {
-        console.log('WARNING: Seller has no subaccount, payment goes to main account');
-      }
 
       const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
