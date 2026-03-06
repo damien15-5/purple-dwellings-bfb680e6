@@ -41,47 +41,47 @@ Deno.serve(async (req) => {
     // Check name match (relaxed - at least 1 word must match)
     const profileWords = profile.full_name.trim().toLowerCase().split(/\s+/);
     const resolvedWords = account_name.trim().toLowerCase().split(/\s+/);
-    const matchCount = profileWords.filter(w => resolvedWords.includes(w)).length;
+    const matchCount = profileWords.filter((w: string) => resolvedWords.includes(w)).length;
     if (matchCount < 1) {
       throw new Error(
         `Account name "${account_name}" does not match your profile name "${profile.full_name}". Please update your profile name or use a matching bank account.`
       );
     }
 
-    // Create Paystack subaccount
-    const subaccountRes = await fetch('https://api.paystack.co/subaccount', {
+    // Create a Paystack Transfer Recipient (for payouts)
+    const recipientRes = await fetch('https://api.paystack.co/transferrecipient', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${paystackSecretKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        business_name: account_name,
-        bank_code,
+        type: 'nuban',
+        name: account_name,
         account_number,
-        percentage_charge: 0, // We handle splits manually
-        primary_contact_email: profile.email,
+        bank_code,
+        currency: 'NGN',
       }),
     });
 
-    const subaccountData = await subaccountRes.json();
+    const recipientData = await recipientRes.json();
+    console.log('Paystack recipient response:', JSON.stringify(recipientData));
 
-    if (!subaccountData.status) {
-      throw new Error(subaccountData.message || 'Failed to create subaccount');
+    if (!recipientData.status) {
+      throw new Error(recipientData.message || 'Failed to create transfer recipient');
     }
 
-    const subaccountCode = subaccountData.data.subaccount_code;
+    const recipientCode = recipientData.data.recipient_code;
 
-    // Save bank details to profiles but do NOT mark as verified yet
-    // bank_verified will be set to true only after successful payment
+    // Save bank details and recipient code to profile, mark as verified
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         bank_name,
         account_number,
         account_name,
-        paystack_subaccount_code: subaccountCode,
-        bank_verified: false,
+        paystack_subaccount_code: recipientCode, // Store recipient code here
+        bank_verified: true,
       })
       .eq('id', user_id);
 
@@ -90,41 +90,13 @@ Deno.serve(async (req) => {
       throw new Error('Failed to save bank details');
     }
 
-    // Initialize ₦100 verification payment
-    const reference = `INIT-${user_id.substring(0, 8)}-${Date.now()}`;
-    const paymentRes = await fetch('https://api.paystack.co/transaction/initialize', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${paystackSecretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: profile.email,
-        amount: 10000, // ₦100 in kobo
-        reference,
-        currency: 'NGN',
-        callback_url: 'https://xavorian.xyz/dashboard/settings?bank_verified=pending',
-        metadata: {
-          type: 'account_initialization',
-          user_id,
-          subaccount_code: subaccountCode,
-          auto_refund: true,
-        },
-      }),
-    });
-
-    const paymentData = await paymentRes.json();
-
-    if (!paymentData.status) {
-      throw new Error(paymentData.message || 'Failed to initialize verification payment');
-    }
+    console.log('Bank account saved and verified for user:', user_id);
 
     return new Response(
       JSON.stringify({
         success: true,
-        subaccount_code: subaccountCode,
-        authorization_url: paymentData.data.authorization_url,
-        reference,
+        recipient_code: recipientCode,
+        message: 'Bank account verified and saved successfully',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

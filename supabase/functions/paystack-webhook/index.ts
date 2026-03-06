@@ -21,8 +21,7 @@ Deno.serve(async (req) => {
     const signature = req.headers.get('x-paystack-signature');
     const body = await req.text();
 
-    // In test mode, Paystack might not send signature
-    // For production, always verify signature
+    // Verify signature
     if (signature) {
       const hash = createHmac('sha512', paystackSecretKey)
         .update(body)
@@ -36,43 +35,33 @@ Deno.serve(async (req) => {
         );
       }
     } else {
-      console.warn('No signature provided - test mode?');
+      console.warn('No signature provided');
     }
 
     const event = JSON.parse(body);
     console.log('Webhook event received:', event.event, 'Data:', JSON.stringify(event.data));
 
-    // Handle charge.success event
     if (event.event === 'charge.success') {
       const { reference, amount, metadata, paid_at, channel, status: paystackStatus } = event.data;
       const txHash = metadata?.tx_hash;
 
       console.log('Processing payment:', { reference, txHash, paystackStatus, metadata });
 
-      // Handle account initialization payment (₦100 bank verification)
+      // Handle account initialization payment (₦100 bank verification) - LEGACY
       if (metadata?.type === 'account_initialization') {
         console.log('Processing account initialization payment for user:', metadata.user_id);
         
-        // Verify payment with Paystack
         const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
           headers: { 'Authorization': `Bearer ${paystackSecretKey}` },
         });
         const verifyData = await verifyResponse.json();
 
         if (verifyData.status && verifyData.data?.status === 'success') {
-          // Mark bank as verified
-          const { error: updateError } = await supabase
+          await supabase
             .from('profiles')
             .update({ bank_verified: true })
             .eq('id', metadata.user_id);
-
-          if (updateError) {
-            console.error('Error marking bank verified:', updateError);
-          } else {
-            console.log('Bank account verified successfully for user:', metadata.user_id);
-          }
-        } else {
-          console.error('Account init payment verification failed:', verifyData);
+          console.log('Bank account verified successfully for user:', metadata.user_id);
         }
 
         return new Response(
@@ -81,7 +70,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Find escrow transaction by tx_hash or reference
+      // Find escrow transaction by reference or tx_hash
       let escrow;
       if (txHash) {
         const { data: escrowByHash } = await supabase
@@ -109,7 +98,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check for idempotency
+      // Idempotency check
       if (escrow.status === 'funded' && escrow.payment_verified_at) {
         console.log('Payment already processed, returning success');
         return new Response(
@@ -127,16 +116,9 @@ Deno.serve(async (req) => {
       if (!verifyData.status || verifyData.data?.status !== 'success') {
         console.error('Payment verification failed:', verifyData);
         await supabase.from('transactions').insert({
-          tx_hash: escrow.tx_hash || txHash,
+          tx_hash: escrow.tx_hash || txHash || reference,
           event_type: 'payment_verification_failed',
           payload: { reference, paystack_response: verifyData, webhook_data: event.data },
-        });
-        await supabase.from('audit_logs').insert({
-          escrow_id: escrow.id,
-          action: 'payment_verification_failed',
-          before_state: { status: escrow.status },
-          after_state: { status: 'pending_payment' },
-          reason: 'Paystack verification returned non-success status',
         });
         return new Response(
           JSON.stringify({ success: false, error: 'Payment verification failed' }),
@@ -144,14 +126,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Payment verified successfully
+      // Payment verified successfully - create payment record
       console.log('Payment verified successfully');
 
-      const { error: paymentError } = await supabase
+      await supabase
         .from('payment_records')
         .insert({
           escrow_id: escrow.id,
-          tx_hash: escrow.tx_hash || txHash,
+          tx_hash: escrow.tx_hash || txHash || reference,
           paystack_reference: reference,
           amount: amount / 100,
           status: 'success',
@@ -159,10 +141,9 @@ Deno.serve(async (req) => {
           paid_at: new Date(paid_at).toISOString(),
           webhook_data: event.data,
         });
-      if (paymentError) console.error('Error creating payment record:', paymentError);
 
       await supabase.from('transactions').insert({
-        tx_hash: escrow.tx_hash || txHash,
+        tx_hash: escrow.tx_hash || txHash || reference,
         event_type: 'payment_verified',
         payload: { reference, amount: amount / 100, channel, paystack_verification: verifyData.data },
       });
@@ -171,7 +152,8 @@ Deno.serve(async (req) => {
       const inspectionEndDate = new Date();
       inspectionEndDate.setDate(inspectionEndDate.getDate() + 21);
 
-      const { error: updateError } = await supabase
+      // Update escrow to funded
+      await supabase
         .from('escrow_transactions')
         .update({
           status: 'funded',
@@ -182,18 +164,62 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', escrow.id);
-      if (updateError) console.error('Error updating escrow status:', updateError);
 
       await supabase.from('audit_logs').insert({
         escrow_id: escrow.id,
         actor_id: escrow.buyer_id,
         action: 'payment_confirmed',
         before_state: { status: escrow.status },
-        after_state: { status: 'funded', inspection_start: inspectionStartDate.toISOString(), inspection_end: inspectionEndDate.toISOString() },
+        after_state: { status: 'funded' },
         reason: 'Payment verified and confirmed by Paystack',
       });
 
       console.log('Escrow funded successfully:', escrow.id);
+
+      // Auto-trigger payout to seller
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        
+        const payoutRes = await fetch(`${supabaseUrl}/functions/v1/process-payout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ escrow_id: escrow.id }),
+        });
+
+        const payoutData = await payoutRes.json();
+        console.log('Auto-payout result:', JSON.stringify(payoutData));
+      } catch (payoutErr) {
+        console.error('Auto-payout failed (will need manual processing):', payoutErr);
+        
+        // Alert admins via Telegram about failed auto-payout
+        const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+        if (telegramToken) {
+          try {
+            const { data: adminChats } = await supabase
+              .from('telegram_admin_chats')
+              .select('chat_id')
+              .eq('is_active', true);
+
+            for (const chat of adminChats || []) {
+              await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: chat.chat_id,
+                  text: `⚠️ *AUTO-PAYOUT FAILED*\n\nEscrow: \`${escrow.id.substring(0, 8)}\`\nAmount: ₦${(amount / 100).toLocaleString()}\n\nPayment was received but auto-transfer failed. Manual payout needed.`,
+                  parse_mode: 'Markdown',
+                }),
+              });
+            }
+          } catch (tgErr) {
+            console.error('Telegram alert failed:', tgErr);
+          }
+        }
+      }
     }
 
     return new Response(
