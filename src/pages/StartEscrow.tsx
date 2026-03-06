@@ -341,7 +341,7 @@ export const StartEscrow = () => {
                         </div>
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Payment Method</span>
-                          <span className="font-semibold">Paystack (Direct to Seller)</span>
+                          <span className="font-semibold">Paystack</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Payment Timing</span>
