@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         .single();
 
       const reference = `ESC-${escrowId.substring(0, 8)}-${Date.now()}`;
-      const amount = Math.round((escrow.offer_amount || escrow.transaction_amount) * 100);
+      const amount = Math.round(escrow.total_amount * 100);
 
       // Build Paystack payload with split payment if seller has subaccount
       const paystackBody: any = {
