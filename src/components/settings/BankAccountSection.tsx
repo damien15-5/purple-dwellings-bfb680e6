@@ -92,7 +92,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
     }
   };
 
-  const handleVerifyAndPay = async () => {
+  const handleSaveBankAccount = async () => {
     if (!resolvedName || !userId) return;
 
     const selectedBank = NIGERIAN_BANKS.find(b => b.code === selectedBankCode);
@@ -111,26 +111,29 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Failed to create account');
+      if (!data?.success) throw new Error(data?.error || 'Failed to save bank account');
 
-      // Redirect to payment
-      if (data.authorization_url) {
-        toast({
-          title: 'Redirecting to Payment',
-          description: 'You will pay ₦100 to verify your account. Your bank will only be marked as verified after successful payment.',
-        });
-        setTimeout(() => {
-          window.location.href = data.authorization_url;
-        }, 1500);
-      }
+      // Update local state to show verified view
+      setBankDetails({
+        bank_name: selectedBank.name,
+        account_number: accountNumber,
+        account_name: resolvedName,
+        bank_verified: true,
+        paystack_subaccount_code: data.recipient_code || '',
+      });
+
+      toast({
+        title: 'Bank Account Verified',
+        description: 'Your bank account has been saved and verified successfully.',
+      });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to verify account', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message || 'Failed to save bank account', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (bankDetails.bank_verified && bankDetails.paystack_subaccount_code) {
+  if (bankDetails.bank_verified && bankDetails.account_number) {
     return (
       <Card className="card-glow">
         <CardHeader>
@@ -173,7 +176,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Add your bank account for receiving payments. A ₦100 verification fee will be charged and refunded by Paystack.
+          Add your bank account for receiving payments. Your account will be verified instantly.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,7 +224,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
                 Verifying...
               </>
             ) : (
-              'Submit'
+              'Verify Account'
             )}
           </Button>
         )}
@@ -233,22 +236,19 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
               <Input value={resolvedName} disabled className="bg-muted font-medium" />
             </div>
             <Button
-              onClick={handleVerifyAndPay}
+              onClick={handleSaveBankAccount}
               disabled={submitting}
               className="w-full md:w-auto"
             >
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
+                  Saving...
                 </>
               ) : (
-                'Verify & Pay ₦100 to Initialize'
+                'Save Bank Account'
               )}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              The ₦100 will be refunded to your account by Paystack after verification.
-            </p>
           </>
         )}
       </CardContent>

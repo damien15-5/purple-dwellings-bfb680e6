@@ -103,7 +103,7 @@ export const NotificationPrefsSection = ({ notifications, setNotifications, user
                 variant="outline"
                 size="sm"
                 className="gap-2 shrink-0"
-                onClick={() => window.open('https://t.me/XavorianBot', '_blank')}
+                onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}
               >
                 <ExternalLink className="h-4 w-4" />
                 Connect Bot

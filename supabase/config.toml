@@ -29,3 +29,24 @@ verify_jwt = false
 
 [functions.initialize-payment]
 verify_jwt = false
+
+[functions.process-payout]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.confirm-escrow]
+verify_jwt = false
+
+[functions.verify-kyc]
+verify_jwt = false
+
+[functions.raise-dispute]
+verify_jwt = false
+
+[functions.resolve-dispute]
+verify_jwt = false

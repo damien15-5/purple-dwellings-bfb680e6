@@ -26,8 +26,9 @@ export const StartEscrow = () => {
     terms: '',
   });
 
-  // No fees - full amount transferred to seller
+  const PLATFORM_FEE = 2000; // ₦2,000 platform fee
   const effectivePrice = existingEscrow?.offer_amount || property?.price || 0;
+  const totalWithFee = effectivePrice + PLATFORM_FEE;
 
   useEffect(() => {
     fetchPropertyDetails();
@@ -104,10 +105,10 @@ export const StartEscrow = () => {
             buyer_id: user.id,
             seller_id: property.user_id,
             transaction_amount: effectivePrice,
-            atara_fee: 0,
-            platform_fee: 0,
+            atara_fee: PLATFORM_FEE,
+            platform_fee: PLATFORM_FEE,
             escrow_fee: 0,
-            total_amount: effectivePrice,
+            total_amount: totalWithFee,
             terms: formData.terms,
             payment_method: 'direct',
             payment_timing: formData.paymentTiming,
@@ -127,10 +128,10 @@ export const StartEscrow = () => {
             payment_method: 'direct',
             payment_timing: formData.paymentTiming,
             terms: formData.terms,
-            atara_fee: 0,
-            platform_fee: 0,
+            atara_fee: PLATFORM_FEE,
+            platform_fee: PLATFORM_FEE,
             escrow_fee: 0,
-            total_amount: effectivePrice,
+            total_amount: totalWithFee,
           })
           .eq('id', escrowId);
       }
@@ -234,7 +235,7 @@ export const StartEscrow = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg">Pay via Paystack</h3>
                           <p className="text-sm text-muted-foreground mt-2">
-                            Pay securely via Paystack. The full amount is transferred directly to the seller's account. No hidden fees.
+                            Pay securely via Paystack. Full property price is transferred to the seller after a ₦2,000 platform fee.
                           </p>
                           
                           <div className="mt-4 space-y-3 bg-background/50 p-4 rounded-lg border border-border/50">
@@ -245,17 +246,21 @@ export const StartEscrow = () => {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Platform Fee</span>
-                                <span className="font-medium text-green-600">₦0 (Free)</span>
+                                <span className="font-medium">₦{PLATFORM_FEE.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Paystack Processing Fees</span>
+                                <span>Included in total</span>
                               </div>
                               <div className="flex justify-between pt-2 border-t border-border/50">
                                 <span className="font-semibold">Total Payment</span>
-                                <span className="font-bold text-lg text-primary">₦{effectivePrice.toLocaleString()}</span>
+                                <span className="font-bold text-lg text-primary">₦{totalWithFee.toLocaleString()}</span>
                               </div>
                             </div>
                             <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
                               <p className="text-xs text-foreground flex items-start gap-2">
                                 <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <span>Full amount is transferred directly to the seller. No fees are deducted.</span>
+                                <span>₦{effectivePrice.toLocaleString()} goes to the seller. ₦{PLATFORM_FEE.toLocaleString()} platform fee. Paystack fees stay within the payment processor.</span>
                               </p>
                             </div>
                           </div>
@@ -336,7 +341,7 @@ export const StartEscrow = () => {
                         </div>
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Payment Method</span>
-                          <span className="font-semibold">Paystack (Direct to Seller)</span>
+                          <span className="font-semibold">Paystack</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-border/30">
                           <span className="text-muted-foreground">Payment Timing</span>
@@ -355,12 +360,16 @@ export const StartEscrow = () => {
                           </div>
                         )}
                         <div className="flex justify-between py-2 border-b border-border/30">
-                          <span className="text-muted-foreground">Fees</span>
-                          <span className="font-semibold text-green-600">₦0 (Free)</span>
+                          <span className="text-muted-foreground">Platform Fee</span>
+                          <span className="font-semibold">₦{PLATFORM_FEE.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Paystack Fees</span>
+                          <span className="font-semibold text-muted-foreground">Included</span>
                         </div>
                         <div className="flex justify-between py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
                           <span className="font-semibold text-lg">Total Amount</span>
-                          <span className="font-bold text-2xl text-primary">₦{effectivePrice.toLocaleString()}</span>
+                          <span className="font-bold text-2xl text-primary">₦{totalWithFee.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
