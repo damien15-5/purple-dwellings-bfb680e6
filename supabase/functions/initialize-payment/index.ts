@@ -54,12 +54,7 @@ Deno.serve(async (req) => {
         .eq('id', escrow.buyer_id)
         .single();
 
-      // Get seller's subaccount for split payment
-      const { data: seller } = await supabase
-        .from('profiles')
-        .select('paystack_subaccount_code, full_name')
-        .eq('id', escrow.seller_id)
-        .single();
+      // Payment goes to main Paystack account; payout is handled separately via process-payout
 
       const reference = `ESC-${escrowId.substring(0, 8)}-${Date.now()}`;
       const amount = Math.round(escrow.total_amount * 100);
