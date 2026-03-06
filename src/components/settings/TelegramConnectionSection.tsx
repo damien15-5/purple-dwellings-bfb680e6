@@ -73,7 +73,7 @@ export const TelegramConnectionSection = ({ userId }: TelegramConnectionProps) =
             <Button
               variant="outline"
               className="gap-2 w-full sm:w-auto"
-              onClick={() => window.open('https://t.me/XavorianBot', '_blank')}
+              onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}
             >
               <ExternalLink className="h-4 w-4" />
               Open XavorianBot

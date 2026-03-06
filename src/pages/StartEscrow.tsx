@@ -26,8 +26,9 @@ export const StartEscrow = () => {
     terms: '',
   });
 
-  // No fees - full amount transferred to seller
+  const PLATFORM_FEE = 2000; // ₦2,000 platform fee
   const effectivePrice = existingEscrow?.offer_amount || property?.price || 0;
+  const totalWithFee = effectivePrice + PLATFORM_FEE;
 
   useEffect(() => {
     fetchPropertyDetails();

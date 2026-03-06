@@ -198,12 +198,6 @@ export const PropertyCard = memo(({
             <Heart className={`h-3.5 w-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
           </button>
 
-          {views && views > 0 && (
-            <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs flex items-center gap-1 z-10">
-              <Eye className="h-3 w-3" />
-              <span>{views} views</span>
-            </div>
-          )}
         </div>
 
         <div className="space-y-0.5">
