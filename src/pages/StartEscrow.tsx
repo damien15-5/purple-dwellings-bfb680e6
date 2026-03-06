@@ -360,8 +360,12 @@ export const StartEscrow = () => {
                           </div>
                         )}
                         <div className="flex justify-between py-2 border-b border-border/30">
-                          <span className="text-muted-foreground">Fees</span>
-                          <span className="font-semibold text-green-600">₦0 (Free)</span>
+                          <span className="text-muted-foreground">Platform Fee</span>
+                          <span className="font-semibold">₦{PLATFORM_FEE.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-border/30">
+                          <span className="text-muted-foreground">Paystack Fees</span>
+                          <span className="font-semibold text-muted-foreground">Included</span>
                         </div>
                         <div className="flex justify-between py-3 bg-primary/5 -mx-6 px-6 rounded-lg">
                           <span className="font-semibold text-lg">Total Amount</span>
