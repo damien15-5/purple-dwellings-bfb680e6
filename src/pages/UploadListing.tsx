@@ -11,7 +11,7 @@ import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
-import { uploadToGCS } from '@/utils/gcsUpload';
+import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
@@ -264,10 +264,9 @@ export const UploadListing = () => {
           
           console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
           
-          const result = await uploadToGCS(
+          const result = await uploadToCloudinary(
             optimizedImage,
-            `property-images/${userId}`,
-            `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
+            `property-images/${userId}`
           );
           
           if (!result.success) {
@@ -287,10 +286,9 @@ export const UploadListing = () => {
         setUploadProgress('Uploading video to cloud...');
         const video = videoFiles[0];
         
-        const result = await uploadToGCS(
+        const result = await uploadToCloudinary(
           video,
-          `property-videos/${userId}`,
-          `${Date.now()}_${video.name}`
+          `property-videos/${userId}`
         );
         
         if (!result.success) {
@@ -305,10 +303,9 @@ export const UploadListing = () => {
           try {
             const thumbnailBlob = await generateVideoThumbnail(video);
             const thumbnailFile = new File([thumbnailBlob], 'video-thumbnail.webp', { type: 'image/webp' });
-            const thumbResult = await uploadToGCS(
+            const thumbResult = await uploadToCloudinary(
               thumbnailFile,
-              `property-images/${userId}`,
-              `${Date.now()}_video_thumbnail.webp`
+              `property-images/${userId}`
             );
             if (thumbResult.success && thumbResult.url) {
               imageUrls = [thumbResult.url];
