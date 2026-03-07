@@ -5,7 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PLATFORM_FEE = 200000; // ₦2,000 in kobo
+// Paystack fee: 1.5% capped at ₦2,500
+function calculatePaystackFee(amountNaira: number): number {
+  return Math.min(Math.round(amountNaira * 0.015), 2500);
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,7 +27,6 @@ Deno.serve(async (req) => {
     const { escrow_id } = await req.json();
     if (!escrow_id) throw new Error('escrow_id is required');
 
-    // Get escrow details
     const { data: escrow, error: escrowErr } = await supabase
       .from('escrow_transactions')
       .select('*')
@@ -33,12 +35,10 @@ Deno.serve(async (req) => {
 
     if (escrowErr || !escrow) throw new Error('Escrow not found');
 
-    // Only process funded/completed escrows
     if (!['funded', 'completed', 'inspection_period'].includes(escrow.status)) {
       throw new Error(`Escrow is not in a payable state: ${escrow.status}`);
     }
 
-    // Get seller's recipient code
     const { data: seller } = await supabase
       .from('profiles')
       .select('paystack_subaccount_code, full_name, bank_name, account_number, account_name')
@@ -49,29 +49,26 @@ Deno.serve(async (req) => {
       throw new Error('Seller has no verified bank account / recipient code');
     }
 
-    // Calculate payout: total amount minus ₦2,000 platform fee
-    // Paystack fees stay in Paystack account automatically
-    const totalAmountKobo = Math.round((escrow.offer_amount || escrow.transaction_amount) * 100);
-    const payoutAmountKobo = totalAmountKobo - PLATFORM_FEE;
+    const transactionAmountNaira = escrow.offer_amount || escrow.transaction_amount;
+    const paystackFeeNaira = calculatePaystackFee(transactionAmountNaira);
+    const payoutAmountKobo = Math.round((transactionAmountNaira - paystackFeeNaira) * 100);
 
     if (payoutAmountKobo <= 0) {
       throw new Error('Payout amount is zero or negative after fees');
     }
 
-    console.log(`Processing payout: Total ₦${totalAmountKobo / 100}, Platform fee ₦${PLATFORM_FEE / 100}, Payout ₦${payoutAmountKobo / 100}`);
+    console.log(`Processing payout: Amount ₦${transactionAmountNaira}, Paystack fee ₦${paystackFeeNaira}, Payout ₦${payoutAmountKobo / 100}`);
 
-    // First, disable OTP for transfers
+    // Disable OTP for transfers
     try {
       await fetch('https://api.paystack.co/transfer/disable_otp', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${paystackSecretKey}`, 'Content-Type': 'application/json' },
       });
-      console.log('OTP disable requested');
     } catch (e) {
       console.warn('OTP disable request failed (may already be disabled):', e);
     }
 
-    // Initiate transfer to seller
     const transferRef = `PAYOUT-${escrow_id.substring(0, 8)}-${Date.now()}`;
     const transferRes = await fetch('https://api.paystack.co/transfer', {
       method: 'POST',
@@ -119,12 +116,12 @@ Deno.serve(async (req) => {
       throw new Error(transferData.message || 'Transfer initiation failed');
     }
 
-    // Update escrow with payout info
+    // Update escrow
     await supabase
       .from('escrow_transactions')
       .update({
-        platform_fee: PLATFORM_FEE / 100,
-        atara_fee: PLATFORM_FEE / 100,
+        platform_fee: paystackFeeNaira,
+        atara_fee: paystackFeeNaira,
         status: 'completed',
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -140,7 +137,7 @@ Deno.serve(async (req) => {
       after_state: {
         status: 'completed',
         payout_amount: payoutAmountKobo / 100,
-        platform_fee: PLATFORM_FEE / 100,
+        paystack_fee: paystackFeeNaira,
         transfer_reference: transferRef,
       },
       reason: 'Auto payout triggered after payment confirmation',
@@ -155,7 +152,7 @@ Deno.serve(async (req) => {
           .select('chat_id')
           .eq('is_active', true);
 
-        const successMsg = `✅ *PAYOUT SUCCESSFUL*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nBank: ${seller.bank_name} - ${seller.account_number}\nPayout: ₦${(payoutAmountKobo / 100).toLocaleString()}\nPlatform Fee: ₦${(PLATFORM_FEE / 100).toLocaleString()}\nRef: \`${transferRef}\``;
+        const successMsg = `✅ *PAYOUT SUCCESSFUL*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nBank: ${seller.bank_name} - ${seller.account_number}\nPayout: ₦${(payoutAmountKobo / 100).toLocaleString()}\nPaystack Fee: ₦${paystackFeeNaira.toLocaleString()}\nRef: \`${transferRef}\``;
 
         for (const chat of adminChats || []) {
           await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
@@ -174,7 +171,7 @@ Deno.serve(async (req) => {
         success: true,
         transfer_reference: transferRef,
         payout_amount: payoutAmountKobo / 100,
-        platform_fee: PLATFORM_FEE / 100,
+        paystack_fee: paystackFeeNaira,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
