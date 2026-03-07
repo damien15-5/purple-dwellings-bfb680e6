@@ -129,8 +129,8 @@ export const StartEscrow = () => {
             payment_method: 'direct',
             payment_timing: formData.paymentTiming,
             terms: formData.terms,
-            atara_fee: PLATFORM_FEE,
-            platform_fee: PLATFORM_FEE,
+            atara_fee: PAYSTACK_FEE,
+            platform_fee: PAYSTACK_FEE,
             escrow_fee: 0,
             total_amount: totalWithFee,
           })
