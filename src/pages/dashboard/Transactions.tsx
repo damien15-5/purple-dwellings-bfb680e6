@@ -5,57 +5,162 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { CreditCard, Clock, CheckCircle, XCircle, Eye, Filter, Trash2, Printer } from 'lucide-react';
+import { CreditCard, Clock, CheckCircle, XCircle, Eye, Filter, Trash2, Printer, Star, Handshake, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface UnifiedTransaction {
+  id: string;
+  type: 'escrow' | 'purchase' | 'promotion';
+  typeLabel: string;
+  title: string;
+  description: string;
+  amount: number;
+  status: string;
+  date: string;
+  paymentMethod: string;
+  imageUrl?: string;
+  raw: any;
+}
+
 export const Transactions = () => {
   const navigate = useNavigate();
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<UnifiedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<UnifiedTransaction | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [totalSpent, setTotalSpent] = useState(0);
 
   useEffect(() => {
     loadTransactions();
   }, []);
 
   useEffect(() => {
-    if (statusFilter === 'all') {
-      setFilteredTransactions(transactions);
-    } else {
-      setFilteredTransactions(transactions.filter(t => t.status === statusFilter));
+    let filtered = transactions;
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(t => t.status === statusFilter);
     }
-  }, [statusFilter, transactions]);
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(t => t.type === typeFilter);
+    }
+    setFilteredTransactions(filtered);
+  }, [statusFilter, typeFilter, transactions]);
 
   const loadTransactions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
-      .from('purchase_transactions')
-      .select(`
-        *,
-        property:properties(title, address, images),
-        buyer_profile:profiles!purchase_transactions_buyer_id_fkey(full_name, email),
-        seller_profile:profiles!purchase_transactions_seller_id_fkey(full_name, email, bank_name, account_number, account_name)
-      `)
-      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+    const [escrowRes, purchaseRes, promotionRes] = await Promise.all([
+      supabase
+        .from('escrow_transactions')
+        .select('*, property:properties(title, address, images)')
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('purchase_transactions')
+        .select('*, property:properties(title, address, images)')
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('property_promotions')
+        .select('*, property:properties(title, address, images)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+    ]);
 
-    setTransactions(data || []);
-    setFilteredTransactions(data || []);
+    const unified: UnifiedTransaction[] = [];
+
+    // Map escrow transactions
+    for (const e of escrowRes.data || []) {
+      const normalizedStatus = mapEscrowStatus(e.status);
+      unified.push({
+        id: e.id,
+        type: 'escrow',
+        typeLabel: 'Property Payment',
+        title: e.property?.title || 'Property Transaction',
+        description: e.property?.address || '',
+        amount: Number(e.total_amount || e.transaction_amount),
+        status: normalizedStatus,
+        date: e.created_at,
+        paymentMethod: 'Paystack',
+        imageUrl: e.property?.images?.[0],
+        raw: e,
+      });
+    }
+
+    // Map purchase transactions
+    for (const p of purchaseRes.data || []) {
+      unified.push({
+        id: p.id,
+        type: 'purchase',
+        typeLabel: 'Direct Purchase',
+        title: p.property?.title || 'Property Purchase',
+        description: p.property?.address || '',
+        amount: Number(p.transaction_amount),
+        status: p.status,
+        date: p.created_at,
+        paymentMethod: p.payment_method === 'paystack' ? 'Paystack' : 'Bank Transfer',
+        imageUrl: p.property?.images?.[0],
+        raw: p,
+      });
+    }
+
+    // Map promotions
+    for (const pr of promotionRes.data || []) {
+      unified.push({
+        id: pr.id,
+        type: 'promotion',
+        typeLabel: 'Property Promotion',
+        title: pr.property?.title || 'Property Promotion',
+        description: `${pr.days_promoted} day${pr.days_promoted > 1 ? 's' : ''} promotion`,
+        amount: Number(pr.amount_paid),
+        status: pr.is_active ? 'successful' : 'completed',
+        date: pr.created_at,
+        paymentMethod: 'Paystack',
+        imageUrl: pr.property?.images?.[0],
+        raw: pr,
+      });
+    }
+
+    // Sort by date descending
+    unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Calculate total spent
+    const total = unified
+      .filter(t => ['successful', 'completed', 'funded', 'inspection_period'].includes(t.status))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    setTotalSpent(total);
+    setTransactions(unified);
+    setFilteredTransactions(unified);
     setLoading(false);
   };
 
-  const handleMakePayment = async (transaction: any) => {
+  const mapEscrowStatus = (status: string): string => {
+    switch (status) {
+      case 'pending_payment': return 'pending';
+      case 'funded':
+      case 'inspection_period':
+      case 'completed': return 'successful';
+      case 'cancelled':
+      case 'refunded': return 'cancelled';
+      case 'disputed': return 'failed';
+      default: return status;
+    }
+  };
+
+  const handleMakePayment = async (transaction: UnifiedTransaction) => {
     try {
       toast.loading('Preparing payment gateway...');
+      const body = transaction.type === 'escrow'
+        ? { escrowId: transaction.id }
+        : { purchaseId: transaction.id };
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
         'initialize-payment',
-        { body: { purchaseId: transaction.id } }
+        { body }
       );
       if (paymentError) throw paymentError;
       if (paymentData.success) {
@@ -69,17 +174,19 @@ export const Transactions = () => {
     }
   };
 
-  const handleDeleteTransaction = async (transactionId: string) => {
+  const handleDeleteTransaction = async (transaction: UnifiedTransaction) => {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
-    
-    setTransactions(prev => prev.filter(t => t.id !== transactionId));
-    setFilteredTransactions(prev => prev.filter(t => t.id !== transactionId));
+
+    setTransactions(prev => prev.filter(t => t.id !== transaction.id));
 
     try {
-      const { error } = await supabase
-        .from('purchase_transactions')
-        .delete()
-        .eq('id', transactionId);
+      const table = transaction.type === 'escrow' ? 'escrow_transactions' : 'purchase_transactions';
+      if (transaction.type === 'promotion') {
+        toast.error('Promotion records cannot be deleted');
+        loadTransactions();
+        return;
+      }
+      const { error } = await supabase.from(table).delete().eq('id', transaction.id);
       if (error) throw error;
       toast.success('Transaction deleted');
     } catch {
@@ -88,48 +195,27 @@ export const Transactions = () => {
     }
   };
 
-  const handlePrintReceipt = (transaction: any) => {
-    const receiptWindow = window.open('', '_blank');
-    if (!receiptWindow) return;
-    
-    receiptWindow.document.write(`
-      <html>
-        <head><title>Payment Receipt</title>
-        <style>
-          body { font-family: system-ui, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
-          h1 { color: #333; font-size: 24px; }
-          .info { margin: 20px 0; }
-          .info div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-          .total { font-size: 20px; font-weight: bold; color: #7c3aed; }
-          .badge { background: #22c55e; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
-          .disclaimer { margin-top: 30px; padding: 16px; background: #fef3cd; border-radius: 8px; font-size: 13px; }
-        </style>
-        </head>
-        <body>
-          <h1>🏠 Xavorian Payment Receipt</h1>
-          <p style="color:#666">Transaction ID: ${transaction.id.substring(0, 8)}...</p>
-          <div class="info">
-            <div><span>Property</span><span>${transaction.property?.title || 'N/A'}</span></div>
-            <div><span>Buyer</span><span>${transaction.buyer_profile?.full_name || 'N/A'}</span></div>
-            <div><span>Seller</span><span>${transaction.seller_profile?.full_name || 'N/A'}</span></div>
-            <div><span>Amount</span><span class="total">₦${Number(transaction.transaction_amount).toLocaleString()}</span></div>
-            <div><span>Payment Method</span><span>${transaction.payment_method === 'paystack' ? 'Paystack' : 'Bank Transfer'}</span></div>
-            <div><span>Date</span><span>${new Date(transaction.created_at).toLocaleDateString()}</span></div>
-            <div><span>Status</span><span class="badge">${transaction.status}</span></div>
-          </div>
-          <div class="disclaimer">
-            ⚠️ Xavorian does not control funds. This receipt is for record keeping purposes only.
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'escrow': return <Handshake className="h-4 w-4" />;
+      case 'promotion': return <Star className="h-4 w-4" />;
+      default: return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  const getTypeBadgeColor = (type: string) => {
+    switch (type) {
+      case 'escrow': return 'bg-blue-500';
+      case 'promotion': return 'bg-purple-500';
+      default: return 'bg-green-500';
+    }
   };
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { color: string; icon: any; label: string }> = {
       pending: { color: 'bg-yellow-500', icon: Clock, label: 'Pending' },
       successful: { color: 'bg-green-500', icon: CheckCircle, label: 'Successful' },
+      completed: { color: 'bg-green-500', icon: CheckCircle, label: 'Completed' },
       failed: { color: 'bg-red-500', icon: XCircle, label: 'Failed' },
       cancelled: { color: 'bg-gray-500', icon: XCircle, label: 'Cancelled' },
     };
@@ -153,26 +239,48 @@ export const Transactions = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Transactions</h1>
-          <p className="text-muted-foreground">Track your property payment transactions</p>
+          <p className="text-muted-foreground">All your payments — property purchases, promotions & more</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="successful">Successful</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Card className="card-glow px-5 py-3">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Total Spent</p>
+              <p className="text-lg font-bold text-primary">₦{totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="successful">Successful</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="escrow">Property Payments</SelectItem>
+            <SelectItem value="purchase">Direct Purchases</SelectItem>
+            <SelectItem value="promotion">Promotions</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {transactions.length === 0 ? (
@@ -188,89 +296,55 @@ export const Transactions = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {filteredTransactions.map((transaction) => (
-            <Card key={transaction.id} className="card-glow">
-              <CardHeader>
+            <Card key={`${transaction.type}-${transaction.id}`} className="card-glow">
+              <CardHeader className="pb-3">
                 <div className="flex items-start gap-4">
-                  {transaction.property?.images?.[0] && (
+                  {transaction.imageUrl && (
                     <img
-                      src={transaction.property.images[0]}
-                      alt={transaction.property.title}
-                      className="w-24 h-24 rounded-lg object-cover border-2 border-border"
+                      src={transaction.imageUrl}
+                      alt={transaction.title}
+                      className="w-20 h-20 rounded-lg object-cover border-2 border-border hidden sm:block"
                     />
                   )}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <CardTitle className="text-lg">{transaction.property?.title}</CardTitle>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <CardTitle className="text-base truncate">{transaction.title}</CardTitle>
                       {getStatusBadge(transaction.status)}
                     </div>
-                    <p className="text-sm text-muted-foreground">{transaction.property?.address}</p>
-                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                      <div><span className="font-medium">Buyer:</span> {transaction.buyer_profile?.full_name || 'Unknown'}</div>
-                      <div><span className="font-medium">Seller:</span> {transaction.seller_profile?.full_name || 'Unknown'}</div>
+                    <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge className={`${getTypeBadgeColor(transaction.type)} text-white gap-1 text-xs`}>
+                        {getTypeIcon(transaction.type)}
+                        {transaction.typeLabel}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <CardContent className="pt-0">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Amount</p>
-                    <p className="text-lg font-semibold">₦{Number(transaction.transaction_amount).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="text-lg font-bold text-primary">₦{transaction.amount.toLocaleString()}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
-                    <p className="text-sm font-medium">{transaction.payment_method === 'paystack' ? 'Paystack' : 'Bank Transfer'}</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {transaction.status === 'pending' && transaction.type !== 'promotion' && (
+                      <Button size="sm" variant="hero" className="gap-1" onClick={() => handleMakePayment(transaction)}>
+                        <CreditCard className="h-3.5 w-3.5" /> Pay Now
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => { setSelectedTransaction(transaction); setShowBreakdown(true); }}>
+                      <Eye className="h-3.5 w-3.5" /> Details
+                    </Button>
+                    {transaction.status === 'pending' && transaction.type !== 'promotion' && (
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleDeleteTransaction(transaction)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Date</p>
-                    <p className="text-sm">{new Date(transaction.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 flex-wrap">
-                  {transaction.status === 'pending' && transaction.payment_method === 'paystack' && (
-                    <Button 
-                      variant="hero" 
-                      className="flex-1 gap-2"
-                      onClick={() => handleMakePayment(transaction)}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Pay Now
-                    </Button>
-                  )}
-                  {transaction.status === 'successful' && (
-                    <Button 
-                      variant="outline" 
-                      className="gap-2"
-                      onClick={() => handlePrintReceipt(transaction)}
-                    >
-                      <Printer className="h-4 w-4" />
-                      Print Receipt
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => {
-                      setSelectedTransaction(transaction);
-                      setShowBreakdown(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                    View Details
-                  </Button>
-                  {transaction.status !== 'successful' && (
-                    <Button 
-                      variant="destructive" 
-                      className="gap-2"
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -280,72 +354,80 @@ export const Transactions = () => {
 
       {/* Details Dialog */}
       <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Transaction Details</DialogTitle>
           </DialogHeader>
           {selectedTransaction && (
             <div className="space-y-4">
               <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
-                {selectedTransaction.property?.images?.[0] && (
-                  <img
-                    src={selectedTransaction.property.images[0]}
-                    alt={selectedTransaction.property.title}
-                    className="w-32 h-32 rounded-lg object-cover border-2 border-border"
-                  />
+                {selectedTransaction.imageUrl && (
+                  <img src={selectedTransaction.imageUrl} alt={selectedTransaction.title} className="w-24 h-24 rounded-lg object-cover border-2 border-border" />
                 )}
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">{selectedTransaction.property?.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{selectedTransaction.property?.address}</p>
-                  {getStatusBadge(selectedTransaction.status)}
+                  <h3 className="font-semibold mb-1">{selectedTransaction.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{selectedTransaction.description}</p>
+                  <div className="flex gap-2">
+                    {getStatusBadge(selectedTransaction.status)}
+                    <Badge className={`${getTypeBadgeColor(selectedTransaction.type)} text-white text-xs`}>
+                      {selectedTransaction.typeLabel}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3 p-4 bg-gradient-to-br from-accent/30 to-transparent rounded-lg border border-border/50">
-                <h4 className="font-semibold mb-3">Payment Details</h4>
-                <div className="flex justify-between py-2 border-b border-border/30">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-bold text-lg text-accent-purple">₦{Number(selectedTransaction.transaction_amount).toLocaleString()}</span>
-                </div>
+                <h4 className="font-semibold">Payment Breakdown</h4>
+
+                {selectedTransaction.type === 'escrow' && (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-border/30">
+                      <span className="text-muted-foreground">Property Price</span>
+                      <span className="font-medium">₦{Number(selectedTransaction.raw.transaction_amount).toLocaleString()}</span>
+                    </div>
+                    {selectedTransaction.raw.offer_amount && (
+                      <div className="flex justify-between py-2 border-b border-border/30">
+                        <span className="text-muted-foreground">Negotiated Price</span>
+                        <span className="font-medium text-primary">₦{Number(selectedTransaction.raw.offer_amount).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2 border-b border-border/30">
+                      <span className="text-muted-foreground">Paystack Fee</span>
+                      <span className="font-medium">₦{Number(selectedTransaction.raw.platform_fee || 0).toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
+
+                {selectedTransaction.type === 'promotion' && (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-border/30">
+                      <span className="text-muted-foreground">Duration</span>
+                      <span className="font-medium">{selectedTransaction.raw.days_promoted} days</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-border/30">
+                      <span className="text-muted-foreground">Active Until</span>
+                      <span className="font-medium">{new Date(selectedTransaction.raw.expires_at).toLocaleDateString()}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex justify-between py-2 border-b border-border/30">
                   <span className="text-muted-foreground">Payment Method</span>
-                  <span className="font-medium">{selectedTransaction.payment_method === 'paystack' ? 'Paystack' : 'Bank Transfer'}</span>
+                  <span className="font-medium">{selectedTransaction.paymentMethod}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border/30">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="font-medium">{new Date(selectedTransaction.date).toLocaleDateString()}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border/30">
                   <span className="text-muted-foreground">Transaction ID</span>
-                  <span className="font-mono text-xs">{selectedTransaction.id}</span>
+                  <span className="font-mono text-xs">{selectedTransaction.id.substring(0, 12)}...</span>
                 </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Date</span>
-                  <span>{new Date(selectedTransaction.created_at).toLocaleDateString()}</span>
+                <div className="flex justify-between py-3 bg-primary/5 -mx-4 px-4 rounded-lg">
+                  <span className="font-semibold">Total Paid</span>
+                  <span className="font-bold text-lg text-primary">₦{selectedTransaction.amount.toLocaleString()}</span>
                 </div>
-                {selectedTransaction.payment_verified_at && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">Verified At</span>
-                    <span>{new Date(selectedTransaction.payment_verified_at).toLocaleDateString()}</span>
-                  </div>
-                )}
               </div>
-
-              {selectedTransaction.payment_method === 'transfer' && (
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <h4 className="font-semibold mb-2">Seller Bank Details</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Bank</span>
-                      <span>{selectedTransaction.seller_bank_name || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Number</span>
-                      <span className="font-mono">{selectedTransaction.seller_account_number || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Name</span>
-                      <span>{selectedTransaction.seller_account_name || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </DialogContent>
