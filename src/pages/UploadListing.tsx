@@ -264,10 +264,9 @@ export const UploadListing = () => {
           
           console.log(`Image ${index + 1}: ${formatFileSize(image.size)} → ${formatFileSize(optimizedImage.size)}`);
           
-          const result = await uploadToGCS(
+          const result = await uploadToCloudinary(
             optimizedImage,
-            `property-images/${userId}`,
-            `${Date.now()}_${index}_${image.name.replace(/\.[^/.]+$/, '')}.webp`
+            `property-images/${userId}`
           );
           
           if (!result.success) {
