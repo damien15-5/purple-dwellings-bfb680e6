@@ -246,12 +246,8 @@ export const StartEscrow = () => {
                                 <span className="font-medium">₦{effectivePrice.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Platform Fee</span>
-                                <span className="font-medium">₦{PLATFORM_FEE.toLocaleString()}</span>
-                              </div>
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>Paystack Processing Fees</span>
-                                <span>Included in total</span>
+                                <span className="text-muted-foreground">Paystack Fee (1.5% max ₦2,500)</span>
+                                <span className="font-medium">₦{PAYSTACK_FEE.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between pt-2 border-t border-border/50">
                                 <span className="font-semibold">Total Payment</span>
