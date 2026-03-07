@@ -286,10 +286,9 @@ export const UploadListing = () => {
         setUploadProgress('Uploading video to cloud...');
         const video = videoFiles[0];
         
-        const result = await uploadToGCS(
+        const result = await uploadToCloudinary(
           video,
-          `property-videos/${userId}`,
-          `${Date.now()}_${video.name}`
+          `property-videos/${userId}`
         );
         
         if (!result.success) {
