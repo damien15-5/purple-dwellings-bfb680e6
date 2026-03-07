@@ -303,10 +303,9 @@ export const UploadListing = () => {
           try {
             const thumbnailBlob = await generateVideoThumbnail(video);
             const thumbnailFile = new File([thumbnailBlob], 'video-thumbnail.webp', { type: 'image/webp' });
-            const thumbResult = await uploadToGCS(
+            const thumbResult = await uploadToCloudinary(
               thumbnailFile,
-              `property-images/${userId}`,
-              `${Date.now()}_video_thumbnail.webp`
+              `property-images/${userId}`
             );
             if (thumbResult.success && thumbResult.url) {
               imageUrls = [thumbResult.url];
