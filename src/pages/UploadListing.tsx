@@ -11,7 +11,7 @@ import { ImagesUploadStep } from '@/components/upload/ImagesUploadStep';
 import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
-import { uploadToGCS } from '@/utils/gcsUpload';
+import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
