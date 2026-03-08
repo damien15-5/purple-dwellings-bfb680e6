@@ -16,7 +16,6 @@ export const Settings = () => {
     whatsapp: '',
     company_name: '',
     avatar_url: '',
-    telegram_username: '',
   });
   const [notifications, setNotifications] = useState({
     email: true,
