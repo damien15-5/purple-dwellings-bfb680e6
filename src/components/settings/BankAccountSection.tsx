@@ -131,7 +131,12 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
         description: 'Your bank account has been linked successfully. Buyers will see your account details when making payments.',
       });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to save bank account', variant: 'destructive' });
+      const rawMsg = error.message || '';
+      let userMsg = 'Could not save bank account. Please try again.';
+      if (rawMsg.includes('does not match') || rawMsg.includes('account name') || rawMsg.includes('profile name')) {
+        userMsg = 'Your name must match the account name. Please recheck your profile name or use a bank account that matches your name.';
+      }
+      toast({ title: 'Name Mismatch', description: userMsg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
