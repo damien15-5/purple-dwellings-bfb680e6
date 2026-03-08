@@ -88,7 +88,7 @@ export const Settings = () => {
         notifications={notifications}
         setNotifications={setNotifications}
         userId={userId}
-        hasTelegram={!!profile.telegram_username}
+        hasTelegram={false}
       />
       <BankAccountSection bankDetails={bankDetails} setBankDetails={setBankDetails} userId={userId} />
     </div>

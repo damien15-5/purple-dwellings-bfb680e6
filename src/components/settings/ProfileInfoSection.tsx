@@ -16,7 +16,6 @@ interface ProfileInfoProps {
     whatsapp: string;
     company_name: string;
     avatar_url: string;
-    telegram_username: string;
   };
   setProfile: (p: any) => void;
   userId: string | null;
