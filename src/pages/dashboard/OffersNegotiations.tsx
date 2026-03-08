@@ -107,6 +107,8 @@ export const OffersNegotiations = () => {
           seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
         `)
         .or(`buyer_id.eq.${resolvedUserId},seller_id.eq.${resolvedUserId}`)
+        .not('offer_amount', 'is', null)
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
