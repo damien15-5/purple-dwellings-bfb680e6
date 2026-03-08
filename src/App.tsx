@@ -9,6 +9,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { FloatingMenu } from "@/components/FloatingMenu";
 import { LoadingFallback } from "@/components/LoadingFallback";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 import { ScrollToTop } from "@/components/ScrollToTop";
 
