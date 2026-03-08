@@ -176,7 +176,8 @@ Deno.serve(async (req) => {
 
       console.log('Escrow funded successfully:', escrow.id);
 
-      // Auto-trigger payout to seller
+    // Auto-trigger payout to seller
+      console.log('Triggering auto-payout for escrow:', escrow.id);
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -192,33 +193,12 @@ Deno.serve(async (req) => {
 
         const payoutData = await payoutRes.json();
         console.log('Auto-payout result:', JSON.stringify(payoutData));
-      } catch (payoutErr) {
-        console.error('Auto-payout failed (will need manual processing):', payoutErr);
-        
-        // Alert admins via Telegram about failed auto-payout
-        const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-        if (telegramToken) {
-          try {
-            const { data: adminChats } = await supabase
-              .from('telegram_admin_chats')
-              .select('chat_id')
-              .eq('is_active', true);
 
-            for (const chat of adminChats || []) {
-              await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  chat_id: chat.chat_id,
-                  text: `⚠️ *AUTO-PAYOUT FAILED*\n\nEscrow: \`${escrow.id.substring(0, 8)}\`\nAmount: ₦${(amount / 100).toLocaleString()}\n\nPayment was received but auto-transfer failed. Manual payout needed.`,
-                  parse_mode: 'Markdown',
-                }),
-              });
-            }
-          } catch (tgErr) {
-            console.error('Telegram alert failed:', tgErr);
-          }
+        if (!payoutData.success) {
+          console.error('Auto-payout returned failure:', payoutData.error);
         }
+      } catch (payoutErr) {
+        console.error('Auto-payout fetch failed:', payoutErr);
       }
     }
 
