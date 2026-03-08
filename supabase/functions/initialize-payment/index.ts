@@ -83,10 +83,12 @@ Deno.serve(async (req) => {
       // Add split payment if seller has a subaccount
       if (seller?.paystack_subaccount_code) {
         paystackBody.subaccount = seller.paystack_subaccount_code;
-        // Bearer means Paystack charges the main account (platform) the transaction fee
-        // The subaccount (seller) gets their percentage_charge (98.5%) automatically
+        // transaction_charge = the Paystack processing fee portion (goes to main account to cover Paystack fees)
+        // Seller gets: total_amount - transaction_charge = property price (100%)
+        const paystackFeeKobo = Math.min(Math.round(escrow.total_amount * 0.018 * 100 / (1 + 0.018)), Math.round((escrow.total_amount - (escrow.offer_amount || escrow.transaction_amount)) * 100));
+        paystackBody.transaction_charge = paystackFeeKobo > 0 ? paystackFeeKobo : 0;
         paystackBody.bearer = 'account';
-        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
+        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code, 'transaction_charge:', paystackFeeKobo);
       } else {
         console.warn('Seller has no subaccount, payment goes to main account');
       }
