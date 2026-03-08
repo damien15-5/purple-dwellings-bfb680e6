@@ -189,11 +189,7 @@ export const OffersNegotiations = () => {
       setSelectedOffer(null);
       setResponseMessage('');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to respond to offer',
-        variant: 'destructive',
-      });
+      alert('Failed to respond to offer. Please try again.');
       // Remove from responding set on error
       setRespondingOffers(prev => {
         const newSet = new Set(prev);
