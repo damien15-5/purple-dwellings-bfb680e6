@@ -255,7 +255,7 @@ export const OffersNegotiations = () => {
                       <CardTitle className="text-lg mb-2">{offer.property?.title}</CardTitle>
                       <p className="text-sm text-muted-foreground">{offer.property?.address}</p>
                     </div>
-                    {getStatusBadge(offer.offer_status || 'none')}
+                    {getStatusBadge(offer)}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
