@@ -82,6 +82,8 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
     { command: 'exportlistings', description: 'Export all listings as CSV' },
     { command: 'exportpromos', description: 'Export all promotions as CSV' },
     { command: 'msg', description: 'Message a user: /msg email message' },
+    { command: 'disableotp', description: 'Disable Paystack transfer OTP' },
+    { command: 'enableotp', description: 'Re-enable Paystack transfer OTP' },
     { command: 'cancel', description: 'Cancel messaging mode' },
   ];
 
