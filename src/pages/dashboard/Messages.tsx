@@ -113,17 +113,19 @@ export const Messages = () => {
       if (error) throw error;
       if (data) setMessages(data);
 
-      // Load escrow status for this conversation
+      // Load escrow status for this conversation (use latest one, not maybeSingle)
       if (selectedConversation?.property_id) {
         const { data: escrowData } = await supabase
           .from('escrow_transactions')
           .select('*')
           .eq('property_id', selectedConversation.property_id)
           .or(`buyer_id.eq.${currentUserId},seller_id.eq.${currentUserId}`)
-          .maybeSingle();
+          .not('offer_amount', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
         
-        if (escrowData) {
-          setEscrowStatuses(prev => new Map(prev).set(convId, escrowData));
+        if (escrowData && escrowData.length > 0) {
+          setEscrowStatuses(prev => new Map(prev).set(convId, escrowData[0]));
         }
       }
 
