@@ -419,9 +419,20 @@ export const Messages = () => {
   };
 
   const handleSendExtraPaymentRequest = async () => {
-    if (!selectedConversation || !extraPaymentAmount || !currentUserId) return;
+    if (!selectedConversation || !extraPaymentAmount) return;
 
-    const isPropertyOwner = selectedConversation.property?.user_id === currentUserId;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: 'Login required',
+        description: 'Please log in again to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const senderId = user.id;
+    const isPropertyOwner = selectedConversation.property?.user_id === senderId;
     if (!isPropertyOwner) {
       toast({
         title: 'Not allowed',
@@ -442,7 +453,7 @@ export const Messages = () => {
     }
 
     const recipientId =
-      currentUserId === selectedConversation.buyer_id
+      senderId === selectedConversation.buyer_id
         ? selectedConversation.seller_id
         : selectedConversation.buyer_id;
 
@@ -453,7 +464,7 @@ export const Messages = () => {
     try {
       const { error } = await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
-        sender_id: currentUserId,
+        sender_id: senderId,
         content,
         message_type: 'extra_payment_request',
         offer_amount: amount,
