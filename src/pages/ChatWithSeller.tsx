@@ -319,7 +319,7 @@ export const ChatWithSeller = () => {
 
     try {
       const content = offerMessage || `I'd like to make an offer of ₦${amount.toLocaleString()} for this property.`;
-      
+
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -333,30 +333,50 @@ export const ChatWithSeller = () => {
 
       if (error) throw error;
 
-      // Create or update escrow transaction with offer
-      const { data: existingEscrow } = await supabase
+      // Reuse only an OPEN unpaid escrow thread; otherwise create a fresh one
+      const { data: openEscrows, error: openEscrowError } = await supabase
         .from('escrow_transactions')
         .select('*')
         .eq('property_id', property.id)
         .eq('buyer_id', currentUserId)
         .eq('seller_id', property.user_id)
-        .single();
+        .eq('status', 'pending_payment')
+        .is('payment_verified_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      if (existingEscrow) {
+      if (openEscrowError) throw openEscrowError;
+
+      const existingOpenEscrow = openEscrows?.[0];
+
+      // Keep existing fee logic used by this flow
+      const ataraFee = amount * 0.015;
+      const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
+      const totalFees = ataraFee + platformFee;
+
+      if (existingOpenEscrow) {
         await supabase
           .from('escrow_transactions')
           .update({
+            transaction_amount: amount,
+            escrow_fee: ataraFee,
+            platform_fee: platformFee,
+            atara_fee: ataraFee,
+            total_amount: amount + totalFees,
             offer_amount: amount,
             offer_status: 'pending',
-            offer_message: content
+            offer_message: content,
+            status: 'pending_payment',
+            payment_verified_at: null,
+            paystack_verified_at: null,
+            paystack_reference: null,
+            paystack_access_code: null,
+            transfer_status: null,
+            transfer_reference: null,
+            updated_at: new Date().toISOString(),
           })
-          .eq('id', existingEscrow.id);
+          .eq('id', existingOpenEscrow.id);
       } else {
-        // Calculate fees
-        const ataraFee = amount * 0.015;
-        const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
-        const totalFees = ataraFee + platformFee;
-
         await supabase
           .from('escrow_transactions')
           .insert({
@@ -426,7 +446,32 @@ export const ChatWithSeller = () => {
           message_type: 'accept'
         });
 
-      // Update escrow transaction
+      // Resolve the exact pending escrow for this offer
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('buyer_id, seller_id')
+        .eq('id', conversationId)
+        .single();
+
+      if (conversationError || !conversation) throw new Error('Conversation not found');
+
+      const { data: escrowToUpdate, error: escrowLookupError } = await supabase
+        .from('escrow_transactions')
+        .select('id')
+        .eq('property_id', property.id)
+        .eq('buyer_id', conversation.buyer_id)
+        .eq('seller_id', conversation.seller_id)
+        .eq('offer_amount', amount)
+        .eq('status', 'pending_payment')
+        .is('payment_verified_at', null)
+        .in('offer_status', ['pending', 'none'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (escrowLookupError) throw escrowLookupError;
+      if (!escrowToUpdate) throw new Error('No pending escrow offer found to accept');
+
       await supabase
         .from('escrow_transactions')
         .update({
@@ -434,24 +479,15 @@ export const ChatWithSeller = () => {
           seller_responded_at: new Date().toISOString(),
           seller_response: 'accepted'
         })
-        .eq('property_id', property.id)
-        .eq('offer_amount', amount);
+        .eq('id', escrowToUpdate.id);
 
       // Notify the buyer
-      const { data: conversation } = await supabase
-        .from('conversations')
-        .select('buyer_id')
-        .eq('id', conversationId)
-        .single();
-
-      if (conversation) {
-        await supabase.rpc('create_notification', {
-          p_user_id: conversation.buyer_id,
-          p_title: 'Offer Accepted',
-          p_description: `Your offer of ₦${amount.toLocaleString()} for ${property.title} has been accepted!`,
-          p_type: 'offer_accepted'
-        });
-      }
+      await supabase.rpc('create_notification', {
+        p_user_id: conversation.buyer_id,
+        p_title: 'Offer Accepted',
+        p_description: `Your offer of ₦${amount.toLocaleString()} for ${property.title} has been accepted!`,
+        p_type: 'offer_accepted'
+      });
 
       await supabase
         .from('conversations')
@@ -505,7 +541,32 @@ export const ChatWithSeller = () => {
           message_type: 'reject'
         });
 
-      // Update escrow transaction
+      // Resolve the exact pending escrow for this offer
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('buyer_id, seller_id')
+        .eq('id', conversationId)
+        .single();
+
+      if (conversationError || !conversation) throw new Error('Conversation not found');
+
+      const { data: escrowToUpdate, error: escrowLookupError } = await supabase
+        .from('escrow_transactions')
+        .select('id')
+        .eq('property_id', property.id)
+        .eq('buyer_id', conversation.buyer_id)
+        .eq('seller_id', conversation.seller_id)
+        .eq('offer_amount', msg?.offer_amount)
+        .eq('status', 'pending_payment')
+        .is('payment_verified_at', null)
+        .in('offer_status', ['pending', 'none'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (escrowLookupError) throw escrowLookupError;
+      if (!escrowToUpdate) throw new Error('No pending escrow offer found to reject');
+
       await supabase
         .from('escrow_transactions')
         .update({
@@ -513,24 +574,15 @@ export const ChatWithSeller = () => {
           seller_responded_at: new Date().toISOString(),
           seller_response: 'rejected'
         })
-        .eq('property_id', property.id)
-        .eq('offer_amount', msg?.offer_amount);
+        .eq('id', escrowToUpdate.id);
 
       // Notify the buyer
-      const { data: conversation } = await supabase
-        .from('conversations')
-        .select('buyer_id')
-        .eq('id', conversationId)
-        .single();
-
-      if (conversation) {
-        await supabase.rpc('create_notification', {
-          p_user_id: conversation.buyer_id,
-          p_title: 'Offer Rejected',
-          p_description: `Your offer of ₦${msg?.offer_amount?.toLocaleString()} for ${property.title} has been rejected.`,
-          p_type: 'offer_rejected'
-        });
-      }
+      await supabase.rpc('create_notification', {
+        p_user_id: conversation.buyer_id,
+        p_title: 'Offer Rejected',
+        p_description: `Your offer of ₦${msg?.offer_amount?.toLocaleString()} for ${property.title} has been rejected.`,
+        p_type: 'offer_rejected'
+      });
 
       await supabase
         .from('conversations')

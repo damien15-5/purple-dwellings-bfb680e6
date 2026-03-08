@@ -19,48 +19,105 @@ export const OffersNegotiations = () => {
   const [respondingOffers, setRespondingOffers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadOffers();
+    let isMounted = true;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-    // Subscribe to realtime updates on escrow_transactions
-    const channel = supabase
-      .channel('offers-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'escrow_transactions',
-        },
-        () => {
-          loadOffers();
-        }
-      )
-      .subscribe();
+    const init = async () => {
+      setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!isMounted) return;
+
+      if (!user) {
+        setCurrentUserId(null);
+        setOffers([]);
+        setLoading(false);
+        return;
+      }
+
+      setCurrentUserId(user.id);
+      await loadOffers(user.id);
+
+      const channel = supabase
+        .channel(`offers-realtime-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `buyer_id=eq.${user.id}`,
+          },
+          () => loadOffers(user.id)
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `seller_id=eq.${user.id}`,
+          },
+          () => loadOffers(user.id)
+        )
+        .subscribe();
+
+      pollInterval = setInterval(() => {
+        loadOffers(user.id);
+      }, 8000);
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    let cleanupChannel: (() => void) | undefined;
+    init().then((cleanup) => {
+      cleanupChannel = cleanup;
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+      cleanupChannel?.();
     };
   }, []);
 
-  const loadOffers = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const loadOffers = async (userId?: string) => {
+    try {
+      let resolvedUserId = userId;
 
-    setCurrentUserId(user.id);
+      if (!resolvedUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setOffers([]);
+          return;
+        }
+        resolvedUserId = user.id;
+        setCurrentUserId(user.id);
+      }
 
-    const { data } = await supabase
-      .from('escrow_transactions')
-      .select(`
-        *,
-        property:properties(id, title, address, images, price),
-        buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
-        seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
-      `)
-      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('escrow_transactions')
+        .select(`
+          *,
+          property:properties(id, title, address, images, price),
+          buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
+          seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
+        `)
+        .or(`buyer_id.eq.${resolvedUserId},seller_id.eq.${resolvedUserId}`)
+        .order('created_at', { ascending: false });
 
-    setOffers(data || []);
-    setLoading(false);
+      if (error) throw error;
+
+      setOffers(data || []);
+    } catch (error) {
+      console.error('Failed to load offers:', error);
+      setOffers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResponse = async (offerId: string, accept: boolean) => {

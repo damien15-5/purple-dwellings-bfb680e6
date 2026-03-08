@@ -81,117 +81,142 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!userId) return;
 
-    // Listen for new messages
+    // Listen for new messages (membership checked in callback)
     const messagesChannel = supabase
-      .channel('messages-notifications')
+      .channel(`messages-notifications-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=in.(select id from conversations where buyer_id=eq.${userId} or seller_id=eq.${userId})`
         },
         async (payload: any) => {
-          if (payload.new.sender_id !== userId) {
-            // Get sender name
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', payload.new.sender_id)
-              .single();
+          if (payload.new.sender_id === userId) return;
 
-            addNotification({
-              type: 'message',
-              title: 'New Message',
-              message: `${profile?.full_name || 'Someone'} sent you a message`,
-              link: `/dashboard/chats`
-            });
-          }
+          const conversationId = payload.new.conversation_id;
+          if (!conversationId) return;
+
+          const { data: conversation } = await supabase
+            .from('conversations')
+            .select('buyer_id, seller_id')
+            .eq('id', conversationId)
+            .maybeSingle();
+
+          if (!conversation) return;
+          if (conversation.buyer_id !== userId && conversation.seller_id !== userId) return;
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', payload.new.sender_id)
+            .single();
+
+          addNotification({
+            type: 'message',
+            title: 'New Message',
+            message: `${profile?.full_name || 'Someone'} sent you a message`,
+            link: `/dashboard/chats`
+          });
         }
       )
       .subscribe();
 
-    // Listen for escrow transactions
-    const escrowChannel = supabase
-      .channel('escrow-notifications')
+    const handleEscrowChange = (payload: any, role: 'buyer' | 'seller') => {
+      const event = payload.eventType;
+      const oldData = payload.old || {};
+      const newData = payload.new || {};
+
+      if (event === 'INSERT' && role === 'seller' && newData.offer_amount) {
+        addNotification({
+          type: 'offer',
+          title: 'New Offer Received',
+          message: `You received an offer of ₦${Number(newData.offer_amount).toLocaleString()}`,
+          link: '/dashboard/offers'
+        });
+        return;
+      }
+
+      if (event === 'UPDATE') {
+        if (oldData.offer_status !== newData.offer_status) {
+          if (role === 'buyer' && newData.offer_status === 'accepted' && newData.status === 'pending_payment' && !newData.payment_verified_at) {
+            addNotification({
+              type: 'offer',
+              title: 'Offer Accepted',
+              message: 'Your offer was accepted. Complete payment to continue.',
+              link: '/dashboard/offers'
+            });
+          }
+
+          if (role === 'buyer' && newData.offer_status === 'rejected') {
+            addNotification({
+              type: 'offer',
+              title: 'Offer Rejected',
+              message: 'Your offer was rejected by the seller.',
+              link: '/dashboard/offers'
+            });
+          }
+        }
+
+        if (oldData.status !== newData.status) {
+          if (newData.status === 'funded') {
+            addNotification({
+              type: 'transaction',
+              title: 'Payment Received',
+              message: 'Escrow has been funded successfully',
+              link: '/dashboard/escrows'
+            });
+          } else if (newData.status === 'completed') {
+            addNotification({
+              type: 'transaction',
+              title: 'Transaction Completed',
+              message: 'Escrow transaction has been completed',
+              link: '/dashboard/escrows'
+            });
+          } else if (newData.status === 'disputed') {
+            addNotification({
+              type: 'transaction',
+              title: 'Dispute Raised',
+              message: 'A dispute has been raised on your transaction',
+              link: '/dashboard/escrows'
+            });
+          }
+        }
+      }
+    };
+
+    const escrowBuyerChannel = supabase
+      .channel(`escrow-notifications-buyer-${userId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'escrow_transactions',
-          filter: `buyer_id=eq.${userId},seller_id=eq.${userId}`
+          filter: `buyer_id=eq.${userId}`
         },
-        (payload: any) => {
-          const event = payload.eventType;
-          const data = payload.new || payload.old;
-          
-          let title = '';
-          let message = '';
-          
-          if (event === 'INSERT') {
-            title = 'New Escrow Created';
-            message = 'A new escrow transaction has been initiated';
-          } else if (event === 'UPDATE') {
-            if (data.status === 'funded') {
-              title = 'Payment Received';
-              message = 'Escrow has been funded successfully';
-            } else if (data.status === 'completed') {
-              title = 'Transaction Completed';
-              message = 'Escrow transaction has been completed';
-            } else if (data.status === 'disputed') {
-              title = 'Dispute Raised';
-              message = 'A dispute has been raised on your transaction';
-            }
-          }
-          
-          if (title) {
-            addNotification({
-              type: 'transaction',
-              title,
-              message,
-              link: '/dashboard/escrows'
-            });
-          }
-        }
+        (payload: any) => handleEscrowChange(payload, 'buyer')
       )
       .subscribe();
 
-    // Listen for offers (via messages with offer_amount)
-    const offersChannel = supabase
-      .channel('offers-notifications')
+    const escrowSellerChannel = supabase
+      .channel(`escrow-notifications-seller-${userId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=in.(select id from conversations where buyer_id=eq.${userId} or seller_id=eq.${userId})`
+          table: 'escrow_transactions',
+          filter: `seller_id=eq.${userId}`
         },
-        async (payload: any) => {
-          if (payload.new.sender_id !== userId && payload.new.offer_amount) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', payload.new.sender_id)
-              .single();
-
-            addNotification({
-              type: 'offer',
-              title: 'New Offer Received',
-              message: `${profile?.full_name || 'Someone'} made an offer of ₦${payload.new.offer_amount.toLocaleString()}`,
-              link: '/dashboard/offers'
-            });
-          }
-        }
+        (payload: any) => handleEscrowChange(payload, 'seller')
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(messagesChannel);
-      supabase.removeChannel(escrowChannel);
-      supabase.removeChannel(offersChannel);
+      supabase.removeChannel(escrowBuyerChannel);
+      supabase.removeChannel(escrowSellerChannel);
     };
   }, [userId]);
 
