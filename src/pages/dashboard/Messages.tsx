@@ -34,6 +34,18 @@ export const Messages = () => {
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
+  const [extraPaymentDialogOpen, setExtraPaymentDialogOpen] = useState(false);
+  const [extraPaymentAmount, setExtraPaymentAmount] = useState('');
+  const [extraPaymentNote, setExtraPaymentNote] = useState('');
+  const [bankDetailsDialogOpen, setBankDetailsDialogOpen] = useState(false);
+  const [activeExtraPayment, setActiveExtraPayment] = useState<{ messageId: string; amount: number } | null>(null);
+  const [payeeBankDetails, setPayeeBankDetails] = useState<{
+    full_name: string;
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
+  } | null>(null);
+  const [processingExtraPaymentIds, setProcessingExtraPaymentIds] = useState<Set<string>>(new Set());
   const [escrowStatuses, setEscrowStatuses] = useState<Map<string, any>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
