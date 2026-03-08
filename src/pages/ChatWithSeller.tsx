@@ -55,6 +55,27 @@ export const ChatWithSeller = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let messagesChannel: any = null;
+    let escrowChannel: any = null;
+
+    const loadLatestEscrowStatus = async (userId: string, propertyId: string) => {
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('property_id', propertyId)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .not('offer_amount', 'is', null)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (isMounted) {
+        setEscrowStatus(data || null);
+      }
+    };
+
     const initChat = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -62,9 +83,9 @@ export const ChatWithSeller = () => {
         return;
       }
 
+      if (!isMounted) return;
       setCurrentUserId(session.user.id);
 
-      // Fetch property
       const { data: propertyData, error: propertyError } = await supabase
         .from('properties')
         .select('*')
@@ -77,21 +98,20 @@ export const ChatWithSeller = () => {
         return;
       }
 
+      if (!isMounted) return;
       setProperty(propertyData);
 
-      // Get seller name
       const { data: sellerProfile } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', propertyData.user_id)
         .single();
 
-      if (sellerProfile) {
+      if (sellerProfile && isMounted) {
         setSellerName(sellerProfile.full_name);
       }
 
-      // Find or create conversation
-      let { data: existingConv, error: convError } = await supabase
+      let { data: existingConv } = await supabase
         .from('conversations')
         .select('*')
         .eq('property_id', id)
@@ -118,9 +138,9 @@ export const ChatWithSeller = () => {
         existingConv = newConv;
       }
 
+      if (!isMounted) return;
       setConversationId(existingConv.id);
 
-      // Fetch messages
       const { data: messagesData } = await supabase
         .from('messages')
         .select('*')
@@ -128,31 +148,19 @@ export const ChatWithSeller = () => {
         .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
-      if (messagesData) {
+      if (messagesData && isMounted) {
         setMessages(messagesData);
       }
 
-      // Check escrow status
-      const { data: escrowData } = await supabase
-        .from('escrow_transactions')
-        .select('*')
-        .eq('property_id', id)
-        .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-        .maybeSingle();
-      
-      if (escrowData) {
-        setEscrowStatus(escrowData);
-      }
+      await loadLatestEscrowStatus(session.user.id, propertyData.id);
 
-      // Mark messages as read
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', existingConv.id)
         .neq('sender_id', session.user.id);
 
-      // Subscribe to new messages
-      const channel = supabase
+      messagesChannel = supabase
         .channel(`messages:${existingConv.id}`)
         .on(
           'postgres_changes',
@@ -163,18 +171,63 @@ export const ChatWithSeller = () => {
             filter: `conversation_id=eq.${existingConv.id}`,
           },
           (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message]);
+            if (!isMounted) return;
+            const nextMessage = payload.new as Message;
+            setMessages((prev) => {
+              if (prev.some((msg) => msg.id === nextMessage.id)) return prev;
+              return [...prev, nextMessage];
+            });
             scrollToBottom();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${existingConv.id}`,
+          },
+          (payload) => {
+            if (!isMounted) return;
+            const updated = payload.new as Message;
+            setMessages((prev) => prev.map((msg) => (msg.id === updated.id ? { ...msg, ...updated } : msg)));
           }
         )
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      escrowChannel = supabase
+        .channel(`chat-offers:${propertyData.id}:${session.user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `buyer_id=eq.${session.user.id}`,
+          },
+          () => loadLatestEscrowStatus(session.user.id, propertyData.id)
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `seller_id=eq.${session.user.id}`,
+          },
+          () => loadLatestEscrowStatus(session.user.id, propertyData.id)
+        )
+        .subscribe();
     };
 
     initChat();
+
+    return () => {
+      isMounted = false;
+      if (messagesChannel) supabase.removeChannel(messagesChannel);
+      if (escrowChannel) supabase.removeChannel(escrowChannel);
+    };
   }, [id, navigate]);
 
   const scrollToBottom = () => {
