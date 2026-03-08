@@ -110,6 +110,17 @@ export const PropertyDetails = () => {
 
       setProperty(data);
 
+      // Track this view for personalization
+      trackPropertyView({
+        id: data.id,
+        property_type: data.property_type,
+        price: data.price,
+        city: data.city || undefined,
+        state: data.state || undefined,
+        bedrooms: data.bedrooms || undefined,
+        listing_type: data.listing_type || undefined,
+      });
+
       // Fetch seller info
       const { data: sellerData } = await supabase
         .from('profiles')
