@@ -209,6 +209,7 @@ const App = () => {
       </AdminProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </HelmetProvider>
   );
 };
 
