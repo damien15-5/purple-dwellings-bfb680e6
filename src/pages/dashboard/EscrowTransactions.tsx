@@ -274,8 +274,8 @@ export const EscrowTransactions = () => {
                       ₦{transaction.transaction_amount?.toLocaleString()}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Escrow Fee</p>
+                   <div>
+                    <p className="text-sm text-muted-foreground mb-1">Paystack Fee</p>
                     <p className="text-lg font-semibold text-muted-foreground">
                       ₦{transaction.escrow_fee?.toLocaleString()}
                     </p>
