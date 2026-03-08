@@ -83,10 +83,13 @@ Deno.serve(async (req) => {
       // Add split payment if seller has a subaccount
       if (seller?.paystack_subaccount_code) {
         paystackBody.subaccount = seller.paystack_subaccount_code;
-        // Bearer means Paystack charges the main account (platform) the transaction fee
-        // The subaccount (seller) gets their percentage_charge (98.5%) automatically
+        // transaction_charge = Paystack processing fee (goes to main account to cover Paystack's fees)
+        // Seller gets: amount - transaction_charge = full property price (100%)
+        const propertyPrice = escrow.offer_amount || escrow.transaction_amount;
+        const paystackFeeKobo = Math.min(Math.round(propertyPrice * 0.018 * 100), 250000);
+        paystackBody.transaction_charge = paystackFeeKobo;
         paystackBody.bearer = 'account';
-        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
+        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code, 'transaction_charge kobo:', paystackFeeKobo);
       } else {
         console.warn('Seller has no subaccount, payment goes to main account');
       }
@@ -187,8 +190,11 @@ Deno.serve(async (req) => {
       // Add split payment if seller has a subaccount
       if (seller?.paystack_subaccount_code) {
         paystackBody.subaccount = seller.paystack_subaccount_code;
+        // transaction_charge covers the Paystack fee; seller gets the rest (100% of property price)
+        const paystackFeeKobo = Math.min(Math.round(purchase.transaction_amount * 0.018 * 100), 250000);
+        paystackBody.transaction_charge = paystackFeeKobo;
         paystackBody.bearer = 'account';
-        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
+        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code, 'transaction_charge:', paystackFeeKobo);
       } else {
         console.warn('Seller has no subaccount, payment goes to main account');
       }

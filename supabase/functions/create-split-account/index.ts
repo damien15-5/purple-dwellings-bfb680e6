@@ -49,6 +49,8 @@ Deno.serve(async (req) => {
     }
 
     // Create a Paystack Subaccount (for split payments)
+    // percentage_charge is set high so seller gets everything;
+    // at transaction time we use transaction_charge to extract only the Paystack fee
     const subaccountRes = await fetch('https://api.paystack.co/subaccount', {
       method: 'POST',
       headers: {
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
         business_name: account_name,
         settlement_bank: bank_code,
         account_number,
-        percentage_charge: 98.5, // Seller gets 98.5%, platform keeps 1.5%
+        percentage_charge: 100, // Seller gets 100% — platform takes 0%
         description: `Xavorian seller: ${profile.full_name}`,
         primary_contact_email: profile.email,
       }),

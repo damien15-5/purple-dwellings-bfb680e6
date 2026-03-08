@@ -214,10 +214,10 @@ export const MyEscrows = () => {
                       <p className="text-sm text-muted-foreground">Amount</p>
                       <p className="font-semibold">₦{escrow.transaction_amount.toLocaleString()}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Escrow Fee</p>
+                     <div>
+                      <p className="text-sm text-muted-foreground">Paystack Fee</p>
                       <p className="font-semibold">₦{escrow.escrow_fee.toLocaleString()}</p>
-                    </div>
+                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Paid</p>
                       <p className="font-semibold text-primary">₦{escrow.total_amount.toLocaleString()}</p>

@@ -27,8 +27,8 @@ export const StartEscrow = () => {
   });
 
   const effectivePrice = existingEscrow?.offer_amount || property?.price || 0;
-  // Paystack fee: 1.5% capped at ₦2,500
-  const PAYSTACK_FEE = Math.min(Math.round(effectivePrice * 0.015), 2500);
+  // Paystack Processing Fee: 1.8% capped at ₦2,500
+  const PAYSTACK_FEE = Math.min(Math.round(effectivePrice * 0.018), 2500);
   const totalWithFee = effectivePrice + PAYSTACK_FEE;
 
   useEffect(() => {
@@ -236,7 +236,7 @@ export const StartEscrow = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg">Pay via Paystack</h3>
                           <p className="text-sm text-muted-foreground mt-2">
-                            Pay securely via Paystack. Full property price is transferred to the seller after a Paystack fee (1.5% capped at ₦2,000).
+                            Pay securely via Paystack. The full property price goes directly to the seller. A small Paystack processing fee is added.
                           </p>
                           
                           <div className="mt-4 space-y-3 bg-background/50 p-4 rounded-lg border border-border/50">
@@ -246,7 +246,7 @@ export const StartEscrow = () => {
                                 <span className="font-medium">₦{effectivePrice.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Paystack Fee (1.5% max ₦2,000)</span>
+                                <span className="text-muted-foreground">Paystack Processing Fee (1.8% max ₦2,500)</span>
                                 <span className="font-medium">₦{PAYSTACK_FEE.toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between pt-2 border-t border-border/50">
@@ -257,7 +257,7 @@ export const StartEscrow = () => {
                             <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
                               <p className="text-xs text-foreground flex items-start gap-2">
                                 <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <span>₦{effectivePrice.toLocaleString()} goes to the seller. ₦{PAYSTACK_FEE.toLocaleString()} Paystack fee (1.5% capped at ₦2,000).</span>
+                                <span>The seller receives the full ₦{effectivePrice.toLocaleString()}. ₦{PAYSTACK_FEE.toLocaleString()} is the Paystack processing fee.</span>
                               </p>
                             </div>
                           </div>
@@ -357,7 +357,7 @@ export const StartEscrow = () => {
                           </div>
                         )}
                          <div className="flex justify-between py-2 border-b border-border/30">
-                           <span className="text-muted-foreground">Paystack Fee (1.5% max ₦2,000)</span>
+                           <span className="text-muted-foreground">Paystack Processing Fee (1.8% max ₦2,500)</span>
                            <span className="font-semibold">₦{PAYSTACK_FEE.toLocaleString()}</span>
                          </div>
                         <div className="flex justify-between py-3 bg-primary/5 -mx-6 px-6 rounded-lg">

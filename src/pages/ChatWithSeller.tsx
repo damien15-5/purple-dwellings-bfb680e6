@@ -387,10 +387,8 @@ export const ChatWithSeller = () => {
 
       if (error) throw error;
 
-      // Keep existing fee logic used by this flow
-      const ataraFee = amount * 0.015;
-      const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
-      const totalFees = ataraFee + platformFee;
+      // Paystack Processing Fee: 1.8% capped at ₦2,500
+      const paystackFee = Math.min(Math.round(amount * 0.018), 2500);
 
       // Always create a new offer escrow row so each offer is independently rendered/tracked
       const { error: escrowInsertError } = await supabase
@@ -400,10 +398,10 @@ export const ChatWithSeller = () => {
           buyer_id: currentUserId,
           seller_id: property.user_id,
           transaction_amount: amount,
-          escrow_fee: ataraFee,
-          platform_fee: platformFee,
-          atara_fee: ataraFee,
-          total_amount: amount + totalFees,
+          escrow_fee: paystackFee,
+          platform_fee: 0,
+          atara_fee: 0,
+          total_amount: amount + paystackFee,
           offer_amount: amount,
           offer_status: 'pending',
           offer_message: content,

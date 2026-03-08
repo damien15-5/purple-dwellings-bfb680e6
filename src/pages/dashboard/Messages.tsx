@@ -279,9 +279,8 @@ export const Messages = () => {
 
       // Only buyer can create escrow transaction
       if (currentUserId === selectedConversation.buyer_id) {
-        const ataraFee = amount * 0.015;
-        const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
-        const totalFees = ataraFee + platformFee;
+        // Paystack Processing Fee: 1.8% capped at ₦2,500
+        const paystackFee = Math.min(Math.round(amount * 0.018), 2500);
 
         const { data: existingEscrow } = await supabase
           .from('escrow_transactions')
@@ -296,10 +295,10 @@ export const Messages = () => {
             .from('escrow_transactions')
             .update({
               transaction_amount: amount,
-              atara_fee: ataraFee,
-              platform_fee: platformFee,
-              escrow_fee: totalFees,
-              total_amount: amount + totalFees,
+              atara_fee: 0,
+              platform_fee: 0,
+              escrow_fee: paystackFee,
+              total_amount: amount + paystackFee,
               offer_amount: amount,
               offer_status: 'pending',
               offer_message: content,
@@ -312,10 +311,10 @@ export const Messages = () => {
             buyer_id: selectedConversation.buyer_id,
             seller_id: selectedConversation.seller_id,
             transaction_amount: amount,
-            atara_fee: ataraFee,
-            platform_fee: platformFee,
-            escrow_fee: totalFees,
-            total_amount: amount + totalFees,
+            atara_fee: 0,
+            platform_fee: 0,
+            escrow_fee: paystackFee,
+            total_amount: amount + paystackFee,
             offer_amount: amount,
             offer_status: 'pending',
             offer_message: content,
