@@ -223,7 +223,7 @@ export const BasicDetails = ({ formData, updateFormData }: Props) => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agreementFee">Agreement Fee (₦)</Label>
+              <Label htmlFor="agreementFee">Continuous Rent (₦)</Label>
               <Input
                 id="agreementFee"
                 type="number"

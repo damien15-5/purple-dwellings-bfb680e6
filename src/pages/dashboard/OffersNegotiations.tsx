@@ -225,7 +225,7 @@ export const OffersNegotiations = () => {
                     </div>
                   )}
 
-                  {!isUserBuyer && offer.offer_status === 'pending' && !offer.payment_verified_at && offer.status === 'pending_payment' && (
+                  {!isUserBuyer && (offer.offer_status === 'pending' || offer.offer_status === 'none' || !offer.offer_status) && !offer.payment_verified_at && offer.status === 'pending_payment' && (
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <Dialog>
                         <DialogTrigger asChild>
