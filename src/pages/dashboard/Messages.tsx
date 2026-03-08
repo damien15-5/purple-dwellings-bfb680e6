@@ -633,6 +633,8 @@ export const Messages = () => {
       });
     }
   };
+
+  const handleAcceptOffer = async (messageId: string, amount: number) => {
     if (!selectedConversation || !currentUserId) return;
 
     try {
