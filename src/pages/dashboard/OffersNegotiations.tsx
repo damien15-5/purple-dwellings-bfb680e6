@@ -481,7 +481,7 @@ export const OffersNegotiations = () => {
                                     },
                                   });
                                 } catch (e) { console.error('Telegram notify error:', e); }
-                                toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.', variant: 'destructive' });
+                                toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.' });
                                 loadOffers();
                               } catch (err) {
                                 toast({ title: 'Error', description: 'Failed to update payment status', variant: 'destructive' });
