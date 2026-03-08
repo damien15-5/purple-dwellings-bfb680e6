@@ -215,6 +215,7 @@ export const Browse = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary/30 to-background">
+      <SEOHead title="Browse Properties" description="Search and filter thousands of verified property listings across Nigeria. Find houses, apartments, land, and commercial properties." path="/browse" />
       {/* Header */}
       <div className="pt-12 sm:pt-16 pb-6 sm:pb-8 bg-gradient-to-r from-primary/10 to-primary/5 px-4">
         <div className="container mx-auto text-center">

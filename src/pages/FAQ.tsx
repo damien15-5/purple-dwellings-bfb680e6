@@ -67,6 +67,7 @@ export const FAQ = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Frequently Asked Questions" description="Get answers to common questions about Xavorian's property marketplace, verification, security, and transactions." path="/faq" />
       <div className="relative bg-gradient-to-br from-primary/10 via-background to-accent-purple/10 py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center animate-fade-in">

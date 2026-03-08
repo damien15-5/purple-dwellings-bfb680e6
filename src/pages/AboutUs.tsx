@@ -27,6 +27,7 @@ export const AboutUs = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="About Us" description="Learn about Xavorian, Nigeria's secure property marketplace founded to make real estate transactions safe, transparent, and accessible." path="/about" />
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-primary/10 via-background to-accent-purple/10 py-20">
         <div className="container mx-auto px-4">
