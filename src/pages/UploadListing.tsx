@@ -409,6 +409,7 @@ export const UploadListing = () => {
     } catch (error: any) {
       console.error('Error uploading property:', error);
       toast.error(error.message || 'Failed to upload property');
+      setSubmitted(false); // Allow retry on error
     } finally {
       setUploading(false);
       setUploadProgress('');
