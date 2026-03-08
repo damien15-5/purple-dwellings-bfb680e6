@@ -115,8 +115,9 @@ export const ChatWithSeller = () => {
         .from('conversations')
         .select('*')
         .eq('property_id', id)
-        .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-        .single();
+        .eq('buyer_id', session.user.id)
+        .eq('seller_id', propertyData.user_id)
+        .maybeSingle();
 
       if (!existingConv) {
         const { data: newConv, error: createError } = await supabase
