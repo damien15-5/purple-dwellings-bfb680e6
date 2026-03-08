@@ -65,6 +65,7 @@ export const Home = () => {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<string>('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const { preferences } = usePersonalization();
 
   useEffect(() => {
     fetchProperties();
