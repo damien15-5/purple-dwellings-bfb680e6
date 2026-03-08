@@ -5,9 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Paystack fee: 1.5% capped at ₦2,500
+// Paystack fee: 1.5% capped at ₦2,000
 function calculatePaystackFee(amountNaira: number): number {
-  return Math.min(Math.round(amountNaira * 0.015), 2500);
+  return Math.min(Math.round(amountNaira * 0.015), 2000);
 }
 
 Deno.serve(async (req) => {
@@ -113,16 +113,28 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Save failed transfer status
+      await supabase
+        .from('escrow_transactions')
+        .update({
+          transfer_status: 'failed',
+          transfer_reference: transferRef,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', escrow_id);
+
       throw new Error(transferData.message || 'Transfer initiation failed');
     }
 
-    // Update escrow
+    // Update escrow with transfer status
     await supabase
       .from('escrow_transactions')
       .update({
         platform_fee: paystackFeeNaira,
         atara_fee: paystackFeeNaira,
         status: 'completed',
+        transfer_status: transferData.data?.status === 'success' ? 'success' : 'pending',
+        transfer_reference: transferRef,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

@@ -224,11 +224,17 @@ export const UploadListing = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
+  const [submitted, setSubmitted] = useState(false);
+
   const handleSubmit = async () => {
     if (!userId) {
       toast.error('User not authenticated');
       return;
     }
+
+    // Prevent double submission
+    if (uploading || submitted) return;
+    setSubmitted(true);
 
     // Check if seller has verified bank account
     const { data: profile } = await supabase
@@ -403,6 +409,7 @@ export const UploadListing = () => {
     } catch (error: any) {
       console.error('Error uploading property:', error);
       toast.error(error.message || 'Failed to upload property');
+      setSubmitted(false); // Allow retry on error
     } finally {
       setUploading(false);
       setUploadProgress('');

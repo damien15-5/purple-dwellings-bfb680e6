@@ -128,9 +128,18 @@ export const Transactions = () => {
     // Sort by date descending
     unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    // Calculate total spent
+    // Calculate total spent - only count where user is the buyer/payer, not the seller
     const total = unified
-      .filter(t => ['successful', 'completed', 'funded', 'inspection_period'].includes(t.status))
+      .filter(t => {
+        const isCompleted = ['successful', 'completed'].includes(t.status);
+        if (!isCompleted) return false;
+        // For escrow/purchase, only count if user is the buyer
+        if (t.type === 'escrow' || t.type === 'purchase') {
+          return t.raw.buyer_id === user.id;
+        }
+        // Promotions are always user's own spend
+        return true;
+      })
       .reduce((sum, t) => sum + t.amount, 0);
 
     setTotalSpent(total);

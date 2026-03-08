@@ -445,6 +445,8 @@ export type Database = {
           terms: string | null
           total_amount: number
           transaction_amount: number
+          transfer_reference: string | null
+          transfer_status: string | null
           tx_hash: string | null
           updated_at: string
         }
@@ -483,6 +485,8 @@ export type Database = {
           terms?: string | null
           total_amount: number
           transaction_amount: number
+          transfer_reference?: string | null
+          transfer_status?: string | null
           tx_hash?: string | null
           updated_at?: string
         }
@@ -521,6 +525,8 @@ export type Database = {
           terms?: string | null
           total_amount?: number
           transaction_amount?: number
+          transfer_reference?: string | null
+          transfer_status?: string | null
           tx_hash?: string | null
           updated_at?: string
         }
