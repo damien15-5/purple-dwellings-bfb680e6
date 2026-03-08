@@ -265,6 +265,11 @@ export const PropertyDetails = () => {
 
   return (
     <div className="min-h-screen py-8">
+      <SEOHead 
+        title={property.title} 
+        description={`${property.property_type} in ${property.address} - ₦${property.price.toLocaleString()}. ${property.bedrooms || 0} bed, ${property.bathrooms || 0} bath.`} 
+        path={`/property/${property.id}`} 
+      />
       <div className="container mx-auto px-4">
         {/* Back Button */}
         <Link to="/browse" className="inline-flex items-center text-muted-foreground hover:text-primary mb-6 transition-colors">
