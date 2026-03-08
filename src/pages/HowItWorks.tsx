@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { SEOHead } from '@/components/SEOHead';
 import { Link } from 'react-router-dom';
 import { Search, MessageSquare, FileCheck, Shield, CheckCircle } from 'lucide-react';
 
@@ -51,6 +52,7 @@ export const HowItWorks = () => {
 
   return (
     <div className="min-h-screen py-12 bg-white">
+      <SEOHead title="How It Works" description="Learn how to buy, sell, and rent properties on Xavorian. Simple steps for secure property transactions in Nigeria." path="/how-it-works" />
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-16">

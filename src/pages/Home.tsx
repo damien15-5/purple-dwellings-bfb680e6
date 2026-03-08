@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { SEOHead } from '@/components/SEOHead';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -299,6 +300,7 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Buy & Sell Properties in Nigeria" description="Find verified properties for sale and rent across Nigeria. Browse thousands of listings with secure transactions on Xavorian." path="/" />
       <section className="relative h-[50vh] md:h-[60vh] overflow-hidden">
         <div className="absolute inset-0">
           <img 
