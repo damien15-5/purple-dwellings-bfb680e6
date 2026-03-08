@@ -593,9 +593,9 @@ export const Messages = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[500px] sm:h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[70vh] sm:h-[600px]">
           {/* Conversations List */}
-          <Card className="lg:col-span-1 card-glow overflow-hidden">
+          <Card className="lg:col-span-1 card-glow overflow-hidden flex flex-col">
             <div className="p-3 sm:p-4 border-b border-border">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -605,7 +605,7 @@ export const Messages = () => {
                 />
               </div>
             </div>
-            <div className="overflow-y-auto h-[calc(500px-64px)] sm:h-[calc(600px-80px)]">
+            <div className="overflow-y-auto flex-1">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
