@@ -274,16 +274,20 @@ export const Home = () => {
     [filteredProperties]
   );
 
-  // Recommended: promoted by amount, then match score
+  // Recommended: personalized by viewing history, promoted by amount gets priority
   const recommendedProperties = useMemo(() => 
     [...filteredProperties]
+      .map(p => ({
+        ...p,
+        matchScore: getPersonalizationScore(p, preferences),
+      }))
       .sort((a, b) => {
         const promoResult = promotionSort(a, b);
         if (promoResult !== 0) return promoResult;
         return (b.matchScore || 0) - (a.matchScore || 0);
       })
       .slice(0, 8),
-    [filteredProperties]
+    [filteredProperties, preferences]
   );
 
   return (
