@@ -73,8 +73,9 @@ async function clearAdminReplyTarget(chatId: number) {
 async function isSuperAdmin(chatId: number): Promise<boolean> {
   const { data: adminChat } = await supabase.from('telegram_admin_chats').select('admin_id').eq('chat_id', chatId).eq('is_active', true).single();
   if (!adminChat) return false;
-  const { data: cred } = await supabase.from('admin_credentials').select('role').eq('id', adminChat.admin_id).single();
-  return cred?.role === 'super_admin';
+  // Try matching by id first, then by user_id
+  const { data: cred } = await supabase.from('admin_credentials').select('role').or(`id.eq.${adminChat.admin_id},user_id.eq.${adminChat.admin_id}`).eq('role', 'super_admin').maybeSingle();
+  return !!cred;
 }
 
 async function getAdminName(chatId: number): Promise<string> {
