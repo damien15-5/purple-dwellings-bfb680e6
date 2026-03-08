@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { toast as sonnerToast } from 'sonner';
+import { trackPropertyView } from '@/hooks/usePersonalization';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Carousel,
@@ -108,6 +109,17 @@ export const PropertyDetails = () => {
       }
 
       setProperty(data);
+
+      // Track this view for personalization
+      trackPropertyView({
+        id: data.id,
+        property_type: data.property_type,
+        price: data.price,
+        city: data.city || undefined,
+        state: data.state || undefined,
+        bedrooms: data.bedrooms || undefined,
+        listing_type: data.listing_type || undefined,
+      });
 
       // Fetch seller info
       const { data: sellerData } = await supabase

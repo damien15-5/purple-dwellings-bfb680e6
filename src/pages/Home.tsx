@@ -14,6 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useImagePreloader } from '@/components/ui/OptimizedImage';
+import { usePersonalization, getPersonalizationScore } from '@/hooks/usePersonalization';
 
 type Property = {
   id: string;
@@ -64,6 +65,7 @@ export const Home = () => {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<string>('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const { preferences } = usePersonalization();
 
   useEffect(() => {
     fetchProperties();
@@ -264,24 +266,35 @@ export const Home = () => {
     [filteredProperties, userLocation, userState]
   );
 
-  // Explore more: promoted first by amount
+  // Explore more: promoted first by amount, then personalized
   const exploreMoreProperties = useMemo(() => 
     [...filteredProperties]
-      .sort(promotionSort)
+      .sort((a, b) => {
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
+        // Secondary: personalization score
+        const aScore = getPersonalizationScore(a, preferences);
+        const bScore = getPersonalizationScore(b, preferences);
+        return bScore - aScore;
+      })
       .slice(0, 9),
-    [filteredProperties]
+    [filteredProperties, preferences]
   );
 
-  // Recommended: promoted by amount, then match score
+  // Recommended: personalized by viewing history, promoted by amount gets priority
   const recommendedProperties = useMemo(() => 
     [...filteredProperties]
+      .map(p => ({
+        ...p,
+        matchScore: getPersonalizationScore(p, preferences),
+      }))
       .sort((a, b) => {
         const promoResult = promotionSort(a, b);
         if (promoResult !== 0) return promoResult;
         return (b.matchScore || 0) - (a.matchScore || 0);
       })
       .slice(0, 8),
-    [filteredProperties]
+    [filteredProperties, preferences]
   );
 
   return (

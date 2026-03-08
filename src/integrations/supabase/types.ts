@@ -1337,6 +1337,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_property_views: {
+        Row: {
+          bedrooms: number | null
+          city: string | null
+          id: string
+          listing_type: string | null
+          price: number | null
+          property_id: string
+          property_type: string | null
+          state: string | null
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          bedrooms?: number | null
+          city?: string | null
+          id?: string
+          listing_type?: string | null
+          price?: number | null
+          property_id: string
+          property_type?: string | null
+          state?: string | null
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          bedrooms?: number | null
+          city?: string | null
+          id?: string
+          listing_type?: string | null
+          price?: number | null
+          property_id?: string
+          property_type?: string | null
+          state?: string | null
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_property_views_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
