@@ -445,7 +445,7 @@ export const OffersNegotiations = () => {
                                 toast({ title: 'Payment Confirmed', description: 'You have confirmed receiving the payment. Transaction complete!' });
                                 loadOffers();
                               } catch (err) {
-                                toast({ title: 'Error', description: 'Failed to confirm payment', variant: 'destructive' });
+                                alert('Failed to confirm payment. Please try again.');
                                 setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
                               }
                             }}
