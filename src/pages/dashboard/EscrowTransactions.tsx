@@ -70,6 +70,20 @@ export const EscrowTransactions = () => {
     checkAutoConfirm();
   }, []);
 
+  // Realtime subscription for instant updates
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const channel = supabase
+      .channel(`escrow-realtime-${currentUserId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'escrow_transactions' }, () => {
+        loadTransactions();
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUserId]);
+
   useEffect(() => {
     if (statusFilter === 'all') {
       setFilteredTransactions(transactions);
