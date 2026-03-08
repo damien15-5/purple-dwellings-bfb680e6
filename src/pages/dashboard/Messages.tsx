@@ -37,6 +37,13 @@ export const Messages = () => {
   const [extraPaymentDialogOpen, setExtraPaymentDialogOpen] = useState(false);
   const [extraPaymentAmount, setExtraPaymentAmount] = useState('');
   const [extraPaymentNote, setExtraPaymentNote] = useState('');
+  const [extraPaymentStep, setExtraPaymentStep] = useState<'amount' | 'bank_details'>('amount');
+  const [recipientBankDetails, setRecipientBankDetails] = useState<{
+    full_name: string;
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
+  } | null>(null);
   const [bankDetailsDialogOpen, setBankDetailsDialogOpen] = useState(false);
   const [activeExtraPayment, setActiveExtraPayment] = useState<{ messageId: string; amount: number } | null>(null);
   const [payeeBankDetails, setPayeeBankDetails] = useState<{
