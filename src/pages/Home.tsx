@@ -101,7 +101,7 @@ export const Home = () => {
           .limit(50),
         supabase
           .from('property_promotions')
-          .select('property_id, is_active, expires_at')
+          .select('property_id, amount_paid, is_active, expires_at')
           .eq('is_active', true)
           .gt('expires_at', new Date().toISOString()),
       ]);
