@@ -1461,6 +1461,22 @@ Deno.serve(async (req) => {
         return new Response('OK', { headers: corsHeaders });
       }
 
+      // Super admin commands
+      if (text === '/addadmin' || text.startsWith('/addadmin ')) {
+        const email = text.replace(/^\/addadmin\s*/, '').trim();
+        await handleAddAdmin(chatId, email);
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text === '/removeadmin' || text.startsWith('/removeadmin ')) {
+        const email = text.replace(/^\/removeadmin\s*/, '').trim();
+        await handleRemoveAdmin(chatId, email);
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text === '/adminlog') {
+        await handleAdminLog(chatId);
+        return new Response('OK', { headers: corsHeaders });
+      }
+
       // Search commands - handle with or without arguments
       if (text === '/searchuser' || text.startsWith('/searchuser ')) {
         const query = text.replace(/^\/searchuser\s*/, '').trim();
