@@ -81,10 +81,17 @@ export const Browse = () => {
 
       if (propertiesRes.error) throw propertiesRes.error;
 
-      const promotedIds = new Set((promotionsRes.data || []).map(p => p.property_id));
+      // Build promotion amount map (stackable)
+      const promotionAmounts = new Map<string, number>();
+      (promotionsRes.data || []).forEach(p => {
+        const current = promotionAmounts.get(p.property_id) || 0;
+        promotionAmounts.set(p.property_id, current + Number(p.amount_paid));
+      });
+
       const propertiesWithPromo = (propertiesRes.data || []).map(p => ({
         ...p,
-        isPromoted: promotedIds.has(p.id),
+        isPromoted: promotionAmounts.has(p.id),
+        promotionAmount: promotionAmounts.get(p.id) || 0,
       }));
 
       // Sort: promoted first, then deprioritize properties older than 3 months
