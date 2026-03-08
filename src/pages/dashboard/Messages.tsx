@@ -505,11 +505,11 @@ export const Messages = () => {
           ? selectedConversation.seller_id
           : selectedConversation.buyer_id;
 
-      if (otherPartyId && offerMessage?.offer_amount) {
+      if (otherPartyId && offerAmount > 0) {
         await supabase.rpc('create_notification', {
           p_user_id: otherPartyId,
           p_title: 'Offer Rejected',
-          p_description: `Your offer of ₦${offerMessage.offer_amount.toLocaleString()} for ${
+          p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${
             selectedConversation.property?.title || 'a property'
           } has been rejected.`,
           p_type: 'offer_rejected',
