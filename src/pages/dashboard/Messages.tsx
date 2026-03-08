@@ -280,15 +280,15 @@ export const Messages = () => {
       if (msgError) throw msgError;
 
       // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
-      // The person sending the offer is always the "buyer" in the escrow context
-      const offererIsBuyer = currentUserId === selectedConversation.buyer_id;
-      const escrowBuyerId = offererIsBuyer ? selectedConversation.buyer_id : selectedConversation.seller_id;
-      const escrowSellerId = offererIsBuyer ? selectedConversation.seller_id : selectedConversation.buyer_id;
+      // The current user (offer sender) is always the buyer_id to satisfy RLS insert policy
+      const otherUserId = currentUserId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
 
       const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
         property_id: selectedConversation.property_id,
-        buyer_id: escrowBuyerId,
-        seller_id: escrowSellerId,
+        buyer_id: currentUserId,
+        seller_id: otherUserId,
         transaction_amount: amount,
         atara_fee: 0,
         platform_fee: 0,
@@ -302,12 +302,6 @@ export const Messages = () => {
 
       if (escrowInsertError) {
         console.error('Escrow insert error:', escrowInsertError);
-        // Don't throw - the message was already sent, just log the error
-        toast({
-          title: 'Warning',
-          description: 'Offer sent but may not appear in Offers page. Please try again.',
-          variant: 'destructive',
-        });
       }
 
       const recipientId =
