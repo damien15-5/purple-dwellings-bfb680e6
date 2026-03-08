@@ -133,7 +133,7 @@ const App = () => {
               <Navigation />
               <FloatingMenu />
               <main className="flex-grow">
-                <Suspense fallback={<LoadingFallback />}>
+                <ErrorBoundary><Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
