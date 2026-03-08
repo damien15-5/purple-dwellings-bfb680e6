@@ -690,6 +690,23 @@ export const Messages = () => {
                   </div>
                 </div>
 
+                {/* Telegram Banner */}
+                <div className="px-3 sm:px-4 pt-2">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between gap-2">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      📱 Connect Telegram for instant notifications
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}
+                    >
+                      Connect
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-[300px]">
                   {messages.length === 0 ? (
