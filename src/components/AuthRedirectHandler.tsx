@@ -15,6 +15,17 @@ export const AuthRedirectHandler = () => {
     // Only act when there are OAuth tokens in the URL hash
     if (!hash.includes('access_token')) return;
 
+    // Don't intercept recovery tokens — let /reset-password handle them
+    const hashParams = new URLSearchParams(hash.substring(1));
+    if (hashParams.get('type') === 'recovery') {
+      // If we're not already on /reset-password, redirect there with the hash
+      if (location.pathname !== '/reset-password') {
+        handled.current = true;
+        window.location.href = '/reset-password' + hash;
+      }
+      return;
+    }
+
     handled.current = true;
 
     // Extract tokens from hash

@@ -41,11 +41,27 @@ export const Settings = () => {
     if (!user) return;
     setUserId(user.id);
 
-    const { data } = await supabase
+    let { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
+
+    // Backfill profile if missing
+    if (!data) {
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || 'User',
+          email: user.email || '',
+          age: user.user_metadata?.age ? parseInt(user.user_metadata.age) : null,
+          account_type: user.user_metadata?.account_type || 'buyer',
+        })
+        .select()
+        .single();
+      data = newProfile;
+    }
 
     if (data) {
       setProfile({
