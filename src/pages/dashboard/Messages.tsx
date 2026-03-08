@@ -1027,18 +1027,16 @@ export const Messages = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {selectedConversation.property?.user_id === currentUserId && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="gap-1 sm:gap-2 text-xs sm:text-sm"
-                          onClick={() => setExtraPaymentDialogOpen(true)}
-                        >
-                          <Banknote className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Make Extra Payment</span>
-                          <span className="sm:hidden">Extra</span>
-                        </Button>
-                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                        onClick={handleOpenExtraPayment}
+                      >
+                        <Banknote className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Extra Payment</span>
+                        <span className="sm:hidden">Pay</span>
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
