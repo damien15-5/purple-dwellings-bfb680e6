@@ -676,6 +676,7 @@ export const Messages = () => {
                       onClick={() => {
                         setSelectedConversation(conversation);
                         loadMessages(conversation.id);
+                        loadPayeeBankDetails(conversation);
                       }}
                       className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer"
                     >
