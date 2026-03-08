@@ -27,9 +27,6 @@ export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: P
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const [telegramInput, setTelegramInput] = useState('');
-  const [showTelegramInput, setShowTelegramInput] = useState(false);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
