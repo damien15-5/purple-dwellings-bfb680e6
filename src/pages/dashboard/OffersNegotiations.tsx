@@ -98,22 +98,38 @@ export const OffersNegotiations = () => {
         setCurrentUserId(user.id);
       }
 
-      const { data, error } = await supabase
-        .from('escrow_transactions')
-        .select(`
-          *,
-          property:properties(id, title, address, images, price),
-          buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
-          seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
-        `)
-        .or(`buyer_id.eq.${resolvedUserId},seller_id.eq.${resolvedUserId}`)
-        .not('offer_amount', 'is', null)
-        .order('updated_at', { ascending: false })
-        .order('created_at', { ascending: false });
+      const pageSize = 1000;
+      let from = 0;
+      let allOffers: any[] = [];
 
-      if (error) throw error;
+      while (true) {
+        const to = from + pageSize - 1;
 
-      setOffers(data || []);
+        const { data, error } = await supabase
+          .from('escrow_transactions')
+          .select(`
+            *,
+            property:properties(id, title, address, images, price),
+            buyer:profiles!escrow_transactions_buyer_id_fkey(full_name, email),
+            seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
+          `)
+          .or(`buyer_id.eq.${resolvedUserId},seller_id.eq.${resolvedUserId}`)
+          .not('offer_amount', 'is', null)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) break;
+
+        allOffers = [...allOffers, ...data];
+
+        if (data.length < pageSize) break;
+
+        from += pageSize;
+      }
+
+      setOffers(allOffers);
     } catch (error) {
       console.error('Failed to load offers:', error);
       // Keep the last known list rendered; polling/realtime will retry automatically

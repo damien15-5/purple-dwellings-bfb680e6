@@ -279,47 +279,24 @@ export const Messages = () => {
 
       if (msgError) throw msgError;
 
-      // Only buyer can create escrow transaction
+      // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
       if (currentUserId === selectedConversation.buyer_id) {
-        const { data: existingEscrow } = await supabase
-          .from('escrow_transactions')
-          .select('*')
-          .eq('property_id', selectedConversation.property_id)
-          .eq('buyer_id', selectedConversation.buyer_id)
-          .eq('seller_id', selectedConversation.seller_id)
-          .maybeSingle();
+        const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
+          property_id: selectedConversation.property_id,
+          buyer_id: selectedConversation.buyer_id,
+          seller_id: selectedConversation.seller_id,
+          transaction_amount: amount,
+          atara_fee: 0,
+          platform_fee: 0,
+          escrow_fee: 0,
+          total_amount: amount,
+          offer_amount: amount,
+          offer_status: 'pending',
+          offer_message: content,
+          status: 'pending_payment',
+        });
 
-        if (existingEscrow) {
-          await supabase
-            .from('escrow_transactions')
-            .update({
-              transaction_amount: amount,
-              atara_fee: 0,
-              platform_fee: 0,
-              escrow_fee: 0,
-              total_amount: amount,
-              offer_amount: amount,
-              offer_status: 'pending',
-              offer_message: content,
-              status: 'pending_payment',
-            })
-            .eq('id', existingEscrow.id);
-        } else {
-          await supabase.from('escrow_transactions').insert({
-            property_id: selectedConversation.property_id,
-            buyer_id: selectedConversation.buyer_id,
-            seller_id: selectedConversation.seller_id,
-            transaction_amount: amount,
-            atara_fee: 0,
-            platform_fee: 0,
-            escrow_fee: 0,
-            total_amount: amount,
-            offer_amount: amount,
-            offer_status: 'pending',
-            offer_message: content,
-            status: 'pending_payment',
-          });
-        }
+        if (escrowInsertError) throw escrowInsertError;
       }
 
       const recipientId =
