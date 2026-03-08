@@ -349,32 +349,25 @@ export const Chat = () => {
   const handleSendOffer = async (amount: number, message: string) => {
     if (!conversationId || !currentUserId) return;
 
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: currentUserId,
-      content: message || `I'd like to offer ${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount)} for this property.`,
-      message_type: 'offer',
-      offer_amount: amount,
-      offer_status: 'pending',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-chat-offer', {
+        body: {
+          action: 'create_offer',
+          conversationId,
+          amount,
+          message,
+        },
+      });
 
-    if (error) {
+      if (error) throw new Error(error.message || 'Failed to send offer');
+      if (data?.error) throw new Error(data.error);
+
+      scrollToBottom();
+      toast.success('Offer sent successfully');
+    } catch (error: any) {
       console.error('Error sending offer:', error);
-      toast.error('Failed to send offer');
-      return;
+      toast.error(error?.message || 'Failed to send offer');
     }
-
-    // Update conversation
-    await supabase
-      .from('conversations')
-      .update({
-        last_message: 'New offer received',
-        last_message_time: new Date().toISOString(),
-        [property?.user_id === currentUserId ? 'buyer_unread' : 'seller_unread']: 1,
-      })
-      .eq('id', conversationId);
-
-    scrollToBottom();
   };
 
   const handleAcceptOffer = async (messageId: string, amount: number) => {
