@@ -1190,6 +1190,33 @@ export type Database = {
           },
         ]
       }
+      telegram_admin_actions: {
+        Row: {
+          action: string
+          admin_chat_id: number
+          admin_username: string | null
+          created_at: string
+          details: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_chat_id: number
+          admin_username?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_chat_id?: number
+          admin_username?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       telegram_admin_chats: {
         Row: {
           admin_id: string
