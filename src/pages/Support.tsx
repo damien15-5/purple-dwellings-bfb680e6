@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SEOHead } from '@/components/SEOHead';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ export const Support = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 py-12">
+      <SEOHead title="Support" description="Get help with your Xavorian account, property listings, or transactions. Contact our support team." path="/support" />
       <div className="container mx-auto px-4 max-w-2xl">
         <Card className="border-border/50 bg-card/80 backdrop-blur">
           <CardHeader>

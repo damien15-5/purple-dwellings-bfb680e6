@@ -1,6 +1,9 @@
+import { SEOHead } from '@/components/SEOHead';
+
 export const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Privacy Policy" description="Read Xavorian's privacy policy. Learn how we protect your personal data and financial information." path="/privacy" />
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 animate-fade-in">

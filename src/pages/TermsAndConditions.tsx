@@ -1,6 +1,9 @@
+import { SEOHead } from '@/components/SEOHead';
+
 export const TermsAndConditions = () => {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Terms & Conditions" description="Read Xavorian's terms and conditions for using our property marketplace platform." path="/terms" />
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 animate-fade-in">
