@@ -386,67 +386,38 @@ export const ChatWithSeller = () => {
 
       if (error) throw error;
 
-      // Reuse only an OPEN unpaid escrow thread; otherwise create a fresh one
-      const { data: openEscrows, error: openEscrowError } = await supabase
-        .from('escrow_transactions')
-        .select('*')
-        .eq('property_id', property.id)
-        .eq('buyer_id', currentUserId)
-        .eq('seller_id', property.user_id)
-        .eq('status', 'pending_payment')
-        .is('payment_verified_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (openEscrowError) throw openEscrowError;
-
-      const existingOpenEscrow = openEscrows?.[0];
-
       // Keep existing fee logic used by this flow
       const ataraFee = amount * 0.015;
       const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
       const totalFees = ataraFee + platformFee;
 
-      if (existingOpenEscrow) {
-        await supabase
-          .from('escrow_transactions')
-          .update({
-            transaction_amount: amount,
-            escrow_fee: ataraFee,
-            platform_fee: platformFee,
-            atara_fee: ataraFee,
-            total_amount: amount + totalFees,
-            offer_amount: amount,
-            offer_status: 'pending',
-            offer_message: content,
-            status: 'pending_payment',
-            payment_verified_at: null,
-            paystack_verified_at: null,
-            paystack_reference: null,
-            paystack_access_code: null,
-            transfer_status: null,
-            transfer_reference: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingOpenEscrow.id);
-      } else {
-        await supabase
-          .from('escrow_transactions')
-          .insert({
-            property_id: property.id,
-            buyer_id: currentUserId,
-            seller_id: property.user_id,
-            transaction_amount: amount,
-            escrow_fee: ataraFee,
-            platform_fee: platformFee,
-            atara_fee: ataraFee,
-            total_amount: amount + totalFees,
-            offer_amount: amount,
-            offer_status: 'pending',
-            offer_message: content,
-            status: 'pending_payment'
-          });
-      }
+      // Always create a new offer escrow row so each offer is independently rendered/tracked
+      const { error: escrowInsertError } = await supabase
+        .from('escrow_transactions')
+        .insert({
+          property_id: property.id,
+          buyer_id: currentUserId,
+          seller_id: property.user_id,
+          transaction_amount: amount,
+          escrow_fee: ataraFee,
+          platform_fee: platformFee,
+          atara_fee: ataraFee,
+          total_amount: amount + totalFees,
+          offer_amount: amount,
+          offer_status: 'pending',
+          offer_message: content,
+          status: 'pending_payment',
+          seller_response: null,
+          seller_responded_at: null,
+          payment_verified_at: null,
+          paystack_verified_at: null,
+          paystack_reference: null,
+          paystack_access_code: null,
+          transfer_status: null,
+          transfer_reference: null,
+        });
+
+      if (escrowInsertError) throw escrowInsertError;
 
       // Create notification for seller
       await supabase.rpc('create_notification', {
