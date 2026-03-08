@@ -436,6 +436,9 @@ export const Messages = () => {
         })
         .eq('id', selectedConversation.id);
 
+      // Force reload messages so the badge updates immediately
+      await loadMessages(selectedConversation.id);
+
       toast({
         title: 'Offer accepted',
         description: 'Offer accepted. You can proceed to payment from Offers & Negotiations.',
