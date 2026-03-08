@@ -1192,42 +1192,105 @@ export const Messages = () => {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={extraPaymentDialogOpen} onOpenChange={setExtraPaymentDialogOpen}>
+                <Dialog open={extraPaymentDialogOpen} onOpenChange={(open) => {
+                  setExtraPaymentDialogOpen(open);
+                  if (!open) setExtraPaymentStep('amount');
+                }}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Make Extra Payment Request</DialogTitle>
+                      <DialogTitle>
+                        {extraPaymentStep === 'amount' ? 'Extra Payment' : 'Recipient Bank Details'}
+                      </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 mt-2">
-                      <div>
-                        <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
-                        <Input
-                          id="extra-payment-amount"
-                          type="number"
-                          value={extraPaymentAmount}
-                          onChange={(e) => setExtraPaymentAmount(e.target.value)}
-                          placeholder="Enter extra payment amount"
-                          className="mt-1"
-                        />
+
+                    {extraPaymentStep === 'amount' ? (
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
+                          <Input
+                            id="extra-payment-amount"
+                            type="number"
+                            value={extraPaymentAmount}
+                            onChange={(e) => setExtraPaymentAmount(e.target.value)}
+                            placeholder="Enter amount to pay"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="extra-payment-note">Note (optional)</Label>
+                          <Input
+                            id="extra-payment-note"
+                            value={extraPaymentNote}
+                            onChange={(e) => setExtraPaymentNote(e.target.value)}
+                            placeholder="What is this payment for?"
+                            className="mt-1"
+                          />
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleExtraPaymentNext}>
+                            Next
+                          </Button>
+                        </DialogFooter>
                       </div>
-                      <div>
-                        <Label htmlFor="extra-payment-note">Reason (optional)</Label>
-                        <Input
-                          id="extra-payment-note"
-                          value={extraPaymentNote}
-                          onChange={(e) => setExtraPaymentNote(e.target.value)}
-                          placeholder="Explain what this extra payment is for"
-                          className="mt-1"
-                        />
+                    ) : (
+                      <div className="space-y-4 mt-2">
+                        <div className="rounded-lg border border-border p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                            <span className="text-sm text-muted-foreground">Amount</span>
+                            <span className="text-base font-bold">₦{parseFloat(extraPaymentAmount).toLocaleString()}</span>
+                          </div>
+                          {recipientBankDetails?.account_number ? (
+                            <>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Recipient</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.full_name}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Bank</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.bank_name || '—'}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Account Number</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold tracking-wide">{recipientBankDetails.account_number}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => copyToClipboard(recipientBankDetails.account_number)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Account Name</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.account_name || '—'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                              Recipient has not added bank details yet.
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Transfer the amount to the account above, then click "I've Paid" to record it in the chat.
+                        </p>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setExtraPaymentStep('amount')}>
+                            Back
+                          </Button>
+                          <Button onClick={handleExtraPaymentDone} disabled={!recipientBankDetails?.account_number}>
+                            I've Paid
+                          </Button>
+                        </DialogFooter>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSendExtraPaymentRequest}>
-                        Send Request
-                      </Button>
-                    </DialogFooter>
+                    )}
                   </DialogContent>
                 </Dialog>
 
