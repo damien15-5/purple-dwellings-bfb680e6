@@ -1050,12 +1050,16 @@ export const Messages = () => {
                         senderName={message.sender_id === currentUserId ? 'You' : 'User'}
                         onAcceptOffer={handleAcceptOffer}
                         onRejectOffer={handleRejectOffer}
+                        onMarkExtraPaymentPaid={handleMarkExtraPaymentPaid}
+                        onConfirmExtraPaymentReceived={handleConfirmExtraPaymentReceived}
+                        onViewTransferDetails={handleViewTransferDetails}
                         isPaidOrConfirmed={
                           escrowStatuses.get(selectedConversation.id)?.payment_verified_at != null ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'funded' ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'inspection_period' ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'completed'
                         }
+                        isProcessingExtraPayment={processingExtraPaymentIds.has(message.id)}
                       />
                     ))
                   )}
