@@ -26,6 +26,7 @@ type Property = {
   state?: string;
   country?: string;
   isPromoted?: boolean;
+  promotionAmount?: number;
 };
 
 export const Browse = () => {
@@ -73,17 +74,24 @@ export const Browse = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('property_promotions')
-          .select('property_id')
+          .select('property_id, amount_paid')
           .eq('is_active', true)
           .gt('expires_at', new Date().toISOString()),
       ]);
 
       if (propertiesRes.error) throw propertiesRes.error;
 
-      const promotedIds = new Set((promotionsRes.data || []).map(p => p.property_id));
+      // Build promotion amount map (stackable)
+      const promotionAmounts = new Map<string, number>();
+      (promotionsRes.data || []).forEach(p => {
+        const current = promotionAmounts.get(p.property_id) || 0;
+        promotionAmounts.set(p.property_id, current + Number(p.amount_paid));
+      });
+
       const propertiesWithPromo = (propertiesRes.data || []).map(p => ({
         ...p,
-        isPromoted: promotedIds.has(p.id),
+        isPromoted: promotionAmounts.has(p.id),
+        promotionAmount: promotionAmounts.get(p.id) || 0,
       }));
 
       // Sort: promoted first, then deprioritize properties older than 3 months
@@ -91,8 +99,12 @@ export const Browse = () => {
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
       propertiesWithPromo.sort((a, b) => {
+        // Promoted first, sorted by promotion amount (higher = higher priority)
         if (a.isPromoted && !b.isPromoted) return -1;
         if (!a.isPromoted && b.isPromoted) return 1;
+        if (a.isPromoted && b.isPromoted) {
+          return (b.promotionAmount || 0) - (a.promotionAmount || 0);
+        }
         const aOld = new Date(a.created_at) < threeMonthsAgo;
         const bOld = new Date(b.created_at) < threeMonthsAgo;
         if (!aOld && bOld) return -1;
@@ -102,8 +114,11 @@ export const Browse = () => {
 
       setAllProperties(propertiesWithPromo);
       
-      // Suggested: promoted properties first
-      const suggested = propertiesWithPromo.filter(p => p.isPromoted).slice(0, 5);
+      // Suggested: promoted properties first, sorted by amount
+      const suggested = propertiesWithPromo
+        .filter(p => p.isPromoted)
+        .sort((a, b) => (b.promotionAmount || 0) - (a.promotionAmount || 0))
+        .slice(0, 5);
       if (suggested.length < 5) {
         suggested.push(...propertiesWithPromo.filter(p => !p.isPromoted).slice(0, 5 - suggested.length));
       }

@@ -32,6 +32,7 @@ type Property = {
   state?: string;
   address?: string;
   isPromoted?: boolean;
+  promotionAmount?: number;
   isVerifiedSeller?: boolean;
 };
 
@@ -69,16 +70,22 @@ export const Home = () => {
     detectUserLocation();
   }, []);
 
+  const [userState, setUserState] = useState<string>('');
+
   const detectUserLocation = async () => {
     try {
       const response = await fetch('https://ipapi.co/json/');
       const data = await response.json();
+      if (data.region) {
+        setUserState(data.region);
+      }
       if (data.city) {
         setUserLocation(data.city);
       }
     } catch (error) {
       console.error('Error detecting location:', error);
       setUserLocation('Lagos');
+      setUserState('Lagos');
     }
   };
 
@@ -94,14 +101,20 @@ export const Home = () => {
           .limit(50),
         supabase
           .from('property_promotions')
-          .select('property_id, is_active, expires_at')
+          .select('property_id, amount_paid, is_active, expires_at')
           .eq('is_active', true)
           .gt('expires_at', new Date().toISOString()),
       ]);
 
       if (propertiesRes.error) throw propertiesRes.error;
 
-      const promotedIds = new Set((promotionsRes.data || []).map(p => p.property_id));
+      // Build a map of property_id -> total promotion amount (stackable promotions)
+      const promotionAmounts = new Map<string, number>();
+      (promotionsRes.data || []).forEach(p => {
+        const current = promotionAmounts.get(p.property_id) || 0;
+        promotionAmounts.set(p.property_id, current + Number(p.amount_paid));
+      });
+      const promotedIds = new Set(promotionAmounts.keys());
 
       if (propertiesRes.data) {
         const transformedProperties: Property[] = propertiesRes.data.map(p => ({
@@ -120,6 +133,7 @@ export const Home = () => {
           address: p.address || '',
           matchScore: Math.floor(Math.random() * 40) + 60,
           isPromoted: promotedIds.has(p.id),
+          promotionAmount: promotionAmounts.get(p.id) || 0,
           isVerifiedSeller: p.is_verified === true,
         }));
 
@@ -204,54 +218,66 @@ export const Home = () => {
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
-  // Featured: promoted first, then by clicks
+  // Sort helper: promoted first by amount_paid (higher = higher priority), then fallback
+  const promotionSort = (a: Property, b: Property) => {
+    if (a.isPromoted && !b.isPromoted) return -1;
+    if (!a.isPromoted && b.isPromoted) return 1;
+    if (a.isPromoted && b.isPromoted) {
+      return (b.promotionAmount || 0) - (a.promotionAmount || 0);
+    }
+    return 0;
+  };
+
+  // Featured: promoted first (by amount), then by clicks
   const featuredProperties = useMemo(() => 
     [...filteredProperties]
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return b.clicks - a.clicks;
       })
       .slice(0, 6),
     [filteredProperties]
   );
 
-  // Locality: promoted first in user's area
+  // Locality: match by detected state/city, promoted first by amount
   const localityProperties = useMemo(() => 
     filteredProperties
       .filter(p => {
-        if (!userLocation) return true;
-        return p.city?.toLowerCase().includes(userLocation.toLowerCase()) || 
-               p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
-               p.location.toLowerCase().includes(userLocation.toLowerCase());
+        // Match by state first (from IP), then city
+        if (userState) {
+          if (p.state?.toLowerCase().includes(userState.toLowerCase())) return true;
+        }
+        if (userLocation) {
+          if (p.city?.toLowerCase().includes(userLocation.toLowerCase())) return true;
+          if (p.location.toLowerCase().includes(userLocation.toLowerCase())) return true;
+        }
+        // If no location detected, show all
+        return !userState && !userLocation;
       })
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return 0;
       })
       .slice(0, 8),
-    [filteredProperties, userLocation]
+    [filteredProperties, userLocation, userState]
   );
 
-  // Explore more: promoted first
+  // Explore more: promoted first by amount
   const exploreMoreProperties = useMemo(() => 
     [...filteredProperties]
-      .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
-        return 0;
-      })
+      .sort(promotionSort)
       .slice(0, 9),
     [filteredProperties]
   );
 
-  // Recommended: promoted properties prioritized
+  // Recommended: promoted by amount, then match score
   const recommendedProperties = useMemo(() => 
     [...filteredProperties]
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return (b.matchScore || 0) - (a.matchScore || 0);
       })
       .slice(0, 8),
