@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -45,7 +45,6 @@ export const PaymentConfirmation = () => {
     // Handle escrow payment verification
     if (escrowId) {
       try {
-        // First check if already funded (webhook may have processed it)
         const { data: escrow } = await supabase
           .from('escrow_transactions')
           .select('status, payment_verified_at')
@@ -58,7 +57,6 @@ export const PaymentConfirmation = () => {
           return;
         }
 
-        // Try manual verification
         const { data: verifyResp, error: verifyErr } = await supabase.functions.invoke('verify-payment', {
           body: { escrowId, reference }
         });
@@ -69,7 +67,6 @@ export const PaymentConfirmation = () => {
           return;
         }
 
-        // Wait for webhook and retry
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         const { data: retryEscrow } = await supabase
@@ -82,7 +79,6 @@ export const PaymentConfirmation = () => {
           setStatus('success');
           toast.success('Payment confirmed successfully');
         } else {
-          // One more retry after another 3 seconds
           await new Promise(resolve => setTimeout(resolve, 3000));
           const { data: finalEscrow } = await supabase
             .from('escrow_transactions')
@@ -190,9 +186,15 @@ export const PaymentConfirmation = () => {
           <CardContent className="text-center py-12">
             <CheckCircle2 className="h-24 w-24 text-green-500 mx-auto mb-6 animate-float" />
             <h1 className="text-3xl font-bold mb-4">Payment Successful</h1>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-muted-foreground mb-4">
               Your payment has been confirmed. You can view this transaction in your dashboard.
             </p>
+            <div className="bg-muted/50 rounded-lg p-4 mb-8 flex items-start gap-2 text-sm text-muted-foreground max-w-md mx-auto">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                The seller will receive the funds within <strong>T+1 business day</strong>. This is Paystack's standard settlement timeline, not ours.
+              </span>
+            </div>
             <div className="space-y-3">
               <Button onClick={() => navigate(getRedirectPath())} className="w-full" size="lg">
                 View Transactions

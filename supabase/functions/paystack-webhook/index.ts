@@ -6,6 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-paystack-signature',
 };
 
+async function notifyAdminsTelegram(supabase: any, message: string) {
+  const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+  if (!telegramToken) return;
+  try {
+    const { data: adminChats } = await supabase
+      .from('telegram_admin_chats')
+      .select('chat_id')
+      .eq('is_active', true);
+    for (const chat of adminChats || []) {
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chat.chat_id, text: message, parse_mode: 'Markdown' }),
+      });
+    }
+  } catch (tgErr) {
+    console.error('Telegram alert failed:', tgErr);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -152,7 +172,8 @@ Deno.serve(async (req) => {
       const inspectionEndDate = new Date();
       inspectionEndDate.setDate(inspectionEndDate.getDate() + 21);
 
-      // Update escrow to funded
+      // Update escrow to funded — with split payments, Paystack auto-settles to seller's subaccount
+      // No need to trigger process-payout anymore
       await supabase
         .from('escrow_transactions')
         .update({
@@ -161,6 +182,7 @@ Deno.serve(async (req) => {
           paystack_verified_at: new Date().toISOString(),
           inspection_start_date: inspectionStartDate.toISOString(),
           inspection_end_date: inspectionEndDate.toISOString(),
+          transfer_status: 'split_auto', // Indicates split payment handles settlement
           updated_at: new Date().toISOString(),
         })
         .eq('id', escrow.id);
@@ -170,36 +192,22 @@ Deno.serve(async (req) => {
         actor_id: escrow.buyer_id,
         action: 'payment_confirmed',
         before_state: { status: escrow.status },
-        after_state: { status: 'funded' },
-        reason: 'Payment verified and confirmed by Paystack',
+        after_state: { status: 'funded', settlement: 'split_auto' },
+        reason: 'Payment verified by Paystack. Seller receives funds via split payment in T+1 business day.',
       });
 
-      console.log('Escrow funded successfully:', escrow.id);
+      // Notify admins
+      const { data: seller } = await supabase
+        .from('profiles')
+        .select('full_name, bank_name, account_number')
+        .eq('id', escrow.seller_id)
+        .single();
 
-    // Auto-trigger payout to seller
-      console.log('Triggering auto-payout for escrow:', escrow.id);
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-        
-        const payoutRes = await fetch(`${supabaseUrl}/functions/v1/process-payout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({ escrow_id: escrow.id }),
-        });
+      await notifyAdminsTelegram(supabase,
+        `✅ *PAYMENT RECEIVED (Split)*\n\nEscrow: \`${escrow.id.substring(0, 8)}\`\nAmount: ₦${(amount / 100).toLocaleString()}\nSeller: ${seller?.full_name || 'Unknown'}\nBank: ${seller?.bank_name || 'N/A'} - ${seller?.account_number || 'N/A'}\n\nSeller receives funds automatically via Paystack split in T+1 business day.`
+      );
 
-        const payoutData = await payoutRes.json();
-        console.log('Auto-payout result:', JSON.stringify(payoutData));
-
-        if (!payoutData.success) {
-          console.error('Auto-payout returned failure:', payoutData.error);
-        }
-      } catch (payoutErr) {
-        console.error('Auto-payout fetch failed:', payoutErr);
-      }
+      console.log('Escrow funded successfully (split payment):', escrow.id);
     }
 
     return new Response(

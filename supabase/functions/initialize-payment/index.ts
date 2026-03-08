@@ -54,7 +54,12 @@ Deno.serve(async (req) => {
         .eq('id', escrow.buyer_id)
         .single();
 
-      // Payment goes to main Paystack account; payout is handled separately via process-payout
+      // Get seller's subaccount code for split payment
+      const { data: seller } = await supabase
+        .from('profiles')
+        .select('paystack_subaccount_code, full_name')
+        .eq('id', escrow.seller_id)
+        .single();
 
       const reference = `ESC-${escrowId.substring(0, 8)}-${Date.now()}`;
       const amount = Math.round(escrow.total_amount * 100);
@@ -74,6 +79,17 @@ Deno.serve(async (req) => {
           type: 'escrow_payment',
         },
       };
+
+      // Add split payment if seller has a subaccount
+      if (seller?.paystack_subaccount_code) {
+        paystackBody.subaccount = seller.paystack_subaccount_code;
+        // Bearer means Paystack charges the main account (platform) the transaction fee
+        // The subaccount (seller) gets their percentage_charge (98.5%) automatically
+        paystackBody.bearer = 'account';
+        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
+      } else {
+        console.warn('Seller has no subaccount, payment goes to main account');
+      }
 
       const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
@@ -143,7 +159,39 @@ Deno.serve(async (req) => {
         .eq('id', purchase.buyer_id)
         .single();
 
+      // Get seller's subaccount code for split payment
+      const { data: seller } = await supabase
+        .from('profiles')
+        .select('paystack_subaccount_code, full_name')
+        .eq('id', purchase.seller_id)
+        .single();
+
       const reference = `PUR-${purchaseId.substring(0, 8)}-${Date.now()}`;
+
+      const paystackBody: any = {
+        email: buyer?.email || '',
+        amount: Math.round(purchase.transaction_amount * 100),
+        reference,
+        currency: 'NGN',
+        callback_url: `https://xavorian.xyz/payment-confirmation?purchase=${purchaseId}`,
+        metadata: {
+          purchase_id: purchaseId,
+          property_id: purchase.property_id,
+          buyer_id: purchase.buyer_id,
+          buyer_name: buyer?.full_name || '',
+          seller_id: purchase.seller_id,
+          transaction_amount: purchase.transaction_amount,
+        },
+      };
+
+      // Add split payment if seller has a subaccount
+      if (seller?.paystack_subaccount_code) {
+        paystackBody.subaccount = seller.paystack_subaccount_code;
+        paystackBody.bearer = 'account';
+        console.log('Using split payment with subaccount:', seller.paystack_subaccount_code);
+      } else {
+        console.warn('Seller has no subaccount, payment goes to main account');
+      }
 
       const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
@@ -151,21 +199,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${paystackSecretKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: buyer?.email || '',
-          amount: Math.round(purchase.transaction_amount * 100),
-          reference,
-          currency: 'NGN',
-          callback_url: `https://xavorian.xyz/payment-confirmation?purchase=${purchaseId}`,
-          metadata: {
-            purchase_id: purchaseId,
-            property_id: purchase.property_id,
-            buyer_id: purchase.buyer_id,
-            buyer_name: buyer?.full_name || '',
-            seller_id: purchase.seller_id,
-            transaction_amount: purchase.transaction_amount,
-          },
-        }),
+        body: JSON.stringify(paystackBody),
       });
 
       const paystackData = await paystackResponse.json();

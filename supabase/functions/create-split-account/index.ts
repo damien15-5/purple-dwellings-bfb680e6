@@ -48,39 +48,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create a Paystack Transfer Recipient (for payouts)
-    const recipientRes = await fetch('https://api.paystack.co/transferrecipient', {
+    // Create a Paystack Subaccount (for split payments)
+    const subaccountRes = await fetch('https://api.paystack.co/subaccount', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${paystackSecretKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        type: 'nuban',
-        name: account_name,
+        business_name: account_name,
+        settlement_bank: bank_code,
         account_number,
-        bank_code,
-        currency: 'NGN',
+        percentage_charge: 98.5, // Seller gets 98.5%, platform keeps 1.5%
+        description: `Xavorian seller: ${profile.full_name}`,
+        primary_contact_email: profile.email,
       }),
     });
 
-    const recipientData = await recipientRes.json();
-    console.log('Paystack recipient response:', JSON.stringify(recipientData));
+    const subaccountData = await subaccountRes.json();
+    console.log('Paystack subaccount response:', JSON.stringify(subaccountData));
 
-    if (!recipientData.status) {
-      throw new Error(recipientData.message || 'Failed to create transfer recipient');
+    if (!subaccountData.status) {
+      throw new Error(subaccountData.message || 'Failed to create subaccount');
     }
 
-    const recipientCode = recipientData.data.recipient_code;
+    const subaccountCode = subaccountData.data.subaccount_code;
 
-    // Save bank details and recipient code to profile, mark as verified
+    // Save bank details and subaccount code to profile, mark as verified
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         bank_name,
         account_number,
         account_name,
-        paystack_subaccount_code: recipientCode, // Store recipient code here
+        paystack_subaccount_code: subaccountCode,
         bank_verified: true,
       })
       .eq('id', user_id);
@@ -90,13 +91,13 @@ Deno.serve(async (req) => {
       throw new Error('Failed to save bank details');
     }
 
-    console.log('Bank account saved and verified for user:', user_id);
+    console.log('Split subaccount created and saved for user:', user_id, 'Code:', subaccountCode);
 
     return new Response(
       JSON.stringify({
         success: true,
-        recipient_code: recipientCode,
-        message: 'Bank account verified and saved successfully',
+        subaccount_code: subaccountCode,
+        message: 'Bank account verified and split account created successfully',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
