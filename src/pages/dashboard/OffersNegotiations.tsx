@@ -484,7 +484,7 @@ export const OffersNegotiations = () => {
                                 toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.' });
                                 loadOffers();
                               } catch (err) {
-                                toast({ title: 'Error', description: 'Failed to update payment status', variant: 'destructive' });
+                                alert('Failed to update payment status. Please try again.');
                                 setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
                               }
                             }}
