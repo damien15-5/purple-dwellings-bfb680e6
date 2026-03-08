@@ -377,10 +377,6 @@ export const Messages = () => {
         message_type: 'accept',
       });
 
-      const ataraFee = amount * 0.015;
-      const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
-      const totalFees = ataraFee + platformFee;
-
       const { data: existingEscrow } = await supabase
         .from('escrow_transactions')
         .select('*')
