@@ -568,7 +568,10 @@ export const Messages = () => {
   };
 
   const handleConfirmExtraPaymentReceived = async (messageId: string, amount: number) => {
-    if (!selectedConversation || !currentUserId) return;
+    if (!selectedConversation) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     setProcessingExtraPaymentIds((prev) => new Set(prev).add(messageId));
 
@@ -580,7 +583,7 @@ export const Messages = () => {
 
       await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
-        sender_id: currentUserId,
+        sender_id: user.id,
         content: `Extra payment of ₦${amount.toLocaleString()} confirmed by seller.`,
         message_type: 'system',
       });
