@@ -99,6 +99,7 @@ const App = () => {
   }, []);
 
   return (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AdminProvider>
