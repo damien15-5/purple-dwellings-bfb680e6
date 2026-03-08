@@ -12,7 +12,7 @@ import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
-import { ShieldCheck, AlertTriangle } from 'lucide-react';
+
 
 const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
@@ -149,8 +149,7 @@ export const UploadListing = () => {
   });
   
   const [images, setImages] = useState<File[]>([]);
-  const [isKycVerified, setIsKycVerified] = useState<boolean | null>(null);
-  const [kycLoading, setKycLoading] = useState(true);
+  const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -162,7 +161,7 @@ export const UploadListing = () => {
       }
       setUserId(session.user.id);
 
-      // Check KYC status
+      // Check KYC status (for verified badge only, not blocking)
       const { data: kyc } = await supabase
         .from('kyc_documents')
         .select('status')
@@ -172,7 +171,6 @@ export const UploadListing = () => {
         .maybeSingle();
 
       setIsKycVerified(kyc?.status === 'verified');
-      setKycLoading(false);
     };
     checkAuth();
   }, [navigate]);
@@ -416,36 +414,6 @@ export const UploadListing = () => {
     }
   };
 
-  if (kycLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (isKycVerified === false) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background flex items-center justify-center px-4">
-        <Card className="max-w-lg w-full p-8 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground">KYC Verification Required</h2>
-          <p className="text-muted-foreground">
-            You must complete your identity verification (KYC) before you can upload properties. This helps us ensure trust and safety on our platform.
-          </p>
-          <Button
-            onClick={() => navigate('/dashboard/verification')}
-            className="bg-gradient-to-r from-primary to-primary-light"
-          >
-            <ShieldCheck className="w-4 h-4 mr-2" />
-            Complete KYC Verification
-          </Button>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background relative overflow-hidden">
