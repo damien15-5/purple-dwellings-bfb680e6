@@ -753,16 +753,17 @@ export const Messages = () => {
         message_type: 'reject',
       });
 
-      // Precise escrow lookup
+      const participantA = selectedConversation.buyer_id;
+      const participantB = selectedConversation.seller_id;
+
       const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
         .select('id')
         .eq('property_id', selectedConversation.property_id)
-        .eq('buyer_id', selectedConversation.buyer_id)
-        .eq('seller_id', selectedConversation.seller_id)
         .eq('offer_amount', offerAmount)
         .in('offer_status', ['pending', 'none'])
         .eq('status', 'pending_payment')
+        .or(`and(buyer_id.eq.${participantA},seller_id.eq.${participantB}),and(buyer_id.eq.${participantB},seller_id.eq.${participantA})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
