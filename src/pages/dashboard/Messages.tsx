@@ -293,10 +293,22 @@ export const Messages = () => {
   };
 
   const handleSendOffer = async () => {
-    if (!offerAmount || !selectedConversation || !currentUserId) return;
+    if (!offerAmount || !selectedConversation) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: 'Login required',
+        description: 'Please log in again to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const senderId = user.id;
 
     // Property owner cannot make an offer on their own property
-    const isOwner = currentUserId === selectedConversation.property?.user_id;
+    const isOwner = senderId === selectedConversation.property?.user_id;
     if (isOwner) {
       toast({
         title: 'Cannot make offer',
@@ -316,32 +328,44 @@ export const Messages = () => {
       return;
     }
 
+    const recipientId =
+      senderId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    if (!recipientId) {
+      toast({
+        title: 'Error',
+        description: 'Could not identify the other party in this conversation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const content =
         offerMessage ||
         `I'd like to make an offer of ₦${amount.toLocaleString()} for this property.`;
 
-      const { error: msgError } = await supabase.from('messages').insert({
-        conversation_id: selectedConversation.id,
-        sender_id: currentUserId,
-        content,
-        message_type: 'offer',
-        offer_amount: amount,
-        offer_status: 'pending',
-      });
+      const { data: insertedOfferMessage, error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_id: senderId,
+          content,
+          message_type: 'offer',
+          offer_amount: amount,
+          offer_status: 'pending',
+        })
+        .select('id')
+        .single();
 
       if (msgError) throw msgError;
 
-      // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
-      // The current user (offer sender) is always the buyer_id to satisfy RLS insert policy
-      const otherUserId = currentUserId === selectedConversation.buyer_id
-        ? selectedConversation.seller_id
-        : selectedConversation.buyer_id;
-
       const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
-        property_id: selectedConversation.property_id,
-        buyer_id: currentUserId,
-        seller_id: otherUserId,
+        property_id: selectedConversation.property ? selectedConversation.property_id : null,
+        buyer_id: senderId,
+        seller_id: recipientId,
         transaction_amount: amount,
         atara_fee: 0,
         platform_fee: 0,
@@ -354,24 +378,18 @@ export const Messages = () => {
       });
 
       if (escrowInsertError) {
-        console.error('Escrow insert error:', escrowInsertError);
+        await supabase.from('messages').delete().eq('id', insertedOfferMessage.id);
+        throw new Error(escrowInsertError.message || 'Failed to save offer transaction record.');
       }
 
-      const recipientId =
-        currentUserId === selectedConversation.buyer_id
-          ? selectedConversation.seller_id
-          : selectedConversation.buyer_id;
-
-      if (recipientId) {
-        await supabase.rpc('create_notification', {
-          p_user_id: recipientId,
-          p_title: 'New Offer Received',
-          p_description: `You received an offer of ₦${amount.toLocaleString()} for ${
-            selectedConversation.property?.title || 'a property'
-          }`,
-          p_type: 'offer',
-        });
-      }
+      await supabase.rpc('create_notification', {
+        p_user_id: recipientId,
+        p_title: 'New Offer Received',
+        p_description: `You received an offer of ₦${amount.toLocaleString()} for ${
+          selectedConversation.property?.title || 'a property'
+        }`,
+        p_type: 'offer',
+      });
 
       await supabase
         .from('conversations')
@@ -384,21 +402,237 @@ export const Messages = () => {
       setOfferAmount('');
       setOfferMessage('');
       setOfferDialogOpen(false);
+      await loadMessages(selectedConversation.id);
+
       toast({
         title: 'Offer sent',
-        description: 'Your offer has been sent to the other party.',
+        description: 'Offer saved and sent successfully.',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending offer:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send offer. Please try again.',
+        description: error?.message || 'Failed to send offer. Please try again.',
         variant: 'destructive',
       });
     }
   };
 
-  const handleAcceptOffer = async (messageId: string, amount: number) => {
+  const handleSendExtraPaymentRequest = async () => {
+    if (!selectedConversation || !extraPaymentAmount || !currentUserId) return;
+
+    const isPropertyOwner = selectedConversation.property?.user_id === currentUserId;
+    if (!isPropertyOwner) {
+      toast({
+        title: 'Not allowed',
+        description: 'Only the property owner can request extra payment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const amount = parseFloat(extraPaymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Enter a valid extra payment amount.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const recipientId =
+      currentUserId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    const content =
+      extraPaymentNote?.trim() ||
+      `Extra payment request: ₦${amount.toLocaleString()} (miscellaneous cost).`;
+
+    try {
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: currentUserId,
+        content,
+        message_type: 'extra_payment_request',
+        offer_amount: amount,
+        offer_status: 'pending',
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment request: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      if (recipientId) {
+        await supabase.rpc('create_notification', {
+          p_user_id: recipientId,
+          p_title: 'Extra Payment Requested',
+          p_description: `An extra payment of ₦${amount.toLocaleString()} was requested for ${
+            selectedConversation.property?.title || 'this property'
+          }`,
+          p_type: 'payment',
+        });
+      }
+
+      setExtraPaymentAmount('');
+      setExtraPaymentNote('');
+      setExtraPaymentDialogOpen(false);
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Request sent',
+        description: 'Extra payment request sent in chat.',
+      });
+    } catch (error: any) {
+      console.error('Error sending extra payment request:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to send extra payment request.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleViewTransferDetails = (messageId: string, amount: number) => {
+    setActiveExtraPayment({ messageId, amount });
+    setBankDetailsDialogOpen(true);
+  };
+
+  const handleMarkExtraPaymentPaid = async (messageId: string, amount: number) => {
+    if (!selectedConversation || !currentUserId) return;
+
+    setProcessingExtraPaymentIds((prev) => new Set(prev).add(messageId));
+
+    try {
+      await supabase
+        .from('messages')
+        .update({ offer_status: 'paid' })
+        .eq('id', messageId);
+
+      await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: currentUserId,
+        content: `I have made the extra payment of ₦${amount.toLocaleString()}. Receipt will be sent here.`,
+        message_type: 'system',
+      });
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment marked as paid: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Marked as paid',
+        description: 'Now send your receipt in this chat.',
+      });
+    } catch (error) {
+      console.error('Error marking extra payment as paid:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not update extra payment status.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingExtraPaymentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmExtraPaymentReceived = async (messageId: string, amount: number) => {
+    if (!selectedConversation || !currentUserId) return;
+
+    setProcessingExtraPaymentIds((prev) => new Set(prev).add(messageId));
+
+    try {
+      await supabase
+        .from('messages')
+        .update({ offer_status: 'confirmed' })
+        .eq('id', messageId);
+
+      await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: currentUserId,
+        content: `Extra payment of ₦${amount.toLocaleString()} confirmed by seller.`,
+        message_type: 'system',
+      });
+
+      const participantA = selectedConversation.buyer_id;
+      const participantB = selectedConversation.seller_id;
+
+      const { data: latestEscrow } = await supabase
+        .from('escrow_transactions')
+        .select('id')
+        .eq('property_id', selectedConversation.property_id)
+        .or(`and(buyer_id.eq.${participantA},seller_id.eq.${participantB}),and(buyer_id.eq.${participantB},seller_id.eq.${participantA})`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const manualReference = `manual-extra-${messageId}`;
+
+      const { error: paymentRecordError } = await supabase.from('payment_records').insert({
+        escrow_id: latestEscrow?.id || null,
+        amount,
+        paid_at: new Date().toISOString(),
+        paystack_reference: manualReference,
+        currency: 'NGN',
+        status: 'success',
+        payment_method: 'bank_transfer',
+        webhook_data: {
+          source: 'chat_extra_payment',
+          message_id: messageId,
+          conversation_id: selectedConversation.id,
+        },
+      });
+
+      if (paymentRecordError) {
+        console.error('Failed to save payment record for extra payment:', paymentRecordError);
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment confirmed: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Payment confirmed',
+        description: 'Extra payment has been confirmed.',
+      });
+    } catch (error) {
+      console.error('Error confirming extra payment:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not confirm extra payment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingExtraPaymentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
     if (!selectedConversation || !currentUserId) return;
 
     try {
