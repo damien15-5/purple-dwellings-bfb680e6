@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, Send, Paperclip, Search, Trash2, HandshakeIcon } from 'lucide-react';
+import { MessageSquare, Send, Paperclip, Search, Trash2, HandshakeIcon, Banknote, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
