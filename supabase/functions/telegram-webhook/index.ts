@@ -70,7 +70,31 @@ async function clearAdminReplyTarget(chatId: number) {
   await supabase.from('telegram_admin_chats').update({ reply_target_user_id: null } as any).eq('chat_id', chatId);
 }
 
-async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
+async function isSuperAdmin(chatId: number): Promise<boolean> {
+  const { data: adminChat } = await supabase.from('telegram_admin_chats').select('admin_id').eq('chat_id', chatId).eq('is_active', true).single();
+  if (!adminChat) return false;
+  const { data: cred } = await supabase.from('admin_credentials').select('role').eq('id', adminChat.admin_id).single();
+  return cred?.role === 'super_admin';
+}
+
+async function getAdminName(chatId: number): Promise<string> {
+  const { data: adminChat } = await supabase.from('telegram_admin_chats').select('admin_id, username').eq('chat_id', chatId).eq('is_active', true).single();
+  if (!adminChat) return 'Unknown';
+  const { data: cred } = await supabase.from('admin_credentials').select('username').eq('id', adminChat.admin_id).single();
+  return cred?.username || adminChat.username || 'Unknown';
+}
+
+async function logAdminAction(chatId: number, action: string, details?: string) {
+  const adminName = await getAdminName(chatId);
+  await supabase.from('telegram_admin_actions').insert({
+    admin_chat_id: chatId,
+    admin_username: adminName,
+    action,
+    details: details || null,
+  });
+}
+
+async function setCommandsForChat(chatId: number, role: 'admin' | 'user' | 'super_admin') {
   const adminCommands = [
     { command: 'help', description: 'Show all available commands' },
     { command: 'searchuser', description: 'Search users by name or email' },
@@ -86,6 +110,14 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
     { command: 'enableotp', description: 'Re-enable Paystack transfer OTP' },
     { command: 'cancel', description: 'Cancel messaging mode' },
   ];
+
+  if (role === 'super_admin') {
+    adminCommands.push(
+      { command: 'addadmin', description: 'Add admin: /addadmin email' },
+      { command: 'removeadmin', description: 'Remove admin: /removeadmin email' },
+      { command: 'adminlog', description: 'View recent admin activity' },
+    );
+  }
 
   const userCommands = [
     { command: 'help', description: 'Show all available commands' },
