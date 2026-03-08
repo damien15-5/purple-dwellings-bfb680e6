@@ -113,6 +113,47 @@ export const Messages = () => {
     setLoading(false);
   };
 
+  const copyToClipboard = async (value?: string | null) => {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: 'Copied',
+        description: 'Copied to clipboard.',
+      });
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy value to clipboard.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const loadPayeeBankDetails = async (conversation: any) => {
+    const payeeId = conversation?.property?.user_id || conversation?.seller_id;
+
+    if (!payeeId) {
+      setPayeeBankDetails(null);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, bank_name, account_number, account_name')
+      .eq('id', payeeId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading payee bank details:', error);
+      setPayeeBankDetails(null);
+      return;
+    }
+
+    setPayeeBankDetails(data || null);
+  };
+
   const loadMessages = async (convId: string) => {
     try {
       const { data, error } = await supabase
