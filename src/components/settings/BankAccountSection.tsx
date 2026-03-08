@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building, CheckCircle, Loader2 } from 'lucide-react';
+import { Building, CheckCircle, Loader2, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -119,12 +119,12 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
         account_number: accountNumber,
         account_name: resolvedName,
         bank_verified: true,
-        paystack_subaccount_code: data.recipient_code || '',
+        paystack_subaccount_code: data.subaccount_code || '',
       });
 
       toast({
-        title: 'Bank Account Verified',
-        description: 'Your bank account has been saved and verified successfully.',
+        title: 'Bank Account Verified ✅',
+        description: 'Your bank account has been linked successfully. Payments will be settled directly to your account.',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Failed to save bank account', variant: 'destructive' });
@@ -145,7 +145,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-4">
             <CheckCircle className="h-5 w-5" />
-            <span className="font-medium">Account Verified</span>
+            <span className="font-medium">Account Verified & Linked</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -160,6 +160,10 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
               <Label>Account Name</Label>
               <Input value={bankDetails.account_name} disabled className="bg-muted" />
             </div>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2 text-sm text-muted-foreground">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Payments from buyers are settled directly to your account within <strong>T+1 business day</strong> (Paystack processing time, not ours).</span>
           </div>
         </CardContent>
       </Card>
@@ -176,8 +180,15 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Add your bank account for receiving payments. Your account will be verified instantly.
+          Add your bank account for receiving payments. Your account will be verified and linked for direct settlements.
         </p>
+
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2 text-sm">
+          <Info className="h-4 w-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-800 dark:text-amber-200">
+            A one-time <strong>₦100</strong> initialization fee will be charged by Paystack to verify your account. This is a standard Paystack verification charge and will be refunded to you.
+          </span>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -243,10 +254,10 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  Creating Split Account...
                 </>
               ) : (
-                'Save Bank Account'
+                'Save & Link Account'
               )}
             </Button>
           </>
