@@ -5,9 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Paystack fee: 1.5% capped at ₦2,000
+// Paystack fee: 1.5% capped at ₦2,500
 function calculatePaystackFee(amountNaira: number): number {
-  return Math.min(Math.round(amountNaira * 0.015), 2000);
+  return Math.min(Math.round(amountNaira * 0.015), 2500);
+}
+
+async function notifyAdminsTelegram(supabase: any, message: string) {
+  const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+  if (!telegramToken) return;
+
+  try {
+    const { data: adminChats } = await supabase
+      .from('telegram_admin_chats')
+      .select('chat_id')
+      .eq('is_active', true);
+
+    for (const chat of adminChats || []) {
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chat.chat_id, text: message, parse_mode: 'Markdown' }),
+      });
+    }
+  } catch (tgErr) {
+    console.error('Telegram alert failed:', tgErr);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -27,6 +49,7 @@ Deno.serve(async (req) => {
     const { escrow_id } = await req.json();
     if (!escrow_id) throw new Error('escrow_id is required');
 
+    // Fetch escrow
     const { data: escrow, error: escrowErr } = await supabase
       .from('escrow_transactions')
       .select('*')
@@ -35,10 +58,21 @@ Deno.serve(async (req) => {
 
     if (escrowErr || !escrow) throw new Error('Escrow not found');
 
+    // Only process if in a payable state
     if (!['funded', 'completed', 'inspection_period'].includes(escrow.status)) {
       throw new Error(`Escrow is not in a payable state: ${escrow.status}`);
     }
 
+    // Skip if already transferred
+    if (escrow.transfer_status === 'success' || escrow.transfer_status === 'pending') {
+      console.log('Transfer already processed, skipping');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Transfer already processed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get seller's recipient code
     const { data: seller } = await supabase
       .from('profiles')
       .select('paystack_subaccount_code, full_name, bank_name, account_number, account_name')
@@ -46,9 +80,14 @@ Deno.serve(async (req) => {
       .single();
 
     if (!seller?.paystack_subaccount_code) {
-      throw new Error('Seller has no verified bank account / recipient code');
+      const errMsg = 'Seller has no verified bank account / recipient code';
+      await notifyAdminsTelegram(supabase,
+        `🚨 *PAYOUT BLOCKED*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nReason: ${errMsg}\n\nSeller needs to add bank details.`
+      );
+      throw new Error(errMsg);
     }
 
+    // Calculate amounts
     const transactionAmountNaira = escrow.offer_amount || escrow.transaction_amount;
     const paystackFeeNaira = calculatePaystackFee(transactionAmountNaira);
     const payoutAmountKobo = Math.round((transactionAmountNaira - paystackFeeNaira) * 100);
@@ -59,16 +98,7 @@ Deno.serve(async (req) => {
 
     console.log(`Processing payout: Amount ₦${transactionAmountNaira}, Paystack fee ₦${paystackFeeNaira}, Payout ₦${payoutAmountKobo / 100}`);
 
-    // Disable OTP for transfers
-    try {
-      await fetch('https://api.paystack.co/transfer/disable_otp', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${paystackSecretKey}`, 'Content-Type': 'application/json' },
-      });
-    } catch (e) {
-      console.warn('OTP disable request failed (may already be disabled):', e);
-    }
-
+    // Initiate Paystack Transfer
     const transferRef = `PAYOUT-${escrow_id.substring(0, 8)}-${Date.now()}`;
     const transferRes = await fetch('https://api.paystack.co/transfer', {
       method: 'POST',
@@ -80,40 +110,17 @@ Deno.serve(async (req) => {
         source: 'balance',
         amount: payoutAmountKobo,
         recipient: seller.paystack_subaccount_code,
-        reason: `Property payment payout for escrow ${escrow_id.substring(0, 8)}`,
+        reason: `Property payment for escrow ${escrow_id.substring(0, 8)}`,
         reference: transferRef,
         currency: 'NGN',
       }),
     });
 
     const transferData = await transferRes.json();
-    console.log('Transfer response:', JSON.stringify(transferData));
+    console.log('Transfer API response:', JSON.stringify(transferData));
 
     if (!transferData.status) {
-      // Notify admin via Telegram on failure
-      const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-      if (telegramToken) {
-        try {
-          const { data: adminChats } = await supabase
-            .from('telegram_admin_chats')
-            .select('chat_id')
-            .eq('is_active', true);
-
-          const failMsg = `🚨 *PAYOUT FAILED*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nAmount: ₦${(payoutAmountKobo / 100).toLocaleString()}\nError: ${transferData.message || 'Unknown'}\n\nPlease process manually.`;
-
-          for (const chat of adminChats || []) {
-            await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: chat.chat_id, text: failMsg, parse_mode: 'Markdown' }),
-            });
-          }
-        } catch (tgErr) {
-          console.error('Telegram alert failed:', tgErr);
-        }
-      }
-
-      // Save failed transfer status
+      // Transfer failed — save status and alert admin
       await supabase
         .from('escrow_transactions')
         .update({
@@ -123,24 +130,30 @@ Deno.serve(async (req) => {
         })
         .eq('id', escrow_id);
 
+      await notifyAdminsTelegram(supabase,
+        `🚨 *PAYOUT FAILED*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nBank: ${seller.bank_name} - ${seller.account_number}\nAmount: ₦${(payoutAmountKobo / 100).toLocaleString()}\nError: ${transferData.message || 'Unknown'}\nRef: \`${transferRef}\`\n\nPlease process manually.`
+      );
+
       throw new Error(transferData.message || 'Transfer initiation failed');
     }
 
-    // Update escrow with transfer status
+    // Transfer initiated — update escrow
+    const transferStatus = transferData.data?.status === 'success' ? 'success' : 'pending';
+
     await supabase
       .from('escrow_transactions')
       .update({
         platform_fee: paystackFeeNaira,
         atara_fee: paystackFeeNaira,
         status: 'completed',
-        transfer_status: transferData.data?.status === 'success' ? 'success' : 'pending',
+        transfer_status: transferStatus,
         transfer_reference: transferRef,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', escrow_id);
 
-    // Log the payout
+    // Audit log
     await supabase.from('audit_logs').insert({
       escrow_id,
       actor_id: escrow.buyer_id,
@@ -151,37 +164,21 @@ Deno.serve(async (req) => {
         payout_amount: payoutAmountKobo / 100,
         paystack_fee: paystackFeeNaira,
         transfer_reference: transferRef,
+        transfer_status: transferStatus,
       },
-      reason: 'Auto payout triggered after payment confirmation',
+      reason: 'Auto payout after payment confirmation',
     });
 
-    // Notify admin via Telegram on success
-    const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-    if (telegramToken) {
-      try {
-        const { data: adminChats } = await supabase
-          .from('telegram_admin_chats')
-          .select('chat_id')
-          .eq('is_active', true);
-
-        const successMsg = `✅ *PAYOUT SUCCESSFUL*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nBank: ${seller.bank_name} - ${seller.account_number}\nPayout: ₦${(payoutAmountKobo / 100).toLocaleString()}\nPaystack Fee: ₦${paystackFeeNaira.toLocaleString()}\nRef: \`${transferRef}\``;
-
-        for (const chat of adminChats || []) {
-          await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chat.chat_id, text: successMsg, parse_mode: 'Markdown' }),
-          });
-        }
-      } catch (tgErr) {
-        console.error('Telegram success alert failed:', tgErr);
-      }
-    }
+    // Notify admin on success
+    await notifyAdminsTelegram(supabase,
+      `✅ *PAYOUT ${transferStatus === 'success' ? 'SUCCESSFUL' : 'PENDING'}*\n\nEscrow: \`${escrow_id.substring(0, 8)}\`\nSeller: ${seller.full_name}\nBank: ${seller.bank_name} - ${seller.account_number}\nPayout: ₦${(payoutAmountKobo / 100).toLocaleString()}\nPaystack Fee: ₦${paystackFeeNaira.toLocaleString()}\nRef: \`${transferRef}\``
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
         transfer_reference: transferRef,
+        transfer_status: transferStatus,
         payout_amount: payoutAmountKobo / 100,
         paystack_fee: paystackFeeNaira,
       }),

@@ -27,8 +27,8 @@ export const StartEscrow = () => {
   });
 
   const effectivePrice = existingEscrow?.offer_amount || property?.price || 0;
-  // Paystack fee: 1.5% capped at ₦2,000
-  const PAYSTACK_FEE = Math.min(Math.round(effectivePrice * 0.015), 2000);
+  // Paystack fee: 1.5% capped at ₦2,500
+  const PAYSTACK_FEE = Math.min(Math.round(effectivePrice * 0.015), 2500);
   const totalWithFee = effectivePrice + PAYSTACK_FEE;
 
   useEffect(() => {
