@@ -1,6 +1,9 @@
+import { SEOHead } from '@/components/SEOHead';
+
 export const Disclaimer = () => {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Disclaimer" description="Read Xavorian's disclaimer regarding property listings, AI verification, and liability limitations." path="/disclaimer" />
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 animate-fade-in">

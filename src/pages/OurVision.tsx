@@ -27,6 +27,7 @@ export const OurVision = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Our Vision" description="Discover Xavorian's vision to become the most trusted property marketplace, eliminating fraud in Nigerian real estate." path="/vision" />
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-accent-purple/10 via-background to-primary/10 py-20">
         <div className="container mx-auto px-4">

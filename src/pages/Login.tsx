@@ -65,6 +65,7 @@ export const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 lg:p-0 bg-background">
+      <SEOHead title="Login" description="Sign in to your Xavorian account to manage listings, chat with sellers, and track transactions." path="/login" />
       <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border-2 border-light-purple-border">
         <div 
           className="hidden lg:flex flex-col justify-center items-center p-0 relative bg-cover bg-center"
