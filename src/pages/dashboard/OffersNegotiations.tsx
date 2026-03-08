@@ -116,7 +116,7 @@ export const OffersNegotiations = () => {
       setOffers(data || []);
     } catch (error) {
       console.error('Failed to load offers:', error);
-      setOffers([]);
+      // Keep the last known list rendered; polling/realtime will retry automatically
     } finally {
       setLoading(false);
     }
