@@ -390,10 +390,10 @@ export const Messages = () => {
           .from('escrow_transactions')
           .update({
             transaction_amount: amount,
-            atara_fee: ataraFee,
-            platform_fee: platformFee,
-            escrow_fee: totalFees,
-            total_amount: amount + totalFees,
+            atara_fee: 0,
+            platform_fee: 0,
+            escrow_fee: 0,
+            total_amount: amount,
             offer_amount: amount,
             offer_status: 'accepted',
             seller_responded_at: new Date().toISOString(),
