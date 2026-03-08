@@ -1060,6 +1060,137 @@ async function handleEnableOTP(chatId: number) {
   }
 }
 
+// ==================== SUPER ADMIN COMMANDS ====================
+
+async function handleAddAdmin(chatId: number, email: string) {
+  if (!email || !email.includes('@')) {
+    await sendTelegram(chatId, '📝 Usage: /addadmin user@email.com\n\nThis will add the user as a sub-admin. They will be able to see and do everything you can, except add/remove admins.');
+    return;
+  }
+
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can add new admins.');
+    return;
+  }
+
+  // Find the user by email
+  const { data: profile } = await supabase.from('profiles').select('id, full_name, email').ilike('email', email.trim()).single();
+  if (!profile) {
+    await sendTelegram(chatId, `❌ No user found with email: <b>${email}</b>`);
+    return;
+  }
+
+  // Check if already an admin
+  const { data: existing } = await supabase.from('admin_credentials').select('id').ilike('username', profile.email).single();
+  if (existing) {
+    await sendTelegram(chatId, `⚠️ <b>${profile.full_name}</b> is already an admin.`);
+    return;
+  }
+
+  // Generate credentials
+  const username = profile.email.split('@')[0].substring(0, 8);
+  const password = Math.random().toString(36).substring(2, 12);
+  const secondPassword = Math.random().toString(36).substring(2, 12);
+
+  // Get the user's telegram username if linked
+  const { data: tgLink } = await supabase.from('telegram_user_links').select('username').eq('user_id', profile.id).single();
+
+  const { error } = await supabase.from('admin_credentials').insert({
+    username,
+    password_hash: password,
+    second_password_hash: secondPassword,
+    role: 'sub_admin',
+    telegram_username: tgLink?.username || null,
+  });
+
+  if (error) {
+    await sendTelegram(chatId, `❌ Failed to add admin: ${error.message}`);
+    return;
+  }
+
+  await logAdminAction(chatId, 'Added admin', `Added ${profile.full_name} (${profile.email}) as sub_admin`);
+
+  let msg = `✅ <b>Admin Added!</b>\n\n`;
+  msg += `👤 Name: <b>${profile.full_name}</b>\n`;
+  msg += `📧 Email: ${profile.email}\n`;
+  msg += `🔑 Username: <code>${username}</code>\n`;
+  msg += `🔒 Password: <code>${password}</code>\n`;
+  msg += `🔒 Second Password: <code>${secondPassword}</code>\n`;
+  if (tgLink?.username) {
+    msg += `📱 Telegram: @${tgLink.username} (auto-linked)\n`;
+    msg += `\n<i>They can now /start the bot to connect as admin.</i>`;
+  } else {
+    msg += `\n<i>User hasn't linked Telegram yet. They can link via the bot first, then you can update their telegram_username.</i>`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
+async function handleRemoveAdmin(chatId: number, email: string) {
+  if (!email || !email.includes('@')) {
+    await sendTelegram(chatId, '📝 Usage: /removeadmin user@email.com');
+    return;
+  }
+
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can remove admins.');
+    return;
+  }
+
+  // Find admin by email-based username
+  const username = email.split('@')[0].substring(0, 8);
+  const { data: adminCred } = await supabase.from('admin_credentials')
+    .select('id, username, role')
+    .or(`username.ilike.${username}`)
+    .single();
+
+  if (!adminCred) {
+    await sendTelegram(chatId, `❌ No admin found matching: <b>${email}</b>`);
+    return;
+  }
+
+  if (adminCred.role === 'super_admin') {
+    await sendTelegram(chatId, '❌ Cannot remove the Super Admin.');
+    return;
+  }
+
+  await supabase.from('admin_credentials').delete().eq('id', adminCred.id);
+  await logAdminAction(chatId, 'Removed admin', `Removed ${adminCred.username} (${email})`);
+  await sendTelegram(chatId, `✅ Admin <b>${adminCred.username}</b> has been removed.`);
+}
+
+async function handleAdminLog(chatId: number) {
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can view admin logs.');
+    return;
+  }
+
+  const { data: logs } = await supabase
+    .from('telegram_admin_actions')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (!logs || logs.length === 0) {
+    await sendTelegram(chatId, '📭 No admin activity logged yet.');
+    return;
+  }
+
+  let msg = `📋 <b>Admin Activity Log</b>\n\n`;
+  for (const log of logs) {
+    const date = new Date(log.created_at).toLocaleString();
+    msg += `👤 <b>${log.admin_username || 'Unknown'}</b>\n`;
+    msg += `📌 ${log.action}\n`;
+    if (log.details) msg += `📝 ${log.details}\n`;
+    msg += `🕐 ${date}\n\n`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
 // ==================== MESSAGING ====================
 
 async function handleAdminMessage(chatId: number, text: string) {
