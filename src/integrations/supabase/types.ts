@@ -426,6 +426,7 @@ export type Database = {
           offer_status: string | null
           pay_later: boolean | null
           pay_later_reminder_sent: boolean | null
+          payment_confirmed_deadline: string | null
           payment_method: string | null
           payment_timing: string | null
           payment_verified_at: string | null
@@ -466,6 +467,7 @@ export type Database = {
           offer_status?: string | null
           pay_later?: boolean | null
           pay_later_reminder_sent?: boolean | null
+          payment_confirmed_deadline?: string | null
           payment_method?: string | null
           payment_timing?: string | null
           payment_verified_at?: string | null
@@ -506,6 +508,7 @@ export type Database = {
           offer_status?: string | null
           pay_later?: boolean | null
           pay_later_reminder_sent?: boolean | null
+          payment_confirmed_deadline?: string | null
           payment_method?: string | null
           payment_timing?: string | null
           payment_verified_at?: string | null
