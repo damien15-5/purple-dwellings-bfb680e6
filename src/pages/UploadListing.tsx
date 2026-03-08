@@ -149,8 +149,7 @@ export const UploadListing = () => {
   });
   
   const [images, setImages] = useState<File[]>([]);
-  const [isKycVerified, setIsKycVerified] = useState<boolean | null>(null);
-  const [kycLoading, setKycLoading] = useState(true);
+  const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
 
   useEffect(() => {
     const checkAuth = async () => {
