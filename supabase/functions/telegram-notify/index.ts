@@ -299,8 +299,23 @@ Deno.serve(async (req) => {
       }
 
       case 'payment_made': {
-        const { userId: pmUserId, amount: pmAmount, propertyTitle: pmTitle, buyerName: pmBuyer } = data;
-        await notifyUser(pmUserId, `💸 <b>Payment Notification</b>\n\n🏠 Property: "${pmTitle}"\n💰 Amount: ₦${Number(pmAmount).toLocaleString()}\n👤 From: ${pmBuyer}\n\n⚠️ Please check your bank account and confirm in your <b>Transactions</b> page on Xavorian.`);
+        const { userId: pmUserId, amount: pmAmount, propertyTitle: pmTitle, buyerName: pmBuyer, escrowId: pmEscrowId } = data;
+        // Notify seller with confirm/reject inline buttons
+        const sellerChatId = await getUserChatId(pmUserId);
+        if (sellerChatId) {
+          const msg = `💸 <b>Payment Notification</b>\n\n🏠 Property: "${pmTitle}"\n💰 Amount: ₦${Number(pmAmount).toLocaleString()}\n👤 From: ${pmBuyer}\n\n⚠️ Please check your bank account and confirm below or go to your <b>Offers & Negotiations</b> page on Xavorian.`;
+          await sendTelegram(sellerChatId, msg, pmEscrowId ? {
+            inline_keyboard: [[
+              { text: '✅ Payment Received', callback_data: `payment_confirm_${pmEscrowId}` },
+              { text: '❌ Not Received', callback_data: `payment_deny_${pmEscrowId}` },
+            ]],
+          } : undefined);
+          await supabase.from('telegram_notifications').insert({
+            chat_id: sellerChatId,
+            message_type: 'user_notification',
+            message_text: msg,
+          });
+        }
         await notifyAdmins(`💸 <b>Buyer Confirmed Payment</b>\n\n🏠 "${pmTitle}"\n💰 ₦${Number(pmAmount).toLocaleString()}\n👤 Buyer: ${pmBuyer}\n\nAwaiting seller confirmation.`);
         break;
       }
