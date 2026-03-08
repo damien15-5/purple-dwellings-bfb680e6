@@ -12,7 +12,7 @@ import { ReviewStep } from '@/components/upload/ReviewStep';
 import { optimizeImageForWeb } from '@/utils/mediaOptimizer';
 import { validateVideo, formatFileSize } from '@/utils/videoOptimizer';
 import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
-import { ShieldCheck, AlertTriangle } from 'lucide-react';
+
 
 const generateVideoThumbnail = (videoFile: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
