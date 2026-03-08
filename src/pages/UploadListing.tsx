@@ -161,7 +161,7 @@ export const UploadListing = () => {
       }
       setUserId(session.user.id);
 
-      // Check KYC status
+      // Check KYC status (for verified badge only, not blocking)
       const { data: kyc } = await supabase
         .from('kyc_documents')
         .select('status')
@@ -171,7 +171,6 @@ export const UploadListing = () => {
         .maybeSingle();
 
       setIsKycVerified(kyc?.status === 'verified');
-      setKycLoading(false);
     };
     checkAuth();
   }, [navigate]);
