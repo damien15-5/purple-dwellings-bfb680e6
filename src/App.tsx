@@ -106,6 +106,7 @@ const App = () => {
         <BrowserRouter>
         <ScrollToTop />
         <AuthRedirectHandler />
+        <BrowserNotifications />
         <Routes>
           {/* Dashboard routes - no nav/footer */}
           <Route path="/dashboard" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><DashboardLayout /></Suspense></ErrorBoundary>}>
