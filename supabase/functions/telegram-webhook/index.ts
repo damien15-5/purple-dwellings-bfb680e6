@@ -931,6 +931,103 @@ async function handleSearch(chatId: number, query: string) {
   await sendTelegram(chatId, msg);
 }
 
+// ==================== PAYSTACK OTP CONTROL ====================
+
+async function handleDisableOTP(chatId: number) {
+  const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+  if (!paystackSecretKey) {
+    await sendTelegram(chatId, '❌ Paystack secret key not configured.');
+    return;
+  }
+
+  await sendTelegram(chatId, '⏳ Initiating OTP disable... Paystack will send an OTP to your business phone.');
+
+  try {
+    const res = await fetch('https://api.paystack.co/transfer/disable_otp', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    console.log('Disable OTP initiate:', JSON.stringify(data));
+
+    if (data.status) {
+      await sendTelegram(chatId,
+        `✅ <b>OTP Sent!</b>\n\n${data.message || 'Check your Paystack business phone for the OTP.'}\n\nNow send the OTP using:\n<code>/confirmotp 123456</code>\n\n⚠️ Replace 123456 with the actual OTP you received.`
+      );
+    } else {
+      await sendTelegram(chatId, `❌ Failed: ${data.message || 'Unknown error from Paystack'}`);
+    }
+  } catch (err) {
+    await sendTelegram(chatId, `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+}
+
+async function handleConfirmOTP(chatId: number, otp: string) {
+  if (!otp || otp.length < 4) {
+    await sendTelegram(chatId, '❌ Please provide a valid OTP.\n\nUsage: <code>/confirmotp 123456</code>');
+    return;
+  }
+
+  const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+  if (!paystackSecretKey) {
+    await sendTelegram(chatId, '❌ Paystack secret key not configured.');
+    return;
+  }
+
+  await sendTelegram(chatId, '⏳ Finalizing OTP disable...');
+
+  try {
+    const res = await fetch('https://api.paystack.co/transfer/disable_otp_finalize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ otp }),
+    });
+    const data = await res.json();
+    console.log('Disable OTP finalize:', JSON.stringify(data));
+
+    if (data.status) {
+      await sendTelegram(chatId, '🎉 <b>Transfer OTP Disabled Successfully!</b>\n\nAutomatic payouts to sellers will now work without OTP verification.\n\n⚠️ To re-enable, use /enableotp');
+    } else {
+      await sendTelegram(chatId, `❌ Failed: ${data.message || 'Invalid OTP or expired. Try /disableotp again.'}`);
+    }
+  } catch (err) {
+    await sendTelegram(chatId, `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+}
+
+async function handleEnableOTP(chatId: number) {
+  const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+  if (!paystackSecretKey) {
+    await sendTelegram(chatId, '❌ Paystack secret key not configured.');
+    return;
+  }
+
+  try {
+    const res = await fetch('https://api.paystack.co/transfer/enable_otp', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+
+    if (data.status) {
+      await sendTelegram(chatId, '✅ <b>Transfer OTP Re-enabled!</b>\n\nTransfers will now require OTP verification again.');
+    } else {
+      await sendTelegram(chatId, `❌ Failed: ${data.message || 'Unknown error'}`);
+    }
+  } catch (err) {
+    await sendTelegram(chatId, `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+}
+
 // ==================== MESSAGING ====================
 
 async function handleAdminMessage(chatId: number, text: string) {
