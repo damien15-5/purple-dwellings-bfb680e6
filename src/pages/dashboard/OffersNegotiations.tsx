@@ -399,16 +399,105 @@ export const OffersNegotiations = () => {
 
                   {/* Funded - buyer paid, waiting for seller */}
                   {offer.status === 'funded' && (
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-blue-700">
-                        <Clock className="h-5 w-5" />
-                        <span className="font-semibold">Payment Made - Waiting for Seller Confirmation</span>
+                    <div className="space-y-3">
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <Clock className="h-5 w-5" />
+                          <span className="font-semibold">Payment Made - Waiting for Seller Confirmation</span>
+                        </div>
+                        <p className="text-sm text-blue-600 mt-1">
+                          {isUserBuyer
+                            ? 'Awaiting seller\'s confirmation of payment receipt'
+                            : 'The buyer has confirmed making payment. Please check your bank account and confirm below.'}
+                        </p>
                       </div>
-                      <p className="text-sm text-blue-600 mt-1">
-                        {offer.payment_confirmed_deadline 
-                          ? `Auto-confirms by ${new Date(offer.payment_confirmed_deadline).toLocaleDateString()} if seller doesn't respond`
-                          : 'Waiting for seller to confirm receipt of payment'}
-                      </p>
+
+                      {/* Seller confirm/reject payment buttons */}
+                      {!isUserBuyer && (
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                          <Button
+                            variant="hero"
+                            className="flex-1 gap-2 text-sm"
+                            disabled={respondingOffers.has(offer.id)}
+                            onClick={async () => {
+                              setRespondingOffers(prev => new Set(prev).add(offer.id));
+                              try {
+                                const { error } = await supabase
+                                  .from('escrow_transactions')
+                                  .update({
+                                    status: 'completed' as any,
+                                    seller_confirmed: true,
+                                    completed_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString(),
+                                  })
+                                  .eq('id', offer.id);
+                                if (error) throw error;
+                                // Notify buyer via Telegram
+                                try {
+                                  await supabase.functions.invoke('telegram-notify', {
+                                    body: {
+                                      type: 'payment_confirmed',
+                                      data: {
+                                        userId: offer.buyer_id,
+                                        propertyTitle: offer.property?.title || 'Property',
+                                        amount: offer.offer_amount || offer.transaction_amount,
+                                        sellerName: offer.seller?.full_name || 'Seller',
+                                      },
+                                    },
+                                  });
+                                } catch (e) { console.error('Telegram notify error:', e); }
+                                toast({ title: 'Payment Confirmed', description: 'You have confirmed receiving the payment. Transaction complete!' });
+                                loadOffers();
+                              } catch (err) {
+                                toast({ title: 'Error', description: 'Failed to confirm payment', variant: 'destructive' });
+                                setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
+                              }
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Payment Received
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            className="flex-1 gap-2 text-sm"
+                            disabled={respondingOffers.has(offer.id)}
+                            onClick={async () => {
+                              setRespondingOffers(prev => new Set(prev).add(offer.id));
+                              try {
+                                const { error } = await supabase
+                                  .from('escrow_transactions')
+                                  .update({
+                                    status: 'disputed' as any,
+                                    updated_at: new Date().toISOString(),
+                                  })
+                                  .eq('id', offer.id);
+                                if (error) throw error;
+                                // Notify buyer via Telegram
+                                try {
+                                  await supabase.functions.invoke('telegram-notify', {
+                                    body: {
+                                      type: 'payment_denied',
+                                      data: {
+                                        userId: offer.buyer_id,
+                                        propertyTitle: offer.property?.title || 'Property',
+                                        sellerName: offer.seller?.full_name || 'Seller',
+                                      },
+                                    },
+                                  });
+                                } catch (e) { console.error('Telegram notify error:', e); }
+                                toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.', variant: 'destructive' });
+                                loadOffers();
+                              } catch (err) {
+                                toast({ title: 'Error', description: 'Failed to update payment status', variant: 'destructive' });
+                                setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
+                              }
+                            }}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Payment Not Received
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 

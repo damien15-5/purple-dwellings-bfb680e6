@@ -1091,6 +1091,39 @@ async function handleCallbackQuery(callbackQuery: any) {
       const { data: link } = await supabase.from('telegram_user_links').select('chat_id').eq('user_id', kyc.user_id).single();
       if (link) await sendTelegram(link.chat_id, '❌ <b>Your KYC verification was rejected.</b>\n\nPlease resubmit with clearer documents.');
     }
+  } else if (data.startsWith('payment_confirm_')) {
+    const escrowId = data.replace('payment_confirm_', '');
+    const { data: escrow } = await supabase.from('escrow_transactions').select('id, buyer_id, seller_id, offer_amount, transaction_amount, property_id, status').eq('id', escrowId).single();
+    if (escrow && escrow.status === 'funded') {
+      await supabase.from('escrow_transactions').update({ status: 'completed', seller_confirmed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', escrowId);
+      // Get property title
+      const { data: prop } = await supabase.from('properties').select('title').eq('id', escrow.property_id).single();
+      const { data: sellerProfile } = await supabase.from('profiles').select('full_name').eq('id', escrow.seller_id).single();
+      // Notify buyer
+      const buyerChatId = await getUserChatId(escrow.buyer_id);
+      if (buyerChatId) {
+        await sendTelegram(buyerChatId, `✅ <b>Payment Confirmed!</b>\n\n🏠 "${prop?.title || 'Property'}"\n💰 ₦${Number(escrow.offer_amount || escrow.transaction_amount).toLocaleString()}\n\nThe seller (${sellerProfile?.full_name || 'Seller'}) has confirmed receiving your payment. Transaction complete! 🎉`);
+      }
+      await sendTelegram(chatId, `✅ Payment for "<b>${prop?.title || 'Property'}</b>" has been <b>CONFIRMED</b>. Transaction complete!`);
+    } else {
+      await sendTelegram(chatId, '⚠️ This transaction has already been processed.');
+    }
+  } else if (data.startsWith('payment_deny_')) {
+    const escrowId = data.replace('payment_deny_', '');
+    const { data: escrow } = await supabase.from('escrow_transactions').select('id, buyer_id, seller_id, property_id, status').eq('id', escrowId).single();
+    if (escrow && escrow.status === 'funded') {
+      await supabase.from('escrow_transactions').update({ status: 'disputed', updated_at: new Date().toISOString() }).eq('id', escrowId);
+      const { data: prop } = await supabase.from('properties').select('title').eq('id', escrow.property_id).single();
+      const { data: sellerProfile } = await supabase.from('profiles').select('full_name').eq('id', escrow.seller_id).single();
+      // Notify buyer
+      const buyerChatId = await getUserChatId(escrow.buyer_id);
+      if (buyerChatId) {
+        await sendTelegram(buyerChatId, `❌ <b>Payment Not Confirmed</b>\n\n🏠 "${prop?.title || 'Property'}"\n\nThe seller (${sellerProfile?.full_name || 'Seller'}) has not confirmed receiving your payment. Please contact the seller or raise a dispute.`);
+      }
+      await sendTelegram(chatId, `❌ Payment for "<b>${prop?.title || 'Property'}</b>" marked as <b>NOT RECEIVED</b>.`);
+    } else {
+      await sendTelegram(chatId, '⚠️ This transaction has already been processed.');
+    }
   } else if (data.startsWith('ticket_resolve_')) {
     const parts = data.replace('ticket_resolve_', '').split('_');
     const source = parts[0];
