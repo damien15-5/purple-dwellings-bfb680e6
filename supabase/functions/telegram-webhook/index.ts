@@ -70,7 +70,31 @@ async function clearAdminReplyTarget(chatId: number) {
   await supabase.from('telegram_admin_chats').update({ reply_target_user_id: null } as any).eq('chat_id', chatId);
 }
 
-async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
+async function isSuperAdmin(chatId: number): Promise<boolean> {
+  const { data: adminChat } = await supabase.from('telegram_admin_chats').select('admin_id').eq('chat_id', chatId).eq('is_active', true).single();
+  if (!adminChat) return false;
+  const { data: cred } = await supabase.from('admin_credentials').select('role').eq('id', adminChat.admin_id).single();
+  return cred?.role === 'super_admin';
+}
+
+async function getAdminName(chatId: number): Promise<string> {
+  const { data: adminChat } = await supabase.from('telegram_admin_chats').select('admin_id, username').eq('chat_id', chatId).eq('is_active', true).single();
+  if (!adminChat) return 'Unknown';
+  const { data: cred } = await supabase.from('admin_credentials').select('username').eq('id', adminChat.admin_id).single();
+  return cred?.username || adminChat.username || 'Unknown';
+}
+
+async function logAdminAction(chatId: number, action: string, details?: string) {
+  const adminName = await getAdminName(chatId);
+  await supabase.from('telegram_admin_actions').insert({
+    admin_chat_id: chatId,
+    admin_username: adminName,
+    action,
+    details: details || null,
+  });
+}
+
+async function setCommandsForChat(chatId: number, role: 'admin' | 'user' | 'super_admin') {
   const adminCommands = [
     { command: 'help', description: 'Show all available commands' },
     { command: 'searchuser', description: 'Search users by name or email' },
@@ -87,6 +111,14 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
     { command: 'cancel', description: 'Cancel messaging mode' },
   ];
 
+  if (role === 'super_admin') {
+    adminCommands.push(
+      { command: 'addadmin', description: 'Add admin: /addadmin email' },
+      { command: 'removeadmin', description: 'Remove admin: /removeadmin email' },
+      { command: 'adminlog', description: 'View recent admin activity' },
+    );
+  }
+
   const userCommands = [
     { command: 'help', description: 'Show all available commands' },
     { command: 'mylistings', description: 'View your property listings' },
@@ -97,7 +129,7 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user') {
     { command: 'support', description: 'Contact support' },
   ];
 
-  const commands = role === 'admin' ? adminCommands : userCommands;
+  const commands = (role === 'admin' || role === 'super_admin') ? adminCommands : userCommands;
 
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands`, {
     method: 'POST',
@@ -145,8 +177,8 @@ async function handleAdminSetup(chatId: number, username: string) {
     }
   );
 
-  // Set bot commands for this admin user
-  await setCommandsForChat(chatId, 'admin');
+  // Set bot commands based on role
+  await setCommandsForChat(chatId, adminCred.role === 'super_admin' ? 'super_admin' : 'admin');
 }
 
 async function handleUserLink(chatId: number, username: string, text: string) {
@@ -1028,6 +1060,137 @@ async function handleEnableOTP(chatId: number) {
   }
 }
 
+// ==================== SUPER ADMIN COMMANDS ====================
+
+async function handleAddAdmin(chatId: number, email: string) {
+  if (!email || !email.includes('@')) {
+    await sendTelegram(chatId, '📝 Usage: /addadmin user@email.com\n\nThis will add the user as a sub-admin. They will be able to see and do everything you can, except add/remove admins.');
+    return;
+  }
+
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can add new admins.');
+    return;
+  }
+
+  // Find the user by email
+  const { data: profile } = await supabase.from('profiles').select('id, full_name, email').ilike('email', email.trim()).single();
+  if (!profile) {
+    await sendTelegram(chatId, `❌ No user found with email: <b>${email}</b>`);
+    return;
+  }
+
+  // Check if already an admin
+  const { data: existing } = await supabase.from('admin_credentials').select('id').ilike('username', profile.email).single();
+  if (existing) {
+    await sendTelegram(chatId, `⚠️ <b>${profile.full_name}</b> is already an admin.`);
+    return;
+  }
+
+  // Generate credentials
+  const username = profile.email.split('@')[0].substring(0, 8);
+  const password = Math.random().toString(36).substring(2, 12);
+  const secondPassword = Math.random().toString(36).substring(2, 12);
+
+  // Get the user's telegram username if linked
+  const { data: tgLink } = await supabase.from('telegram_user_links').select('username').eq('user_id', profile.id).single();
+
+  const { error } = await supabase.from('admin_credentials').insert({
+    username,
+    password_hash: password,
+    second_password_hash: secondPassword,
+    role: 'sub_admin',
+    telegram_username: tgLink?.username || null,
+  });
+
+  if (error) {
+    await sendTelegram(chatId, `❌ Failed to add admin: ${error.message}`);
+    return;
+  }
+
+  await logAdminAction(chatId, 'Added admin', `Added ${profile.full_name} (${profile.email}) as sub_admin`);
+
+  let msg = `✅ <b>Admin Added!</b>\n\n`;
+  msg += `👤 Name: <b>${profile.full_name}</b>\n`;
+  msg += `📧 Email: ${profile.email}\n`;
+  msg += `🔑 Username: <code>${username}</code>\n`;
+  msg += `🔒 Password: <code>${password}</code>\n`;
+  msg += `🔒 Second Password: <code>${secondPassword}</code>\n`;
+  if (tgLink?.username) {
+    msg += `📱 Telegram: @${tgLink.username} (auto-linked)\n`;
+    msg += `\n<i>They can now /start the bot to connect as admin.</i>`;
+  } else {
+    msg += `\n<i>User hasn't linked Telegram yet. They can link via the bot first, then you can update their telegram_username.</i>`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
+async function handleRemoveAdmin(chatId: number, email: string) {
+  if (!email || !email.includes('@')) {
+    await sendTelegram(chatId, '📝 Usage: /removeadmin user@email.com');
+    return;
+  }
+
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can remove admins.');
+    return;
+  }
+
+  // Find admin by email-based username
+  const username = email.split('@')[0].substring(0, 8);
+  const { data: adminCred } = await supabase.from('admin_credentials')
+    .select('id, username, role')
+    .or(`username.ilike.${username}`)
+    .single();
+
+  if (!adminCred) {
+    await sendTelegram(chatId, `❌ No admin found matching: <b>${email}</b>`);
+    return;
+  }
+
+  if (adminCred.role === 'super_admin') {
+    await sendTelegram(chatId, '❌ Cannot remove the Super Admin.');
+    return;
+  }
+
+  await supabase.from('admin_credentials').delete().eq('id', adminCred.id);
+  await logAdminAction(chatId, 'Removed admin', `Removed ${adminCred.username} (${email})`);
+  await sendTelegram(chatId, `✅ Admin <b>${adminCred.username}</b> has been removed.`);
+}
+
+async function handleAdminLog(chatId: number) {
+  const superAdmin = await isSuperAdmin(chatId);
+  if (!superAdmin) {
+    await sendTelegram(chatId, '❌ Only the Super Admin can view admin logs.');
+    return;
+  }
+
+  const { data: logs } = await supabase
+    .from('telegram_admin_actions')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (!logs || logs.length === 0) {
+    await sendTelegram(chatId, '📭 No admin activity logged yet.');
+    return;
+  }
+
+  let msg = `📋 <b>Admin Activity Log</b>\n\n`;
+  for (const log of logs) {
+    const date = new Date(log.created_at).toLocaleString();
+    msg += `👤 <b>${log.admin_username || 'Unknown'}</b>\n`;
+    msg += `📌 ${log.action}\n`;
+    if (log.details) msg += `📝 ${log.details}\n`;
+    msg += `🕐 ${date}\n\n`;
+  }
+
+  await sendTelegram(chatId, msg);
+}
+
 // ==================== MESSAGING ====================
 
 async function handleAdminMessage(chatId: number, text: string) {
@@ -1053,6 +1216,7 @@ async function handleAdminMessage(chatId: number, text: string) {
   }
 
   await sendTelegram(link.chat_id, `📩 <b>Message from Xavorian Support</b>\n\n${message}\n\n<i>Reply to this message to respond.</i>`);
+  await logAdminAction(chatId, 'Messaged user', `Sent message to ${profile.full_name} (${email})`);
   await sendTelegram(chatId, `✅ Message sent to <b>${profile.full_name}</b> (${email})`);
 }
 
@@ -1075,6 +1239,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const kycId = data.replace('kyc_approve_', '');
     const { data: kyc } = await supabase.from('kyc_documents').select('user_id, full_name').eq('id', kycId).single();
     await supabase.from('kyc_documents').update({ status: 'verified', verified_at: new Date().toISOString() }).eq('id', kycId);
+    await logAdminAction(chatId, 'Approved KYC', `Approved KYC for ${kyc?.full_name || 'User'}`);
     await sendTelegram(chatId, `✅ KYC for <b>${kyc?.full_name || 'User'}</b> has been <b>APPROVED</b>.`);
 
     if (kyc?.user_id) {
@@ -1085,6 +1250,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const kycId = data.replace('kyc_reject_', '');
     const { data: kyc } = await supabase.from('kyc_documents').select('user_id, full_name').eq('id', kycId).single();
     await supabase.from('kyc_documents').update({ status: 'rejected' }).eq('id', kycId);
+    await logAdminAction(chatId, 'Rejected KYC', `Rejected KYC for ${kyc?.full_name || 'User'}`);
     await sendTelegram(chatId, `❌ KYC for <b>${kyc?.full_name || 'User'}</b> has been <b>REJECTED</b>.`);
 
     if (kyc?.user_id) {
@@ -1130,6 +1296,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
     await supabase.from(table).update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', ticketId);
+    await logAdminAction(chatId, 'Resolved ticket', `Resolved ${source} ticket ${ticketId}`);
     await sendTelegram(chatId, `✅ Ticket has been <b>RESOLVED</b>.`);
   } else if (data.startsWith('ticket_progress_')) {
     const parts = data.replace('ticket_progress_', '').split('_');
@@ -1137,6 +1304,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
     await supabase.from(table).update({ status: 'in_progress' }).eq('id', ticketId);
+    await logAdminAction(chatId, 'Ticket in progress', `Marked ${source} ticket ${ticketId} as in progress`);
     await sendTelegram(chatId, `📝 Ticket marked as <b>IN PROGRESS</b>.`);
   }
 
@@ -1232,7 +1400,8 @@ Deno.serve(async (req) => {
           resize_keyboard: true,
           persistent: true,
         });
-        await setCommandsForChat(chatId, 'admin');
+        const isSA = await isSuperAdmin(chatId);
+        await setCommandsForChat(chatId, isSA ? 'super_admin' : 'admin');
         return new Response('OK', { headers: corsHeaders });
       }
 
@@ -1295,6 +1464,22 @@ Deno.serve(async (req) => {
         } else {
           await handleAdminMessage(chatId, '/msg ' + args);
         }
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      // Super admin commands
+      if (text === '/addadmin' || text.startsWith('/addadmin ')) {
+        const email = text.replace(/^\/addadmin\s*/, '').trim();
+        await handleAddAdmin(chatId, email);
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text === '/removeadmin' || text.startsWith('/removeadmin ')) {
+        const email = text.replace(/^\/removeadmin\s*/, '').trim();
+        await handleRemoveAdmin(chatId, email);
+        return new Response('OK', { headers: corsHeaders });
+      }
+      if (text === '/adminlog') {
+        await handleAdminLog(chatId);
         return new Response('OK', { headers: corsHeaders });
       }
 
