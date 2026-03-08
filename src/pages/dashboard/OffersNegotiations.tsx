@@ -65,7 +65,7 @@ export const OffersNegotiations = () => {
 
       pollInterval = setInterval(() => {
         loadOffers(user.id);
-      }, 5000);
+      }, 500);
 
       return () => {
         supabase.removeChannel(channel);

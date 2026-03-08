@@ -349,68 +349,72 @@ export const Chat = () => {
   const handleSendOffer = async (amount: number, message: string) => {
     if (!conversationId || !currentUserId) return;
 
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: currentUserId,
-      content: message || `I'd like to offer ${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount)} for this property.`,
-      message_type: 'offer',
-      offer_amount: amount,
-      offer_status: 'pending',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-chat-offer', {
+        body: {
+          action: 'create_offer',
+          conversationId,
+          amount,
+          message,
+        },
+      });
 
-    if (error) {
+      if (error) throw new Error(error.message || 'Failed to send offer');
+      if (data?.error) throw new Error(data.error);
+
+      scrollToBottom();
+      toast.success('Offer sent successfully');
+    } catch (error: any) {
       console.error('Error sending offer:', error);
-      toast.error('Failed to send offer');
-      return;
+      toast.error(error?.message || 'Failed to send offer');
     }
-
-    // Update conversation
-    await supabase
-      .from('conversations')
-      .update({
-        last_message: 'New offer received',
-        last_message_time: new Date().toISOString(),
-        [property?.user_id === currentUserId ? 'buyer_unread' : 'seller_unread']: 1,
-      })
-      .eq('id', conversationId);
-
-    scrollToBottom();
   };
 
   const handleAcceptOffer = async (messageId: string, amount: number) => {
-    // Update offer message status
-    await supabase
-      .from('messages')
-      .update({ offer_status: 'accepted' })
-      .eq('id', messageId);
+    if (!conversationId) return;
 
-    // Send system message
-    await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: currentUserId!,
-      content: `✅ Offer accepted! Agreed price: ${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount)}`,
-      message_type: 'accept',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-chat-offer', {
+        body: {
+          action: 'update_offer_status',
+          conversationId,
+          messageId,
+          status: 'accepted',
+          amount,
+        },
+      });
 
-    toast.success('Offer accepted! You can now proceed to escrow.');
+      if (error) throw new Error(error.message || 'Failed to accept offer');
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Offer accepted! You can now proceed to escrow.');
+    } catch (error: any) {
+      console.error('Error accepting offer:', error);
+      toast.error(error?.message || 'Failed to accept offer');
+    }
   };
 
   const handleRejectOffer = async (messageId: string) => {
-    // Update offer message status
-    await supabase
-      .from('messages')
-      .update({ offer_status: 'rejected' })
-      .eq('id', messageId);
+    if (!conversationId) return;
 
-    // Send system message
-    await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: currentUserId!,
-      content: '❌ Offer was rejected.',
-      message_type: 'reject',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-chat-offer', {
+        body: {
+          action: 'update_offer_status',
+          conversationId,
+          messageId,
+          status: 'rejected',
+        },
+      });
 
-    toast.info('Offer rejected');
+      if (error) throw new Error(error.message || 'Failed to reject offer');
+      if (data?.error) throw new Error(data.error);
+
+      toast.info('Offer rejected');
+    } catch (error: any) {
+      console.error('Error rejecting offer:', error);
+      toast.error(error?.message || 'Failed to reject offer');
+    }
   };
 
   if (loading) {
