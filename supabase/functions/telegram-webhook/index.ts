@@ -1400,7 +1400,8 @@ Deno.serve(async (req) => {
           resize_keyboard: true,
           persistent: true,
         });
-        await setCommandsForChat(chatId, 'admin');
+        const isSA = await isSuperAdmin(chatId);
+        await setCommandsForChat(chatId, isSA ? 'super_admin' : 'admin');
         return new Response('OK', { headers: corsHeaders });
       }
 
