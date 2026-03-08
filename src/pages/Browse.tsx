@@ -74,7 +74,7 @@ export const Browse = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('property_promotions')
-          .select('property_id')
+          .select('property_id, amount_paid')
           .eq('is_active', true)
           .gt('expires_at', new Date().toISOString()),
       ]);
