@@ -189,11 +189,7 @@ export const OffersNegotiations = () => {
       setSelectedOffer(null);
       setResponseMessage('');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to respond to offer',
-        variant: 'destructive',
-      });
+      alert('Failed to respond to offer. Please try again.');
       // Remove from responding set on error
       setRespondingOffers(prev => {
         const newSet = new Set(prev);
@@ -449,7 +445,7 @@ export const OffersNegotiations = () => {
                                 toast({ title: 'Payment Confirmed', description: 'You have confirmed receiving the payment. Transaction complete!' });
                                 loadOffers();
                               } catch (err) {
-                                toast({ title: 'Error', description: 'Failed to confirm payment', variant: 'destructive' });
+                                alert('Failed to confirm payment. Please try again.');
                                 setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
                               }
                             }}
@@ -485,10 +481,10 @@ export const OffersNegotiations = () => {
                                     },
                                   });
                                 } catch (e) { console.error('Telegram notify error:', e); }
-                                toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.', variant: 'destructive' });
+                                toast({ title: 'Payment Rejected', description: 'You have indicated payment was not received.' });
                                 loadOffers();
                               } catch (err) {
-                                toast({ title: 'Error', description: 'Failed to update payment status', variant: 'destructive' });
+                                alert('Failed to update payment status. Please try again.');
                                 setRespondingOffers(prev => { const s = new Set(prev); s.delete(offer.id); return s; });
                               }
                             }}
