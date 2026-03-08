@@ -257,7 +257,7 @@ export const StartEscrow = () => {
                             <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
                               <p className="text-xs text-foreground flex items-start gap-2">
                                 <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <span>₦{effectivePrice.toLocaleString()} goes to the seller. ₦{PAYSTACK_FEE.toLocaleString()} Paystack fee (1.5% capped at ₦2,500).</span>
+                                <span>₦{effectivePrice.toLocaleString()} goes to the seller. ₦{PAYSTACK_FEE.toLocaleString()} Paystack fee (1.5% capped at ₦2,000).</span>
                               </p>
                             </div>
                           </div>
