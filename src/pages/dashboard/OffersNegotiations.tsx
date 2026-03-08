@@ -131,13 +131,14 @@ export const OffersNegotiations = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
+      case 'none':
         return <Badge className="bg-yellow-500 gap-2"><Clock className="h-3 w-3" />Pending</Badge>;
       case 'accepted':
         return <Badge className="bg-green-500 gap-2"><CheckCircle className="h-3 w-3" />Accepted</Badge>;
       case 'rejected':
         return <Badge className="bg-red-500 gap-2"><XCircle className="h-3 w-3" />Rejected</Badge>;
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge className="bg-yellow-500 gap-2"><Clock className="h-3 w-3" />Pending</Badge>;
     }
   };
 
