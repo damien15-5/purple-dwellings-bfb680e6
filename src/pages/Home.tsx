@@ -70,16 +70,22 @@ export const Home = () => {
     detectUserLocation();
   }, []);
 
+  const [userState, setUserState] = useState<string>('');
+
   const detectUserLocation = async () => {
     try {
       const response = await fetch('https://ipapi.co/json/');
       const data = await response.json();
+      if (data.region) {
+        setUserState(data.region);
+      }
       if (data.city) {
         setUserLocation(data.city);
       }
     } catch (error) {
       console.error('Error detecting location:', error);
       setUserLocation('Lagos');
+      setUserState('Lagos');
     }
   };
 
