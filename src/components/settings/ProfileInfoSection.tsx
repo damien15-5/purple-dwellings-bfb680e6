@@ -68,36 +68,6 @@ export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: P
     }
   };
 
-  const handleConnectTelegram = async () => {
-    if (!showTelegramInput) {
-      setShowTelegramInput(true);
-      setTelegramInput(profile.telegram_username || '');
-      return;
-    }
-
-    if (!telegramInput.trim()) {
-      toast({ title: 'Error', description: 'Please enter your Telegram username', variant: 'destructive' });
-      return;
-    }
-
-    setTelegramConnecting(true);
-    try {
-      const username = telegramInput.trim().replace(/^@/, '');
-      const { error } = await supabase
-        .from('profiles')
-        .update({ telegram_username: username })
-        .eq('id', userId);
-      if (error) throw error;
-
-      setProfile({ ...profile, telegram_username: username });
-      setShowTelegramInput(false);
-      toast({ title: 'Connected successfully', description: `Telegram @${username} connected` });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to connect Telegram', variant: 'destructive' });
-    } finally {
-      setTelegramConnecting(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!userId) return;
