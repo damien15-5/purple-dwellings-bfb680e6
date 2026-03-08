@@ -280,23 +280,28 @@ export const Messages = () => {
       if (msgError) throw msgError;
 
       // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
-      if (currentUserId === selectedConversation.buyer_id) {
-        const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
-          property_id: selectedConversation.property_id,
-          buyer_id: selectedConversation.buyer_id,
-          seller_id: selectedConversation.seller_id,
-          transaction_amount: amount,
-          atara_fee: 0,
-          platform_fee: 0,
-          escrow_fee: 0,
-          total_amount: amount,
-          offer_amount: amount,
-          offer_status: 'pending',
-          offer_message: content,
-          status: 'pending_payment',
-        });
+      // The current user (offer sender) is always the buyer_id to satisfy RLS insert policy
+      const otherUserId = currentUserId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
 
-        if (escrowInsertError) throw escrowInsertError;
+      const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
+        property_id: selectedConversation.property_id,
+        buyer_id: currentUserId,
+        seller_id: otherUserId,
+        transaction_amount: amount,
+        atara_fee: 0,
+        platform_fee: 0,
+        escrow_fee: 0,
+        total_amount: amount,
+        offer_amount: amount,
+        offer_status: 'pending',
+        offer_message: content,
+        status: 'pending_payment',
+      });
+
+      if (escrowInsertError) {
+        console.error('Escrow insert error:', escrowInsertError);
       }
 
       const recipientId =
