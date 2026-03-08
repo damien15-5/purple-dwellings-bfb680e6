@@ -114,8 +114,11 @@ export const Browse = () => {
 
       setAllProperties(propertiesWithPromo);
       
-      // Suggested: promoted properties first
-      const suggested = propertiesWithPromo.filter(p => p.isPromoted).slice(0, 5);
+      // Suggested: promoted properties first, sorted by amount
+      const suggested = propertiesWithPromo
+        .filter(p => p.isPromoted)
+        .sort((a, b) => (b.promotionAmount || 0) - (a.promotionAmount || 0))
+        .slice(0, 5);
       if (suggested.length < 5) {
         suggested.push(...propertiesWithPromo.filter(p => !p.isPromoted).slice(0, 5 - suggested.length));
       }
