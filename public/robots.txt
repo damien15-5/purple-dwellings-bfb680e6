@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://purple-dwellings.lovable.app/sitemap.xml
