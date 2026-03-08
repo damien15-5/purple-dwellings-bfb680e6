@@ -12,6 +12,7 @@ import { LoadingFallback } from "@/components/LoadingFallback";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { BrowserNotifications } from "@/components/BrowserNotifications";
 
 // Lazy load all pages
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
