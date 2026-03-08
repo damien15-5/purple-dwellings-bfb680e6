@@ -129,7 +129,7 @@ async function setCommandsForChat(chatId: number, role: 'admin' | 'user' | 'supe
     { command: 'support', description: 'Contact support' },
   ];
 
-  const commands = role === 'admin' ? adminCommands : userCommands;
+  const commands = (role === 'admin' || role === 'super_admin') ? adminCommands : userCommands;
 
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands`, {
     method: 'POST',
