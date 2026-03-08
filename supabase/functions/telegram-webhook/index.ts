@@ -1296,6 +1296,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
     await supabase.from(table).update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', ticketId);
+    await logAdminAction(chatId, 'Resolved ticket', `Resolved ${source} ticket ${ticketId}`);
     await sendTelegram(chatId, `✅ Ticket has been <b>RESOLVED</b>.`);
   } else if (data.startsWith('ticket_progress_')) {
     const parts = data.replace('ticket_progress_', '').split('_');
@@ -1303,6 +1304,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const ticketId = parts.slice(1).join('_');
     const table = source === 'CS' ? 'customer_service_tickets' : 'ai_support_tickets';
     await supabase.from(table).update({ status: 'in_progress' }).eq('id', ticketId);
+    await logAdminAction(chatId, 'Ticket in progress', `Marked ${source} ticket ${ticketId} as in progress`);
     await sendTelegram(chatId, `📝 Ticket marked as <b>IN PROGRESS</b>.`);
   }
 
