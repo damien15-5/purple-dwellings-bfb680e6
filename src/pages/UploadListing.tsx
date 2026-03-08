@@ -242,7 +242,8 @@ export const UploadListing = () => {
       .single();
 
     if (!profile?.bank_verified || !profile?.account_number) {
-      toast.error('You must verify your bank account before publishing a listing. Go to Settings → Bank Account.');
+      toast.error('Bank account required! Go to your Dashboard → Settings and scroll down to the Bank Account section to add and verify your bank details.');
+      setSubmitted(false);
       return;
     }
 

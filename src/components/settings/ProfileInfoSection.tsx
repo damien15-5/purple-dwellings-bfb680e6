@@ -16,7 +16,6 @@ interface ProfileInfoProps {
     whatsapp: string;
     company_name: string;
     avatar_url: string;
-    telegram_username: string;
   };
   setProfile: (p: any) => void;
   userId: string | null;
@@ -27,9 +26,6 @@ export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: P
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const [telegramInput, setTelegramInput] = useState('');
-  const [showTelegramInput, setShowTelegramInput] = useState(false);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,36 +67,6 @@ export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: P
     }
   };
 
-  const handleConnectTelegram = async () => {
-    if (!showTelegramInput) {
-      setShowTelegramInput(true);
-      setTelegramInput(profile.telegram_username || '');
-      return;
-    }
-
-    if (!telegramInput.trim()) {
-      toast({ title: 'Error', description: 'Please enter your Telegram username', variant: 'destructive' });
-      return;
-    }
-
-    setTelegramConnecting(true);
-    try {
-      const username = telegramInput.trim().replace(/^@/, '');
-      const { error } = await supabase
-        .from('profiles')
-        .update({ telegram_username: username })
-        .eq('id', userId);
-      if (error) throw error;
-
-      setProfile({ ...profile, telegram_username: username });
-      setShowTelegramInput(false);
-      toast({ title: 'Connected successfully', description: `Telegram @${username} connected` });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to connect Telegram', variant: 'destructive' });
-    } finally {
-      setTelegramConnecting(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!userId) return;
@@ -175,23 +141,10 @@ export const ProfileInfoSection = ({ profile, setProfile, userId, nameSaved }: P
           </div>
           <div className="space-y-2">
             <Label htmlFor="telegram">Telegram</Label>
-            {profile.telegram_username && !showTelegramInput ? (
-              <div className="flex items-center gap-2">
-                <Input value={`@${profile.telegram_username}`} disabled className="bg-muted" />
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">✓ Connected</span>
-              </div>
-            ) : showTelegramInput ? (
-              <div className="flex items-center gap-2">
-                <Input id="telegram" value={telegramInput} onChange={(e) => setTelegramInput(e.target.value)} placeholder="@username" />
-                <Button size="sm" onClick={handleConnectTelegram} disabled={telegramConnecting}>
-                  {telegramConnecting ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            ) : (
-              <Button variant="outline" className="w-full" onClick={handleConnectTelegram}>
-                Connect Telegram
-              </Button>
-            )}
+            <Button variant="outline" className="w-full" onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}>
+              Connect Telegram
+            </Button>
+            <p className="text-xs text-muted-foreground">Opens the Xavorian bot on Telegram to link your account</p>
           </div>
         </div>
 

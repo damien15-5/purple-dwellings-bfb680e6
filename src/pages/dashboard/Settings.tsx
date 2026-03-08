@@ -16,7 +16,6 @@ export const Settings = () => {
     whatsapp: '',
     company_name: '',
     avatar_url: '',
-    telegram_username: '',
   });
   const [notifications, setNotifications] = useState({
     email: true,
@@ -56,7 +55,6 @@ export const Settings = () => {
         whatsapp: data.whatsapp || '',
         company_name: data.company_name || '',
         avatar_url: data.avatar_url || '',
-        telegram_username: (data as any).telegram_username || '',
       });
       setNameSaved(!!data.full_name);
       setNotifications({
@@ -90,7 +88,7 @@ export const Settings = () => {
         notifications={notifications}
         setNotifications={setNotifications}
         userId={userId}
-        hasTelegram={!!profile.telegram_username}
+        hasTelegram={false}
       />
       <BankAccountSection bankDetails={bankDetails} setBankDetails={setBankDetails} userId={userId} />
     </div>
