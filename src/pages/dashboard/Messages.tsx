@@ -365,6 +365,15 @@ export const Messages = () => {
     if (!selectedConversation || !currentUserId) return;
 
     try {
+      // Get the original message to match the escrow
+      const { data: targetMessage } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      const offerAmount = Number(targetMessage?.offer_amount || amount);
+
       await supabase
         .from('messages')
         .update({ offer_status: 'accepted' })
@@ -373,34 +382,73 @@ export const Messages = () => {
       await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_id: currentUserId,
-        content: `Offer of ₦${amount.toLocaleString()} has been accepted!`,
+        content: `Offer of ₦${offerAmount.toLocaleString()} has been accepted!`,
         message_type: 'accept',
       });
 
-      const { data: existingEscrow } = await supabase
+      // Find the matching escrow with precise lookup
+      const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
-        .select('*')
+        .select('id')
         .eq('property_id', selectedConversation.property_id)
         .eq('buyer_id', selectedConversation.buyer_id)
         .eq('seller_id', selectedConversation.seller_id)
+        .eq('offer_amount', offerAmount)
+        .in('offer_status', ['pending', 'none'])
+        .eq('status', 'pending_payment')
+        .is('payment_verified_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (existingEscrow) {
+      if (escrowToUpdate) {
         await supabase
           .from('escrow_transactions')
           .update({
-            transaction_amount: amount,
-            atara_fee: 0,
-            platform_fee: 0,
-            escrow_fee: 0,
-            total_amount: amount,
-            offer_amount: amount,
             offer_status: 'accepted',
             seller_responded_at: new Date().toISOString(),
             seller_response: 'accepted',
           })
-          .eq('id', existingEscrow.id);
+          .eq('id', escrowToUpdate.id);
       }
+
+      const otherPartyId =
+        currentUserId === selectedConversation.buyer_id
+          ? selectedConversation.seller_id
+          : selectedConversation.buyer_id;
+
+      if (otherPartyId) {
+        await supabase.rpc('create_notification', {
+          p_user_id: otherPartyId,
+          p_title: 'Offer Accepted',
+          p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${
+            selectedConversation.property?.title || 'a property'
+          } has been accepted.`,
+          p_type: 'offer_accepted',
+        });
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Offer accepted: ₦${offerAmount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      toast({
+        title: 'Offer accepted',
+        description: 'Offer accepted. You can proceed to payment from Offers & Negotiations.',
+      });
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to accept offer. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
       const otherPartyId =
         currentUserId === selectedConversation.buyer_id
