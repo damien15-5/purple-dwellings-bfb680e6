@@ -1,4 +1,5 @@
 import { Building2, Shield, Users, Award } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export const AboutUs = () => {
   const values = [

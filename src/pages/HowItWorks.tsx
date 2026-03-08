@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { SEOHead } from '@/components/SEOHead';
 import { Link } from 'react-router-dom';
 import { Search, MessageSquare, FileCheck, Shield, CheckCircle } from 'lucide-react';
 

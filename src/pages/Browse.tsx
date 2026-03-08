@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SEOHead } from '@/components/SEOHead';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Grid3x3, List, Loader2 } from 'lucide-react';
