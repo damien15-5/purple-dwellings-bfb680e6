@@ -55,6 +55,27 @@ export const ChatWithSeller = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let messagesChannel: any = null;
+    let escrowChannel: any = null;
+
+    const loadLatestEscrowStatus = async (userId: string, propertyId: string) => {
+      const { data } = await supabase
+        .from('escrow_transactions')
+        .select('*')
+        .eq('property_id', propertyId)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .not('offer_amount', 'is', null)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (isMounted) {
+        setEscrowStatus(data || null);
+      }
+    };
+
     const initChat = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -62,9 +83,9 @@ export const ChatWithSeller = () => {
         return;
       }
 
+      if (!isMounted) return;
       setCurrentUserId(session.user.id);
 
-      // Fetch property
       const { data: propertyData, error: propertyError } = await supabase
         .from('properties')
         .select('*')
@@ -77,26 +98,26 @@ export const ChatWithSeller = () => {
         return;
       }
 
+      if (!isMounted) return;
       setProperty(propertyData);
 
-      // Get seller name
       const { data: sellerProfile } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', propertyData.user_id)
         .single();
 
-      if (sellerProfile) {
+      if (sellerProfile && isMounted) {
         setSellerName(sellerProfile.full_name);
       }
 
-      // Find or create conversation
-      let { data: existingConv, error: convError } = await supabase
+      let { data: existingConv } = await supabase
         .from('conversations')
         .select('*')
         .eq('property_id', id)
-        .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-        .single();
+        .eq('buyer_id', session.user.id)
+        .eq('seller_id', propertyData.user_id)
+        .maybeSingle();
 
       if (!existingConv) {
         const { data: newConv, error: createError } = await supabase
@@ -118,9 +139,9 @@ export const ChatWithSeller = () => {
         existingConv = newConv;
       }
 
+      if (!isMounted) return;
       setConversationId(existingConv.id);
 
-      // Fetch messages
       const { data: messagesData } = await supabase
         .from('messages')
         .select('*')
@@ -128,31 +149,19 @@ export const ChatWithSeller = () => {
         .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
-      if (messagesData) {
+      if (messagesData && isMounted) {
         setMessages(messagesData);
       }
 
-      // Check escrow status
-      const { data: escrowData } = await supabase
-        .from('escrow_transactions')
-        .select('*')
-        .eq('property_id', id)
-        .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-        .maybeSingle();
-      
-      if (escrowData) {
-        setEscrowStatus(escrowData);
-      }
+      await loadLatestEscrowStatus(session.user.id, propertyData.id);
 
-      // Mark messages as read
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', existingConv.id)
         .neq('sender_id', session.user.id);
 
-      // Subscribe to new messages
-      const channel = supabase
+      messagesChannel = supabase
         .channel(`messages:${existingConv.id}`)
         .on(
           'postgres_changes',
@@ -163,18 +172,63 @@ export const ChatWithSeller = () => {
             filter: `conversation_id=eq.${existingConv.id}`,
           },
           (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message]);
+            if (!isMounted) return;
+            const nextMessage = payload.new as Message;
+            setMessages((prev) => {
+              if (prev.some((msg) => msg.id === nextMessage.id)) return prev;
+              return [...prev, nextMessage];
+            });
             scrollToBottom();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${existingConv.id}`,
+          },
+          (payload) => {
+            if (!isMounted) return;
+            const updated = payload.new as Message;
+            setMessages((prev) => prev.map((msg) => (msg.id === updated.id ? { ...msg, ...updated } : msg)));
           }
         )
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      escrowChannel = supabase
+        .channel(`chat-offers:${propertyData.id}:${session.user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `buyer_id=eq.${session.user.id}`,
+          },
+          () => loadLatestEscrowStatus(session.user.id, propertyData.id)
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'escrow_transactions',
+            filter: `seller_id=eq.${session.user.id}`,
+          },
+          () => loadLatestEscrowStatus(session.user.id, propertyData.id)
+        )
+        .subscribe();
     };
 
     initChat();
+
+    return () => {
+      isMounted = false;
+      if (messagesChannel) supabase.removeChannel(messagesChannel);
+      if (escrowChannel) supabase.removeChannel(escrowChannel);
+    };
   }, [id, navigate]);
 
   const scrollToBottom = () => {
@@ -333,67 +387,38 @@ export const ChatWithSeller = () => {
 
       if (error) throw error;
 
-      // Reuse only an OPEN unpaid escrow thread; otherwise create a fresh one
-      const { data: openEscrows, error: openEscrowError } = await supabase
-        .from('escrow_transactions')
-        .select('*')
-        .eq('property_id', property.id)
-        .eq('buyer_id', currentUserId)
-        .eq('seller_id', property.user_id)
-        .eq('status', 'pending_payment')
-        .is('payment_verified_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (openEscrowError) throw openEscrowError;
-
-      const existingOpenEscrow = openEscrows?.[0];
-
       // Keep existing fee logic used by this flow
       const ataraFee = amount * 0.015;
       const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
       const totalFees = ataraFee + platformFee;
 
-      if (existingOpenEscrow) {
-        await supabase
-          .from('escrow_transactions')
-          .update({
-            transaction_amount: amount,
-            escrow_fee: ataraFee,
-            platform_fee: platformFee,
-            atara_fee: ataraFee,
-            total_amount: amount + totalFees,
-            offer_amount: amount,
-            offer_status: 'pending',
-            offer_message: content,
-            status: 'pending_payment',
-            payment_verified_at: null,
-            paystack_verified_at: null,
-            paystack_reference: null,
-            paystack_access_code: null,
-            transfer_status: null,
-            transfer_reference: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingOpenEscrow.id);
-      } else {
-        await supabase
-          .from('escrow_transactions')
-          .insert({
-            property_id: property.id,
-            buyer_id: currentUserId,
-            seller_id: property.user_id,
-            transaction_amount: amount,
-            escrow_fee: ataraFee,
-            platform_fee: platformFee,
-            atara_fee: ataraFee,
-            total_amount: amount + totalFees,
-            offer_amount: amount,
-            offer_status: 'pending',
-            offer_message: content,
-            status: 'pending_payment'
-          });
-      }
+      // Always create a new offer escrow row so each offer is independently rendered/tracked
+      const { error: escrowInsertError } = await supabase
+        .from('escrow_transactions')
+        .insert({
+          property_id: property.id,
+          buyer_id: currentUserId,
+          seller_id: property.user_id,
+          transaction_amount: amount,
+          escrow_fee: ataraFee,
+          platform_fee: platformFee,
+          atara_fee: ataraFee,
+          total_amount: amount + totalFees,
+          offer_amount: amount,
+          offer_status: 'pending',
+          offer_message: content,
+          status: 'pending_payment',
+          seller_response: null,
+          seller_responded_at: null,
+          payment_verified_at: null,
+          paystack_verified_at: null,
+          paystack_reference: null,
+          paystack_access_code: null,
+          transfer_status: null,
+          transfer_reference: null,
+        });
+
+      if (escrowInsertError) throw escrowInsertError;
 
       // Create notification for seller
       await supabase.rpc('create_notification', {
@@ -424,11 +449,21 @@ export const ChatWithSeller = () => {
   const handleAcceptOffer = async (messageId: string, amount: number) => {
     if (!conversationId || !currentUserId || !property) return;
 
-    // Mark this message as being responded to
     setRespondingMessages(prev => new Set(prev).add(messageId));
 
     try {
-      // Update message status
+      const { data: targetMessage, error: targetMessageError } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      if (targetMessageError || !targetMessage?.offer_amount) {
+        throw new Error('Offer message not found');
+      }
+
+      const offerAmount = Number(targetMessage.offer_amount || amount);
+
       const { error: msgError } = await supabase
         .from('messages')
         .update({ offer_status: 'accepted' })
@@ -436,17 +471,15 @@ export const ChatWithSeller = () => {
 
       if (msgError) throw msgError;
 
-      // Send acceptance message
       await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: currentUserId,
-          content: `Offer of ₦${amount.toLocaleString()} has been accepted!`,
+          content: `Offer of ₦${offerAmount.toLocaleString()} has been accepted!`,
           message_type: 'accept'
         });
 
-      // Resolve the exact pending escrow for this offer
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('buyer_id, seller_id')
@@ -461,10 +494,12 @@ export const ChatWithSeller = () => {
         .eq('property_id', property.id)
         .eq('buyer_id', conversation.buyer_id)
         .eq('seller_id', conversation.seller_id)
-        .eq('offer_amount', amount)
+        .eq('offer_amount', offerAmount)
+        .eq('offer_message', targetMessage.content)
         .eq('status', 'pending_payment')
         .is('payment_verified_at', null)
         .in('offer_status', ['pending', 'none'])
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -481,18 +516,17 @@ export const ChatWithSeller = () => {
         })
         .eq('id', escrowToUpdate.id);
 
-      // Notify the buyer
       await supabase.rpc('create_notification', {
         p_user_id: conversation.buyer_id,
         p_title: 'Offer Accepted',
-        p_description: `Your offer of ₦${amount.toLocaleString()} for ${property.title} has been accepted!`,
+        p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${property.title} has been accepted!`,
         p_type: 'offer_accepted'
       });
 
       await supabase
         .from('conversations')
         .update({
-          last_message: `Offer accepted: ₦${amount.toLocaleString()}`,
+          last_message: `Offer accepted: ₦${offerAmount.toLocaleString()}`,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', conversationId);
@@ -501,7 +535,7 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error accepting offer:', error);
       toast.error('Failed to accept offer');
-      // Remove from responding set on error
+    } finally {
       setRespondingMessages(prev => {
         const newSet = new Set(prev);
         newSet.delete(messageId);
@@ -513,11 +547,21 @@ export const ChatWithSeller = () => {
   const handleRejectOffer = async (messageId: string) => {
     if (!conversationId || !currentUserId || !property) return;
 
-    // Mark this message as being responded to
     setRespondingMessages(prev => new Set(prev).add(messageId));
 
     try {
-      // Update message status
+      const { data: targetMessage, error: targetMessageError } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      if (targetMessageError || !targetMessage?.offer_amount) {
+        throw new Error('Offer message not found');
+      }
+
+      const offerAmount = Number(targetMessage.offer_amount);
+
       const { error: msgError } = await supabase
         .from('messages')
         .update({ offer_status: 'rejected' })
@@ -525,23 +569,15 @@ export const ChatWithSeller = () => {
 
       if (msgError) throw msgError;
 
-      // Send rejection message
-      const { data: msg } = await supabase
-        .from('messages')
-        .select('offer_amount')
-        .eq('id', messageId)
-        .single();
-
       await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: currentUserId,
-          content: `Offer of ₦${msg?.offer_amount?.toLocaleString()} has been rejected.`,
+          content: `Offer of ₦${offerAmount.toLocaleString()} has been rejected.`,
           message_type: 'reject'
         });
 
-      // Resolve the exact pending escrow for this offer
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('buyer_id, seller_id')
@@ -556,10 +592,12 @@ export const ChatWithSeller = () => {
         .eq('property_id', property.id)
         .eq('buyer_id', conversation.buyer_id)
         .eq('seller_id', conversation.seller_id)
-        .eq('offer_amount', msg?.offer_amount)
+        .eq('offer_amount', offerAmount)
+        .eq('offer_message', targetMessage.content)
         .eq('status', 'pending_payment')
         .is('payment_verified_at', null)
         .in('offer_status', ['pending', 'none'])
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -576,11 +614,10 @@ export const ChatWithSeller = () => {
         })
         .eq('id', escrowToUpdate.id);
 
-      // Notify the buyer
       await supabase.rpc('create_notification', {
         p_user_id: conversation.buyer_id,
         p_title: 'Offer Rejected',
-        p_description: `Your offer of ₦${msg?.offer_amount?.toLocaleString()} for ${property.title} has been rejected.`,
+        p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${property.title} has been rejected.`,
         p_type: 'offer_rejected'
       });
 
@@ -596,7 +633,7 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error rejecting offer:', error);
       toast.error('Failed to reject offer');
-      // Remove from responding set on error
+    } finally {
       setRespondingMessages(prev => {
         const newSet = new Set(prev);
         newSet.delete(messageId);

@@ -65,7 +65,7 @@ export const OffersNegotiations = () => {
 
       pollInterval = setInterval(() => {
         loadOffers(user.id);
-      }, 8000);
+      }, 5000);
 
       return () => {
         supabase.removeChannel(channel);
@@ -107,6 +107,8 @@ export const OffersNegotiations = () => {
           seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
         `)
         .or(`buyer_id.eq.${resolvedUserId},seller_id.eq.${resolvedUserId}`)
+        .not('offer_amount', 'is', null)
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -114,7 +116,7 @@ export const OffersNegotiations = () => {
       setOffers(data || []);
     } catch (error) {
       console.error('Failed to load offers:', error);
-      setOffers([]);
+      // Keep the last known list rendered; polling/realtime will retry automatically
     } finally {
       setLoading(false);
     }
