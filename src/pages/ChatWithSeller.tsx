@@ -448,11 +448,21 @@ export const ChatWithSeller = () => {
   const handleAcceptOffer = async (messageId: string, amount: number) => {
     if (!conversationId || !currentUserId || !property) return;
 
-    // Mark this message as being responded to
     setRespondingMessages(prev => new Set(prev).add(messageId));
 
     try {
-      // Update message status
+      const { data: targetMessage, error: targetMessageError } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      if (targetMessageError || !targetMessage?.offer_amount) {
+        throw new Error('Offer message not found');
+      }
+
+      const offerAmount = Number(targetMessage.offer_amount || amount);
+
       const { error: msgError } = await supabase
         .from('messages')
         .update({ offer_status: 'accepted' })
@@ -460,17 +470,15 @@ export const ChatWithSeller = () => {
 
       if (msgError) throw msgError;
 
-      // Send acceptance message
       await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: currentUserId,
-          content: `Offer of ₦${amount.toLocaleString()} has been accepted!`,
+          content: `Offer of ₦${offerAmount.toLocaleString()} has been accepted!`,
           message_type: 'accept'
         });
 
-      // Resolve the exact pending escrow for this offer
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('buyer_id, seller_id')
@@ -485,10 +493,12 @@ export const ChatWithSeller = () => {
         .eq('property_id', property.id)
         .eq('buyer_id', conversation.buyer_id)
         .eq('seller_id', conversation.seller_id)
-        .eq('offer_amount', amount)
+        .eq('offer_amount', offerAmount)
+        .eq('offer_message', targetMessage.content)
         .eq('status', 'pending_payment')
         .is('payment_verified_at', null)
         .in('offer_status', ['pending', 'none'])
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -505,18 +515,17 @@ export const ChatWithSeller = () => {
         })
         .eq('id', escrowToUpdate.id);
 
-      // Notify the buyer
       await supabase.rpc('create_notification', {
         p_user_id: conversation.buyer_id,
         p_title: 'Offer Accepted',
-        p_description: `Your offer of ₦${amount.toLocaleString()} for ${property.title} has been accepted!`,
+        p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${property.title} has been accepted!`,
         p_type: 'offer_accepted'
       });
 
       await supabase
         .from('conversations')
         .update({
-          last_message: `Offer accepted: ₦${amount.toLocaleString()}`,
+          last_message: `Offer accepted: ₦${offerAmount.toLocaleString()}`,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', conversationId);
@@ -525,7 +534,7 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error accepting offer:', error);
       toast.error('Failed to accept offer');
-      // Remove from responding set on error
+    } finally {
       setRespondingMessages(prev => {
         const newSet = new Set(prev);
         newSet.delete(messageId);
@@ -537,11 +546,21 @@ export const ChatWithSeller = () => {
   const handleRejectOffer = async (messageId: string) => {
     if (!conversationId || !currentUserId || !property) return;
 
-    // Mark this message as being responded to
     setRespondingMessages(prev => new Set(prev).add(messageId));
 
     try {
-      // Update message status
+      const { data: targetMessage, error: targetMessageError } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      if (targetMessageError || !targetMessage?.offer_amount) {
+        throw new Error('Offer message not found');
+      }
+
+      const offerAmount = Number(targetMessage.offer_amount);
+
       const { error: msgError } = await supabase
         .from('messages')
         .update({ offer_status: 'rejected' })
@@ -549,23 +568,15 @@ export const ChatWithSeller = () => {
 
       if (msgError) throw msgError;
 
-      // Send rejection message
-      const { data: msg } = await supabase
-        .from('messages')
-        .select('offer_amount')
-        .eq('id', messageId)
-        .single();
-
       await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: currentUserId,
-          content: `Offer of ₦${msg?.offer_amount?.toLocaleString()} has been rejected.`,
+          content: `Offer of ₦${offerAmount.toLocaleString()} has been rejected.`,
           message_type: 'reject'
         });
 
-      // Resolve the exact pending escrow for this offer
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('buyer_id, seller_id')
@@ -580,10 +591,12 @@ export const ChatWithSeller = () => {
         .eq('property_id', property.id)
         .eq('buyer_id', conversation.buyer_id)
         .eq('seller_id', conversation.seller_id)
-        .eq('offer_amount', msg?.offer_amount)
+        .eq('offer_amount', offerAmount)
+        .eq('offer_message', targetMessage.content)
         .eq('status', 'pending_payment')
         .is('payment_verified_at', null)
         .in('offer_status', ['pending', 'none'])
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -600,11 +613,10 @@ export const ChatWithSeller = () => {
         })
         .eq('id', escrowToUpdate.id);
 
-      // Notify the buyer
       await supabase.rpc('create_notification', {
         p_user_id: conversation.buyer_id,
         p_title: 'Offer Rejected',
-        p_description: `Your offer of ₦${msg?.offer_amount?.toLocaleString()} for ${property.title} has been rejected.`,
+        p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${property.title} has been rejected.`,
         p_type: 'offer_rejected'
       });
 
@@ -620,7 +632,7 @@ export const ChatWithSeller = () => {
     } catch (error) {
       console.error('Error rejecting offer:', error);
       toast.error('Failed to reject offer');
-      // Remove from responding set on error
+    } finally {
       setRespondingMessages(prev => {
         const newSet = new Set(prev);
         newSet.delete(messageId);
