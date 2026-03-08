@@ -543,7 +543,7 @@ export const EscrowTransactions = () => {
                 </div>
                 
                 <div className="flex justify-between py-2 border-b border-border/30">
-                  <span className="text-muted-foreground">Escrow Fee</span>
+                  <span className="text-muted-foreground">Paystack Processing Fee</span>
                   <span className="font-semibold text-accent-purple">
                     ₦{selectedTransaction.escrow_fee?.toLocaleString()}
                   </span>
