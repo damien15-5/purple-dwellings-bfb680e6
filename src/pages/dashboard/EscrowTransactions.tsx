@@ -28,6 +28,46 @@ export const EscrowTransactions = () => {
 
   useEffect(() => {
     loadTransactions();
+    
+    // Check for 72h auto-confirm on load
+    const checkAutoConfirm = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: funded } = await supabase
+        .from('escrow_transactions')
+        .select('id, payment_confirmed_deadline, property_id, buyer_id, seller_id, transaction_amount')
+        .eq('status', 'funded')
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
+      
+      if (funded) {
+        const now = new Date();
+        for (const tx of funded) {
+          if (tx.payment_confirmed_deadline && new Date(tx.payment_confirmed_deadline) <= now) {
+            // Auto-confirm: 72h passed without seller response
+            await supabase
+              .from('escrow_transactions')
+              .update({
+                status: 'completed',
+                seller_confirmed: true,
+                completed_at: now.toISOString(),
+              })
+              .eq('id', tx.id);
+            
+            // Mark property as sold
+            if (tx.property_id) {
+              await supabase
+                .from('properties')
+                .update({ status: 'sold' })
+                .eq('id', tx.property_id);
+            }
+          }
+        }
+        loadTransactions();
+      }
+    };
+    
+    checkAutoConfirm();
   }, []);
 
   useEffect(() => {
