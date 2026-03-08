@@ -5,9 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Paystack fee: 1.5% capped at ₦2,500
+// Paystack fee: 1.5% capped at ₦2,000
 function calculatePaystackFee(amountNaira: number): number {
-  return Math.min(Math.round(amountNaira * 0.015), 2500);
+  return Math.min(Math.round(amountNaira * 0.015), 2000);
 }
 
 Deno.serve(async (req) => {
