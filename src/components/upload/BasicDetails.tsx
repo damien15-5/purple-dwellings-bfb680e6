@@ -147,16 +147,6 @@ export const BasicDetails = ({ formData, updateFormData }: Props) => {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="size">Size (sqm) *</Label>
-          <Input
-            id="size"
-            type="number"
-            value={formData.size}
-            onChange={(e) => updateFormData({ size: e.target.value })}
-            placeholder="e.g., 250"
-          />
-        </div>
       </div>
 
       {/* Conditional Fields - Short-let */}
@@ -233,7 +223,7 @@ export const BasicDetails = ({ formData, updateFormData }: Props) => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agreementFee">Agreement Fee (₦)</Label>
+              <Label htmlFor="agreementFee">Continuous Rent (₦)</Label>
               <Input
                 id="agreementFee"
                 type="number"

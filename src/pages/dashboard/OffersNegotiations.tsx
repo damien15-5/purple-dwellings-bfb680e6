@@ -57,7 +57,6 @@ export const OffersNegotiations = () => {
         seller:profiles!escrow_transactions_seller_id_fkey(full_name, email)
       `)
       .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .not('offer_amount', 'is', null)
       .order('created_at', { ascending: false });
 
     setOffers(data || []);
@@ -132,13 +131,14 @@ export const OffersNegotiations = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
+      case 'none':
         return <Badge className="bg-yellow-500 gap-2"><Clock className="h-3 w-3" />Pending</Badge>;
       case 'accepted':
         return <Badge className="bg-green-500 gap-2"><CheckCircle className="h-3 w-3" />Accepted</Badge>;
       case 'rejected':
         return <Badge className="bg-red-500 gap-2"><XCircle className="h-3 w-3" />Rejected</Badge>;
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge className="bg-yellow-500 gap-2"><Clock className="h-3 w-3" />Pending</Badge>;
     }
   };
 
@@ -225,7 +225,7 @@ export const OffersNegotiations = () => {
                     </div>
                   )}
 
-                  {!isUserBuyer && offer.offer_status === 'pending' && !offer.payment_verified_at && offer.status === 'pending_payment' && (
+                  {!isUserBuyer && (offer.offer_status === 'pending' || offer.offer_status === 'none' || !offer.offer_status) && !offer.payment_verified_at && offer.status === 'pending_payment' && (
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <Dialog>
                         <DialogTrigger asChild>

@@ -67,14 +67,23 @@ export const DashboardHome = () => {
       promotedProperties: activePromotions.count || 0,
     });
 
-    // Load financial stats
-    const [completedAsSeller, completedAsBuyer] = await Promise.all([
-      supabase.from('escrow_transactions').select('total_amount').eq('seller_id', user.id).eq('status', 'completed'),
-      supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).eq('status', 'completed'),
+    // Load financial stats from all sources
+    const [escrowSeller, escrowBuyer, purchaseBuyer, purchaseSeller, promotions] = await Promise.all([
+      supabase.from('escrow_transactions').select('total_amount').eq('seller_id', user.id).in('status', ['completed', 'funded', 'inspection_period']),
+      supabase.from('escrow_transactions').select('total_amount').eq('buyer_id', user.id).in('status', ['completed', 'funded', 'inspection_period']),
+      supabase.from('purchase_transactions').select('transaction_amount').eq('buyer_id', user.id).in('status', ['successful', 'completed']),
+      supabase.from('purchase_transactions').select('transaction_amount').eq('seller_id', user.id).in('status', ['successful', 'completed']),
+      supabase.from('property_promotions').select('amount_paid').eq('user_id', user.id),
     ]);
 
-    const totalTransactionsMade = completedAsSeller.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
-    const totalSpentBuying = completedAsBuyer.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+    const soldFromEscrow = escrowSeller.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+    const soldFromPurchase = purchaseSeller.data?.reduce((sum, t) => sum + Number(t.transaction_amount), 0) || 0;
+    const totalTransactionsMade = soldFromEscrow + soldFromPurchase;
+
+    const spentEscrow = escrowBuyer.data?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
+    const spentPurchase = purchaseBuyer.data?.reduce((sum, t) => sum + Number(t.transaction_amount), 0) || 0;
+    const spentPromotions = promotions.data?.reduce((sum, t) => sum + Number(t.amount_paid), 0) || 0;
+    const totalSpentBuying = spentEscrow + spentPurchase + spentPromotions;
 
     setFinancialStats({
       totalTransactionsMade,
