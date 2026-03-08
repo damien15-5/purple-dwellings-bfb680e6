@@ -99,8 +99,12 @@ export const Browse = () => {
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
       propertiesWithPromo.sort((a, b) => {
+        // Promoted first, sorted by promotion amount (higher = higher priority)
         if (a.isPromoted && !b.isPromoted) return -1;
         if (!a.isPromoted && b.isPromoted) return 1;
+        if (a.isPromoted && b.isPromoted) {
+          return (b.promotionAmount || 0) - (a.promotionAmount || 0);
+        }
         const aOld = new Date(a.created_at) < threeMonthsAgo;
         const bOld = new Date(b.created_at) < threeMonthsAgo;
         if (!aOld && bOld) return -1;
