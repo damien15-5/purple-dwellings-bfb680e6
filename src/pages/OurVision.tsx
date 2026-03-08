@@ -1,4 +1,5 @@
 import { Target, Lightbulb, TrendingUp, Globe } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export const OurVision = () => {
   const visionPoints = [
