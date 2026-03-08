@@ -26,6 +26,7 @@ type Property = {
   state?: string;
   country?: string;
   isPromoted?: boolean;
+  promotionAmount?: number;
 };
 
 export const Browse = () => {
