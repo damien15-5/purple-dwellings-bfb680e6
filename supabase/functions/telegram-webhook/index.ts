@@ -1216,6 +1216,7 @@ async function handleAdminMessage(chatId: number, text: string) {
   }
 
   await sendTelegram(link.chat_id, `📩 <b>Message from Xavorian Support</b>\n\n${message}\n\n<i>Reply to this message to respond.</i>`);
+  await logAdminAction(chatId, 'Messaged user', `Sent message to ${profile.full_name} (${email})`);
   await sendTelegram(chatId, `✅ Message sent to <b>${profile.full_name}</b> (${email})`);
 }
 
