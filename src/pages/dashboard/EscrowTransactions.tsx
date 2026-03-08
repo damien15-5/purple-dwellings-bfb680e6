@@ -519,7 +519,12 @@ export const EscrowTransactions = () => {
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
                       <Clock className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                      <span>Payment made successfully! Waiting for seller to confirm receipt of payment.</span>
+                      <span>
+                        Payment made successfully! Waiting for seller to confirm receipt.
+                        {transaction.payment_confirmed_deadline && (
+                          <> Auto-confirms on <strong>{new Date(transaction.payment_confirmed_deadline).toLocaleDateString()}</strong> if seller doesn't respond.</>
+                        )}
+                      </span>
                     </p>
                   </div>
                 )}
