@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.xavorian.com/sitemap.xml
+Sitemap: https://www.xavorian.xyz/sitemap.xml
