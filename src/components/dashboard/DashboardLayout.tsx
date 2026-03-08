@@ -103,6 +103,18 @@ export const DashboardLayout = () => {
         </div>
 
         <nav className="p-3 md:p-4 space-y-1.5 md:space-y-2 overflow-y-auto h-[calc(100vh-7.5rem)] md:h-[calc(100vh-8rem)]">
+          {/* Home page link */}
+          <NavLink
+            to="/"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center gap-2.5 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-lg transition-all text-sm md:text-base text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            <Home className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="font-medium">Home Page</span>
+          </NavLink>
+
+          <div className="border-b border-border my-1.5" />
+
           {navItems.map((item) => (
             <NavLink
               key={item.to}
