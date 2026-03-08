@@ -37,6 +37,13 @@ export const Messages = () => {
   const [extraPaymentDialogOpen, setExtraPaymentDialogOpen] = useState(false);
   const [extraPaymentAmount, setExtraPaymentAmount] = useState('');
   const [extraPaymentNote, setExtraPaymentNote] = useState('');
+  const [extraPaymentStep, setExtraPaymentStep] = useState<'amount' | 'bank_details'>('amount');
+  const [recipientBankDetails, setRecipientBankDetails] = useState<{
+    full_name: string;
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
+  } | null>(null);
   const [bankDetailsDialogOpen, setBankDetailsDialogOpen] = useState(false);
   const [activeExtraPayment, setActiveExtraPayment] = useState<{ messageId: string; amount: number } | null>(null);
   const [payeeBankDetails, setPayeeBankDetails] = useState<{
@@ -418,40 +425,56 @@ export const Messages = () => {
     }
   };
 
-  const handleSendExtraPaymentRequest = async () => {
+  const handleOpenExtraPayment = () => {
+    setExtraPaymentAmount('');
+    setExtraPaymentNote('');
+    setExtraPaymentStep('amount');
+    setRecipientBankDetails(null);
+    setExtraPaymentDialogOpen(true);
+  };
+
+  const handleExtraPaymentNext = async () => {
     if (!selectedConversation || !extraPaymentAmount) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({
-        title: 'Login required',
-        description: 'Please log in again to continue.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const senderId = user.id;
-    const isPropertyOwner = selectedConversation.property?.user_id === senderId;
-    if (!isPropertyOwner) {
-      toast({
-        title: 'Not allowed',
-        description: 'Only the property owner can request extra payment.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     const amount = parseFloat(extraPaymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: 'Invalid amount',
-        description: 'Enter a valid extra payment amount.',
-        variant: 'destructive',
-      });
+      alert('Please enter a valid amount.');
       return;
     }
 
+    // Load the OTHER person's bank details
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const recipientId =
+      user.id === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, bank_name, account_number, account_name')
+      .eq('id', recipientId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading recipient bank details:', error);
+      alert('Could not load recipient bank details.');
+      return;
+    }
+
+    setRecipientBankDetails(data || null);
+    setExtraPaymentStep('bank_details');
+  };
+
+  const handleExtraPaymentDone = async () => {
+    if (!selectedConversation || !extraPaymentAmount) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const amount = parseFloat(extraPaymentAmount);
+    const senderId = user.id;
     const recipientId =
       senderId === selectedConversation.buyer_id
         ? selectedConversation.seller_id
@@ -459,7 +482,7 @@ export const Messages = () => {
 
     const content =
       extraPaymentNote?.trim() ||
-      `Extra payment request: ₦${amount.toLocaleString()} (miscellaneous cost).`;
+      `Extra payment of ₦${amount.toLocaleString()} sent.`;
 
     try {
       const { error } = await supabase.from('messages').insert({
@@ -476,7 +499,7 @@ export const Messages = () => {
       await supabase
         .from('conversations')
         .update({
-          last_message: `Extra payment request: ₦${amount.toLocaleString()}`,
+          last_message: `Extra payment: ₦${amount.toLocaleString()}`,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', selectedConversation.id);
@@ -484,8 +507,8 @@ export const Messages = () => {
       if (recipientId) {
         await supabase.rpc('create_notification', {
           p_user_id: recipientId,
-          p_title: 'Extra Payment Requested',
-          p_description: `An extra payment of ₦${amount.toLocaleString()} was requested for ${
+          p_title: 'Extra Payment',
+          p_description: `An extra payment of ₦${amount.toLocaleString()} was sent for ${
             selectedConversation.property?.title || 'this property'
           }`,
           p_type: 'payment',
@@ -495,19 +518,16 @@ export const Messages = () => {
       setExtraPaymentAmount('');
       setExtraPaymentNote('');
       setExtraPaymentDialogOpen(false);
+      setExtraPaymentStep('amount');
       await loadMessages(selectedConversation.id);
 
       toast({
-        title: 'Request sent',
-        description: 'Extra payment request sent in chat.',
+        title: 'Payment recorded',
+        description: 'Extra payment recorded in chat.',
       });
     } catch (error: any) {
-      console.error('Error sending extra payment request:', error);
-      toast({
-        title: 'Error',
-        description: error?.message || 'Failed to send extra payment request.',
-        variant: 'destructive',
-      });
+      console.error('Error sending extra payment:', error);
+      alert(error?.message || 'Failed to record extra payment.');
     }
   };
 
@@ -1007,18 +1027,16 @@ export const Messages = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {selectedConversation.property?.user_id === currentUserId && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="gap-1 sm:gap-2 text-xs sm:text-sm"
-                          onClick={() => setExtraPaymentDialogOpen(true)}
-                        >
-                          <Banknote className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Make Extra Payment</span>
-                          <span className="sm:hidden">Extra</span>
-                        </Button>
-                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                        onClick={handleOpenExtraPayment}
+                      >
+                        <Banknote className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Extra Payment</span>
+                        <span className="sm:hidden">Pay</span>
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1174,42 +1192,105 @@ export const Messages = () => {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={extraPaymentDialogOpen} onOpenChange={setExtraPaymentDialogOpen}>
+                <Dialog open={extraPaymentDialogOpen} onOpenChange={(open) => {
+                  setExtraPaymentDialogOpen(open);
+                  if (!open) setExtraPaymentStep('amount');
+                }}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Make Extra Payment Request</DialogTitle>
+                      <DialogTitle>
+                        {extraPaymentStep === 'amount' ? 'Extra Payment' : 'Recipient Bank Details'}
+                      </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 mt-2">
-                      <div>
-                        <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
-                        <Input
-                          id="extra-payment-amount"
-                          type="number"
-                          value={extraPaymentAmount}
-                          onChange={(e) => setExtraPaymentAmount(e.target.value)}
-                          placeholder="Enter extra payment amount"
-                          className="mt-1"
-                        />
+
+                    {extraPaymentStep === 'amount' ? (
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
+                          <Input
+                            id="extra-payment-amount"
+                            type="number"
+                            value={extraPaymentAmount}
+                            onChange={(e) => setExtraPaymentAmount(e.target.value)}
+                            placeholder="Enter amount to pay"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="extra-payment-note">Note (optional)</Label>
+                          <Input
+                            id="extra-payment-note"
+                            value={extraPaymentNote}
+                            onChange={(e) => setExtraPaymentNote(e.target.value)}
+                            placeholder="What is this payment for?"
+                            className="mt-1"
+                          />
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleExtraPaymentNext}>
+                            Next
+                          </Button>
+                        </DialogFooter>
                       </div>
-                      <div>
-                        <Label htmlFor="extra-payment-note">Reason (optional)</Label>
-                        <Input
-                          id="extra-payment-note"
-                          value={extraPaymentNote}
-                          onChange={(e) => setExtraPaymentNote(e.target.value)}
-                          placeholder="Explain what this extra payment is for"
-                          className="mt-1"
-                        />
+                    ) : (
+                      <div className="space-y-4 mt-2">
+                        <div className="rounded-lg border border-border p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                            <span className="text-sm text-muted-foreground">Amount</span>
+                            <span className="text-base font-bold">₦{parseFloat(extraPaymentAmount).toLocaleString()}</span>
+                          </div>
+                          {recipientBankDetails?.account_number ? (
+                            <>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Recipient</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.full_name}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Bank</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.bank_name || '—'}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Account Number</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold tracking-wide">{recipientBankDetails.account_number}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => copyToClipboard(recipientBankDetails.account_number)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Account Name</span>
+                                <span className="text-sm font-medium">{recipientBankDetails.account_name || '—'}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                              Recipient has not added bank details yet.
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Transfer the amount to the account above, then click "I've Paid" to record it in the chat.
+                        </p>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setExtraPaymentStep('amount')}>
+                            Back
+                          </Button>
+                          <Button onClick={handleExtraPaymentDone} disabled={!recipientBankDetails?.account_number}>
+                            I've Paid
+                          </Button>
+                        </DialogFooter>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSendExtraPaymentRequest}>
-                        Send Request
-                      </Button>
-                    </DialogFooter>
+                    )}
                   </DialogContent>
                 </Dialog>
 

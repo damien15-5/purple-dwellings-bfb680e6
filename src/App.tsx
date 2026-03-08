@@ -9,6 +9,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { FloatingMenu } from "@/components/FloatingMenu";
 import { LoadingFallback } from "@/components/LoadingFallback";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 import { ScrollToTop } from "@/components/ScrollToTop";
 
@@ -106,18 +107,18 @@ const App = () => {
         <AuthRedirectHandler />
         <Routes>
           {/* Dashboard routes - no nav/footer */}
-          <Route path="/dashboard" element={<Suspense fallback={<LoadingFallback />}><DashboardLayout /></Suspense>}>
-            <Route index element={<Suspense fallback={<LoadingFallback />}><DashboardHome /></Suspense>} />
-            <Route path="settings" element={<Suspense fallback={<LoadingFallback />}><Settings /></Suspense>} />
-            <Route path="verification" element={<Suspense fallback={<LoadingFallback />}><Verification /></Suspense>} />
-            <Route path="my-listings" element={<Suspense fallback={<LoadingFallback />}><MyListings /></Suspense>} />
-            <Route path="saved" element={<Suspense fallback={<LoadingFallback />}><SavedProperties /></Suspense>} />
-            <Route path="offers" element={<Suspense fallback={<LoadingFallback />}><OffersNegotiations /></Suspense>} />
-            <Route path="transactions" element={<Suspense fallback={<LoadingFallback />}><Transactions /></Suspense>} />
-            <Route path="promotions" element={<Suspense fallback={<LoadingFallback />}><Promotions /></Suspense>} />
-            <Route path="notifications" element={<Suspense fallback={<LoadingFallback />}><Notifications /></Suspense>} />
-            <Route path="messages" element={<Suspense fallback={<LoadingFallback />}><Messages /></Suspense>} />
-            <Route path="help" element={<Suspense fallback={<LoadingFallback />}><HelpSupport /></Suspense>} />
+          <Route path="/dashboard" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><DashboardLayout /></Suspense></ErrorBoundary>}>
+            <Route index element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><DashboardHome /></Suspense></ErrorBoundary>} />
+            <Route path="settings" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Settings /></Suspense></ErrorBoundary>} />
+            <Route path="verification" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Verification /></Suspense></ErrorBoundary>} />
+            <Route path="my-listings" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><MyListings /></Suspense></ErrorBoundary>} />
+            <Route path="saved" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><SavedProperties /></Suspense></ErrorBoundary>} />
+            <Route path="offers" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><OffersNegotiations /></Suspense></ErrorBoundary>} />
+            <Route path="transactions" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Transactions /></Suspense></ErrorBoundary>} />
+            <Route path="promotions" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Promotions /></Suspense></ErrorBoundary>} />
+            <Route path="notifications" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Notifications /></Suspense></ErrorBoundary>} />
+            <Route path="messages" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><Messages /></Suspense></ErrorBoundary>} />
+            <Route path="help" element={<ErrorBoundary><Suspense fallback={<LoadingFallback />}><HelpSupport /></Suspense></ErrorBoundary>} />
           </Route>
           {/* Redirect old dashboard routes */}
           <Route path="/dashboard/escrow" element={<Navigate to="/dashboard/transactions" replace />} />
@@ -132,7 +133,7 @@ const App = () => {
               <Navigation />
               <FloatingMenu />
               <main className="flex-grow">
-                <Suspense fallback={<LoadingFallback />}>
+                <ErrorBoundary><Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
@@ -194,7 +195,7 @@ const App = () => {
                     
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </Suspense>
+                </Suspense></ErrorBoundary>
               </main>
               <Footer />
             </div>
