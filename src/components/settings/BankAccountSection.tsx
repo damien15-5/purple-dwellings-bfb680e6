@@ -86,7 +86,12 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       setResolvedName(data.account_name);
       toast({ title: 'Account Found', description: `Account name: ${data.account_name}` });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Could not resolve account', variant: 'destructive' });
+      const rawMsg = error.message || '';
+      let userMsg = 'Account details not found. Please confirm your bank and account number and try again.';
+      if (rawMsg.includes('account_name') || rawMsg.includes('resolve')) {
+        userMsg = 'Account details not found. Please confirm your bank and account number and try again.';
+      }
+      toast({ title: 'Account Not Found', description: userMsg, variant: 'destructive' });
     } finally {
       setResolving(false);
     }
@@ -126,7 +131,12 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
         description: 'Your bank account has been linked successfully. Buyers will see your account details when making payments.',
       });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to save bank account', variant: 'destructive' });
+      const rawMsg = error.message || '';
+      let userMsg = 'Could not save bank account. Please try again.';
+      if (rawMsg.includes('does not match') || rawMsg.includes('account name') || rawMsg.includes('profile name')) {
+        userMsg = 'Your name must match the account name. Please recheck your profile name or use a bank account that matches your name.';
+      }
+      toast({ title: 'Name Mismatch', description: userMsg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
