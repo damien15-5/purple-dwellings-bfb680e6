@@ -53,6 +53,26 @@ export const ResetPassword = () => {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
 
+      // Backfill profile if missing (for users who signed up before trigger fix)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        if (!existingProfile) {
+          await supabase.from('profiles').insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || 'User',
+            email: user.email || '',
+            age: user.user_metadata?.age ? parseInt(user.user_metadata.age) : null,
+            account_type: user.user_metadata?.account_type || 'buyer',
+          });
+        }
+      }
+
       setSuccess(true);
       toast({ title: 'Password updated!', description: 'You can now log in with your new password' });
       
