@@ -450,43 +450,6 @@ export const Messages = () => {
     }
   };
 
-      const otherPartyId =
-        currentUserId === selectedConversation.buyer_id
-          ? selectedConversation.seller_id
-          : selectedConversation.buyer_id;
-
-      if (otherPartyId) {
-        await supabase.rpc('create_notification', {
-          p_user_id: otherPartyId,
-          p_title: 'Offer Accepted',
-          p_description: `Your offer of ₦${amount.toLocaleString()} for ${
-            selectedConversation.property?.title || 'a property'
-          } has been accepted.`,
-          p_type: 'offer_accepted',
-        });
-      }
-
-      await supabase
-        .from('conversations')
-        .update({
-          last_message: `Offer accepted: ₦${amount.toLocaleString()}`,
-          last_message_time: new Date().toISOString(),
-        })
-        .eq('id', selectedConversation.id);
-
-      toast({
-        title: 'Offer accepted',
-        description: 'Offer accepted. You can proceed to payment from Offers & Negotiations.',
-      });
-    } catch (error) {
-      console.error('Error accepting offer:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to accept offer. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleRejectOffer = async (messageId: string) => {
     if (!selectedConversation || !currentUserId) return;
