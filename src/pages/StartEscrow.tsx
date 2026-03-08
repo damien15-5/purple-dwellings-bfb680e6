@@ -236,7 +236,7 @@ export const StartEscrow = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg">Pay via Paystack</h3>
                           <p className="text-sm text-muted-foreground mt-2">
-                            Pay securely via Paystack. Full property price is transferred to the seller after a Paystack fee (1.5% capped at ₦2,500).
+                            Pay securely via Paystack. Full property price is transferred to the seller after a Paystack fee (1.5% capped at ₦2,000).
                           </p>
                           
                           <div className="mt-4 space-y-3 bg-background/50 p-4 rounded-lg border border-border/50">
