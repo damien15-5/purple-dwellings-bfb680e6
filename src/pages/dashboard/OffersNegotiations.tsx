@@ -187,7 +187,21 @@ export const OffersNegotiations = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (offer: any) => {
+    // If payment completed (seller confirmed)
+    if (offer.status === 'completed') {
+      return <Badge className="bg-emerald-600 gap-2"><CheckCircle className="h-3 w-3" />Payment Confirmed</Badge>;
+    }
+    // If payment made by buyer, waiting for seller
+    if (offer.status === 'funded') {
+      return <Badge className="bg-blue-500 gap-2"><Clock className="h-3 w-3" />Payment Made - Awaiting Confirmation</Badge>;
+    }
+    // If disputed
+    if (offer.status === 'disputed') {
+      return <Badge className="bg-red-600 gap-2"><XCircle className="h-3 w-3" />Disputed</Badge>;
+    }
+    
+    const status = offer.offer_status;
     switch (status) {
       case 'pending':
       case 'none':
@@ -241,7 +255,7 @@ export const OffersNegotiations = () => {
                       <CardTitle className="text-lg mb-2">{offer.property?.title}</CardTitle>
                       <p className="text-sm text-muted-foreground">{offer.property?.address}</p>
                     </div>
-                    {getStatusBadge(offer.offer_status || 'none')}
+                    {getStatusBadge(offer)}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -356,16 +370,33 @@ export const OffersNegotiations = () => {
                     </div>
                   )}
 
-                  {offer.offer_status === 'accepted' && (offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' || offer.status === 'completed') && (
+                  {/* Completed - both confirmed */}
+                  {offer.status === 'completed' && (
                     <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-green-700">
                         <ShieldCheck className="h-5 w-5" />
-                        <span className="font-semibold">Offer Confirmed & Payment Received</span>
+                        <span className="font-semibold">Transaction Completed</span>
                       </div>
-                      <p className="text-sm text-green-600 mt-1">This transaction is now secured in escrow</p>
+                      <p className="text-sm text-green-600 mt-1">Payment has been confirmed by the seller. Transaction complete.</p>
                     </div>
                   )}
 
+                  {/* Funded - buyer paid, waiting for seller */}
+                  {offer.status === 'funded' && (
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-blue-700">
+                        <Clock className="h-5 w-5" />
+                        <span className="font-semibold">Payment Made - Waiting for Seller Confirmation</span>
+                      </div>
+                      <p className="text-sm text-blue-600 mt-1">
+                        {offer.payment_confirmed_deadline 
+                          ? `Auto-confirms by ${new Date(offer.payment_confirmed_deadline).toLocaleDateString()} if seller doesn't respond`
+                          : 'Waiting for seller to confirm receipt of payment'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Buyer: Make Payment button */}
                   {isUserBuyer && offer.offer_status === 'accepted' && !offer.payment_verified_at && offer.status === 'pending_payment' && (
                     <Link to={`/start-escrow/${offer.property?.id}?escrowId=${offer.id}`} className="block">
                       <Button variant="hero" className="w-full gap-2">
@@ -374,14 +405,15 @@ export const OffersNegotiations = () => {
                       </Button>
                     </Link>
                   )}
-                  
-                  {isUserBuyer && offer.offer_status === 'accepted' && (offer.payment_verified_at || offer.status === 'funded' || offer.status === 'inspection_period' || offer.status === 'completed') && (
-                    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="font-semibold">Payment Confirmed</span>
+
+                  {/* Disputed */}
+                  {offer.status === 'disputed' && (
+                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <XCircle className="h-5 w-5" />
+                        <span className="font-semibold">Payment Disputed</span>
                       </div>
-                      <p className="text-sm text-green-600 mt-1">Your payment has been secured in escrow</p>
+                      <p className="text-sm text-red-600 mt-1">Seller has not confirmed receiving payment. Please contact the seller.</p>
                     </div>
                   )}
 

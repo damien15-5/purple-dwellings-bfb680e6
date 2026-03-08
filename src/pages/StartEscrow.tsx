@@ -119,12 +119,17 @@ export const StartEscrow = () => {
         escrowId = (escrow as any).id;
       } else {
         // Update existing escrow
+        const deadline = new Date();
+        deadline.setHours(deadline.getHours() + 72);
+        
         await supabase
           .from('escrow_transactions')
           .update({
             status: 'funded',
             payment_method: 'bank_transfer',
             payment_verified_at: new Date().toISOString(),
+            buyer_confirmed: true,
+            payment_confirmed_deadline: deadline.toISOString(),
             terms: notes,
             escrow_fee: 0,
             platform_fee: 0,

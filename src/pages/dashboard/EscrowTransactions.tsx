@@ -28,7 +28,61 @@ export const EscrowTransactions = () => {
 
   useEffect(() => {
     loadTransactions();
+    
+    // Check for 72h auto-confirm on load
+    const checkAutoConfirm = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: funded } = await supabase
+        .from('escrow_transactions')
+        .select('id, payment_confirmed_deadline, property_id, buyer_id, seller_id, transaction_amount')
+        .eq('status', 'funded')
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
+      
+      if (funded) {
+        const now = new Date();
+        for (const tx of funded) {
+          if (tx.payment_confirmed_deadline && new Date(tx.payment_confirmed_deadline) <= now) {
+            // Auto-confirm: 72h passed without seller response
+            await supabase
+              .from('escrow_transactions')
+              .update({
+                status: 'completed',
+                seller_confirmed: true,
+                completed_at: now.toISOString(),
+              })
+              .eq('id', tx.id);
+            
+            // Mark property as sold
+            if (tx.property_id) {
+              await supabase
+                .from('properties')
+                .update({ status: 'sold' })
+                .eq('id', tx.property_id);
+            }
+          }
+        }
+        loadTransactions();
+      }
+    };
+    
+    checkAutoConfirm();
   }, []);
+
+  // Realtime subscription for instant updates
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const channel = supabase
+      .channel(`escrow-realtime-${currentUserId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'escrow_transactions' }, () => {
+        loadTransactions();
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUserId]);
 
   useEffect(() => {
     if (statusFilter === 'all') {
@@ -74,6 +128,14 @@ export const EscrowTransactions = () => {
         })
         .eq('id', escrowId);
 
+      // Mark property as sold (take it down)
+      if (transaction?.property_id) {
+        await supabase
+          .from('properties')
+          .update({ status: 'sold' })
+          .eq('id', transaction.property_id);
+      }
+
       // Notify buyer
       if (transaction) {
         await supabase.rpc('create_notification', {
@@ -83,7 +145,6 @@ export const EscrowTransactions = () => {
           p_type: 'payment_confirmed',
         });
 
-        // Telegram notify buyer
         try {
           await supabase.functions.invoke('telegram-notify', {
             body: {
@@ -101,7 +162,7 @@ export const EscrowTransactions = () => {
         }
       }
 
-      toast.success('Payment confirmed! Transaction completed.');
+      toast.success('Payment confirmed! Transaction completed. Property has been taken down.');
       loadTransactions();
     } catch (error: any) {
       console.error('Error confirming payment:', error);
@@ -458,7 +519,12 @@ export const EscrowTransactions = () => {
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
                       <Clock className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                      <span>Payment made successfully! Waiting for seller to confirm receipt of payment.</span>
+                      <span>
+                        Payment made successfully! Waiting for seller to confirm receipt.
+                        {transaction.payment_confirmed_deadline && (
+                          <> Auto-confirms on <strong>{new Date(transaction.payment_confirmed_deadline).toLocaleDateString()}</strong> if seller doesn't respond.</>
+                        )}
+                      </span>
                     </p>
                   </div>
                 )}

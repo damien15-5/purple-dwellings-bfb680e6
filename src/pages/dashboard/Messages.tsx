@@ -365,6 +365,15 @@ export const Messages = () => {
     if (!selectedConversation || !currentUserId) return;
 
     try {
+      // Get the original message to match the escrow
+      const { data: targetMessage } = await supabase
+        .from('messages')
+        .select('id, offer_amount, content')
+        .eq('id', messageId)
+        .single();
+
+      const offerAmount = Number(targetMessage?.offer_amount || amount);
+
       await supabase
         .from('messages')
         .update({ offer_status: 'accepted' })
@@ -373,33 +382,34 @@ export const Messages = () => {
       await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_id: currentUserId,
-        content: `Offer of ₦${amount.toLocaleString()} has been accepted!`,
+        content: `Offer of ₦${offerAmount.toLocaleString()} has been accepted!`,
         message_type: 'accept',
       });
 
-      const { data: existingEscrow } = await supabase
+      // Find the matching escrow with precise lookup
+      const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
-        .select('*')
+        .select('id')
         .eq('property_id', selectedConversation.property_id)
         .eq('buyer_id', selectedConversation.buyer_id)
         .eq('seller_id', selectedConversation.seller_id)
+        .eq('offer_amount', offerAmount)
+        .in('offer_status', ['pending', 'none'])
+        .eq('status', 'pending_payment')
+        .is('payment_verified_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (existingEscrow) {
+      if (escrowToUpdate) {
         await supabase
           .from('escrow_transactions')
           .update({
-            transaction_amount: amount,
-            atara_fee: 0,
-            platform_fee: 0,
-            escrow_fee: 0,
-            total_amount: amount,
-            offer_amount: amount,
             offer_status: 'accepted',
             seller_responded_at: new Date().toISOString(),
             seller_response: 'accepted',
           })
-          .eq('id', existingEscrow.id);
+          .eq('id', escrowToUpdate.id);
       }
 
       const otherPartyId =
@@ -411,7 +421,7 @@ export const Messages = () => {
         await supabase.rpc('create_notification', {
           p_user_id: otherPartyId,
           p_title: 'Offer Accepted',
-          p_description: `Your offer of ₦${amount.toLocaleString()} for ${
+          p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${
             selectedConversation.property?.title || 'a property'
           } has been accepted.`,
           p_type: 'offer_accepted',
@@ -421,7 +431,7 @@ export const Messages = () => {
       await supabase
         .from('conversations')
         .update({
-          last_message: `Offer accepted: ₦${amount.toLocaleString()}`,
+          last_message: `Offer accepted: ₦${offerAmount.toLocaleString()}`,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', selectedConversation.id);
@@ -440,15 +450,18 @@ export const Messages = () => {
     }
   };
 
+
   const handleRejectOffer = async (messageId: string) => {
     if (!selectedConversation || !currentUserId) return;
 
     try {
-      const { data: offerMessage } = await supabase
+      const { data: offerMsg } = await supabase
         .from('messages')
-        .select('offer_amount')
+        .select('offer_amount, content')
         .eq('id', messageId)
         .maybeSingle();
+
+      const offerAmount = Number(offerMsg?.offer_amount || 0);
 
       await supabase
         .from('messages')
@@ -458,29 +471,45 @@ export const Messages = () => {
       await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_id: currentUserId,
-        content: 'Offer has been rejected.',
+        content: `Offer of ₦${offerAmount.toLocaleString()} has been rejected.`,
         message_type: 'reject',
       });
 
-      await supabase
+      // Precise escrow lookup
+      const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
-        .update({
-          offer_status: 'rejected',
-          seller_responded_at: new Date().toISOString(),
-          seller_response: 'rejected',
-        })
-        .eq('property_id', selectedConversation.property_id);
+        .select('id')
+        .eq('property_id', selectedConversation.property_id)
+        .eq('buyer_id', selectedConversation.buyer_id)
+        .eq('seller_id', selectedConversation.seller_id)
+        .eq('offer_amount', offerAmount)
+        .in('offer_status', ['pending', 'none'])
+        .eq('status', 'pending_payment')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (escrowToUpdate) {
+        await supabase
+          .from('escrow_transactions')
+          .update({
+            offer_status: 'rejected',
+            seller_responded_at: new Date().toISOString(),
+            seller_response: 'rejected',
+          })
+          .eq('id', escrowToUpdate.id);
+      }
 
       const otherPartyId =
         currentUserId === selectedConversation.buyer_id
           ? selectedConversation.seller_id
           : selectedConversation.buyer_id;
 
-      if (otherPartyId && offerMessage?.offer_amount) {
+      if (otherPartyId && offerAmount > 0) {
         await supabase.rpc('create_notification', {
           p_user_id: otherPartyId,
           p_title: 'Offer Rejected',
-          p_description: `Your offer of ₦${offerMessage.offer_amount.toLocaleString()} for ${
+          p_description: `Your offer of ₦${offerAmount.toLocaleString()} for ${
             selectedConversation.property?.title || 'a property'
           } has been rejected.`,
           p_type: 'offer_rejected',
