@@ -357,7 +357,7 @@ export const StartEscrow = () => {
                           </div>
                         )}
                          <div className="flex justify-between py-2 border-b border-border/30">
-                           <span className="text-muted-foreground">Paystack Fee (1.5% max ₦2,500)</span>
+                           <span className="text-muted-foreground">Paystack Fee (1.5% max ₦2,000)</span>
                            <span className="font-semibold">₦{PAYSTACK_FEE.toLocaleString()}</span>
                          </div>
                         <div className="flex justify-between py-3 bg-primary/5 -mx-6 px-6 rounded-lg">

@@ -113,6 +113,16 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Save failed transfer status
+      await supabase
+        .from('escrow_transactions')
+        .update({
+          transfer_status: 'failed',
+          transfer_reference: transferRef,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', escrow_id);
+
       throw new Error(transferData.message || 'Transfer initiation failed');
     }
 
