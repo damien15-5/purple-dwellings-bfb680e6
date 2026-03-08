@@ -184,7 +184,7 @@ export const UploadListing = () => {
   const handleNext = async () => {
     // Validation for each step
     if (currentStep === 1) {
-      const required = ['propertyType', 'listingType', 'state', 'city', 'price', 'size', 'description'];
+      const required = ['propertyType', 'listingType', 'state', 'city', 'price', 'description'];
       const missing = required.filter(field => !formData[field as keyof UploadFormData]);
       
       if (missing.length > 0) {
