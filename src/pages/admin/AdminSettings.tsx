@@ -1,11 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Shield, Bell, Database } from 'lucide-react';
+import { Settings, Shield, Bell, Database, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const AdminSettings = () => {
   const { admin } = useAdmin();
+  const [otpStep, setOtpStep] = useState<'idle' | 'awaiting_otp' | 'processing'>('idle');
+  const [otpValue, setOtpValue] = useState('');
+
+  const handleInitiateDisableOTP = async () => {
+    setOtpStep('processing');
+    try {
+      const { data, error } = await supabase.functions.invoke('paystack-disable-otp', {
+        body: { action: 'initiate' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || 'Failed to initiate');
+      toast.success(data.message || 'OTP sent to your business phone number');
+      setOtpStep('awaiting_otp');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate OTP disable');
+      setOtpStep('idle');
+    }
+  };
+
+  const handleFinalizeDisableOTP = async () => {
+    if (!otpValue.trim()) {
+      toast.error('Please enter the OTP');
+      return;
+    }
+    setOtpStep('processing');
+    try {
+      const { data, error } = await supabase.functions.invoke('paystack-disable-otp', {
+        body: { action: 'finalize', otp: otpValue.trim() },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || 'Failed to finalize');
+      toast.success('Transfer OTP disabled successfully! Auto-transfers will now work.');
+      setOtpStep('idle');
+      setOtpValue('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to finalize OTP disable');
+      setOtpStep('awaiting_otp');
+    }
+  };
 
   if (admin?.role !== 'super_admin') {
     return (
@@ -38,6 +80,74 @@ const AdminSettings = () => {
       </div>
 
       <div className="grid gap-6">
+        {/* Paystack Transfer OTP Control */}
+        <Card className="border-2 border-orange-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-orange-500" />
+              <CardTitle>Paystack Transfer OTP</CardTitle>
+            </div>
+            <CardDescription>
+              Disable transfer OTP to enable automatic payouts to sellers. An OTP will be sent to your Paystack business phone number for verification.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {otpStep === 'idle' && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Disable Transfer OTP</p>
+                  <p className="text-sm text-muted-foreground">
+                    Step 1: Click to receive an OTP on your business phone
+                  </p>
+                </div>
+                <Button variant="destructive" onClick={handleInitiateDisableOTP}>
+                  Disable OTP
+                </Button>
+              </div>
+            )}
+
+            {otpStep === 'awaiting_otp' && (
+              <div className="space-y-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-orange-900">
+                    ✅ OTP sent! Check your Paystack business phone number.
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    Enter the OTP below to complete the process.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter OTP from your phone"
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value)}
+                    maxLength={10}
+                  />
+                  <Button onClick={handleFinalizeDisableOTP}>
+                    Confirm
+                  </Button>
+                  <Button variant="outline" onClick={() => { setOtpStep('idle'); setOtpValue(''); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {otpStep === 'processing' && (
+              <div className="flex items-center gap-3 py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <p className="text-sm text-muted-foreground">Processing...</p>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <p className="text-xs text-muted-foreground">
+                ⚠️ <strong>Security Warning:</strong> Disabling OTP means all transfers happen automatically without secondary verification. Only do this if auto-payouts are required.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.resolve-dispute]
 verify_jwt = false
+
+[functions.paystack-disable-otp]
+verify_jwt = false
