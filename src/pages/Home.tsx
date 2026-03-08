@@ -133,6 +133,7 @@ export const Home = () => {
           address: p.address || '',
           matchScore: Math.floor(Math.random() * 40) + 60,
           isPromoted: promotedIds.has(p.id),
+          promotionAmount: promotionAmounts.get(p.id) || 0,
           isVerifiedSeller: p.is_verified === true,
         }));
 
