@@ -55,7 +55,6 @@ export const Settings = () => {
         whatsapp: data.whatsapp || '',
         company_name: data.company_name || '',
         avatar_url: data.avatar_url || '',
-        telegram_username: (data as any).telegram_username || '',
       });
       setNameSaved(!!data.full_name);
       setNotifications({
