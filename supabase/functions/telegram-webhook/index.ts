@@ -1292,6 +1292,15 @@ Deno.serve(async (req) => {
       if (text === '/exportkyc') { await handleExportKYC(chatId); return new Response('OK', { headers: corsHeaders }); }
       if (text === '/exportlistings') { await handleExportListings(chatId); return new Response('OK', { headers: corsHeaders }); }
       if (text === '/exportpromos') { await handleExportPromotions(chatId); return new Response('OK', { headers: corsHeaders }); }
+
+      // Paystack OTP commands
+      if (text === '/disableotp') { await handleDisableOTP(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text === '/enableotp') { await handleEnableOTP(chatId); return new Response('OK', { headers: corsHeaders }); }
+      if (text.startsWith('/confirmotp')) {
+        const otp = text.replace(/^\/confirmotp\s*/, '').trim();
+        await handleConfirmOTP(chatId, otp);
+        return new Response('OK', { headers: corsHeaders });
+      }
       if (text === '/search' || text.startsWith('/search ')) {
         const query = text.replace(/^\/search\s*/, '').trim();
         if (query) { await handleSearch(chatId, query); } else { await handleSearchHelp(chatId); }
