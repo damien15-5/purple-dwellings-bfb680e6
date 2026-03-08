@@ -414,36 +414,6 @@ export const UploadListing = () => {
     }
   };
 
-  if (kycLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (isKycVerified === false) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background flex items-center justify-center px-4">
-        <Card className="max-w-lg w-full p-8 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground">KYC Verification Required</h2>
-          <p className="text-muted-foreground">
-            You must complete your identity verification (KYC) before you can upload properties. This helps us ensure trust and safety on our platform.
-          </p>
-          <Button
-            onClick={() => navigate('/dashboard/verification')}
-            className="bg-gradient-to-r from-primary to-primary-light"
-          >
-            <ShieldCheck className="w-4 h-4 mr-2" />
-            Complete KYC Verification
-          </Button>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-background relative overflow-hidden">
