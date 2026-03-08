@@ -116,13 +116,15 @@ Deno.serve(async (req) => {
       throw new Error(transferData.message || 'Transfer initiation failed');
     }
 
-    // Update escrow
+    // Update escrow with transfer status
     await supabase
       .from('escrow_transactions')
       .update({
         platform_fee: paystackFeeNaira,
         atara_fee: paystackFeeNaira,
         status: 'completed',
+        transfer_status: transferData.data?.status === 'success' ? 'success' : 'pending',
+        transfer_reference: transferRef,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
