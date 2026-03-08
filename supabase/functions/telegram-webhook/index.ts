@@ -1239,6 +1239,7 @@ async function handleCallbackQuery(callbackQuery: any) {
     const kycId = data.replace('kyc_approve_', '');
     const { data: kyc } = await supabase.from('kyc_documents').select('user_id, full_name').eq('id', kycId).single();
     await supabase.from('kyc_documents').update({ status: 'verified', verified_at: new Date().toISOString() }).eq('id', kycId);
+    await logAdminAction(chatId, 'Approved KYC', `Approved KYC for ${kyc?.full_name || 'User'}`);
     await sendTelegram(chatId, `✅ KYC for <b>${kyc?.full_name || 'User'}</b> has been <b>APPROVED</b>.`);
 
     if (kyc?.user_id) {
