@@ -177,8 +177,8 @@ async function handleAdminSetup(chatId: number, username: string) {
     }
   );
 
-  // Set bot commands for this admin user
-  await setCommandsForChat(chatId, 'admin');
+  // Set bot commands based on role
+  await setCommandsForChat(chatId, adminCred.role === 'super_admin' ? 'super_admin' : 'admin');
 }
 
 async function handleUserLink(chatId: number, username: string, text: string) {
