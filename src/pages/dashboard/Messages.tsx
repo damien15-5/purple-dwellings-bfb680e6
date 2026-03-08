@@ -425,40 +425,56 @@ export const Messages = () => {
     }
   };
 
-  const handleSendExtraPaymentRequest = async () => {
+  const handleOpenExtraPayment = () => {
+    setExtraPaymentAmount('');
+    setExtraPaymentNote('');
+    setExtraPaymentStep('amount');
+    setRecipientBankDetails(null);
+    setExtraPaymentDialogOpen(true);
+  };
+
+  const handleExtraPaymentNext = async () => {
     if (!selectedConversation || !extraPaymentAmount) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({
-        title: 'Login required',
-        description: 'Please log in again to continue.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const senderId = user.id;
-    const isPropertyOwner = selectedConversation.property?.user_id === senderId;
-    if (!isPropertyOwner) {
-      toast({
-        title: 'Not allowed',
-        description: 'Only the property owner can request extra payment.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     const amount = parseFloat(extraPaymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: 'Invalid amount',
-        description: 'Enter a valid extra payment amount.',
-        variant: 'destructive',
-      });
+      alert('Please enter a valid amount.');
       return;
     }
 
+    // Load the OTHER person's bank details
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const recipientId =
+      user.id === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, bank_name, account_number, account_name')
+      .eq('id', recipientId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading recipient bank details:', error);
+      alert('Could not load recipient bank details.');
+      return;
+    }
+
+    setRecipientBankDetails(data || null);
+    setExtraPaymentStep('bank_details');
+  };
+
+  const handleExtraPaymentDone = async () => {
+    if (!selectedConversation || !extraPaymentAmount) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const amount = parseFloat(extraPaymentAmount);
+    const senderId = user.id;
     const recipientId =
       senderId === selectedConversation.buyer_id
         ? selectedConversation.seller_id
@@ -466,7 +482,7 @@ export const Messages = () => {
 
     const content =
       extraPaymentNote?.trim() ||
-      `Extra payment request: ₦${amount.toLocaleString()} (miscellaneous cost).`;
+      `Extra payment of ₦${amount.toLocaleString()} sent.`;
 
     try {
       const { error } = await supabase.from('messages').insert({
@@ -483,7 +499,7 @@ export const Messages = () => {
       await supabase
         .from('conversations')
         .update({
-          last_message: `Extra payment request: ₦${amount.toLocaleString()}`,
+          last_message: `Extra payment: ₦${amount.toLocaleString()}`,
           last_message_time: new Date().toISOString(),
         })
         .eq('id', selectedConversation.id);
@@ -491,8 +507,8 @@ export const Messages = () => {
       if (recipientId) {
         await supabase.rpc('create_notification', {
           p_user_id: recipientId,
-          p_title: 'Extra Payment Requested',
-          p_description: `An extra payment of ₦${amount.toLocaleString()} was requested for ${
+          p_title: 'Extra Payment',
+          p_description: `An extra payment of ₦${amount.toLocaleString()} was sent for ${
             selectedConversation.property?.title || 'this property'
           }`,
           p_type: 'payment',
@@ -502,19 +518,16 @@ export const Messages = () => {
       setExtraPaymentAmount('');
       setExtraPaymentNote('');
       setExtraPaymentDialogOpen(false);
+      setExtraPaymentStep('amount');
       await loadMessages(selectedConversation.id);
 
       toast({
-        title: 'Request sent',
-        description: 'Extra payment request sent in chat.',
+        title: 'Payment recorded',
+        description: 'Extra payment recorded in chat.',
       });
     } catch (error: any) {
-      console.error('Error sending extra payment request:', error);
-      toast({
-        title: 'Error',
-        description: error?.message || 'Failed to send extra payment request.',
-        variant: 'destructive',
-      });
+      console.error('Error sending extra payment:', error);
+      alert(error?.message || 'Failed to record extra payment.');
     }
   };
 
