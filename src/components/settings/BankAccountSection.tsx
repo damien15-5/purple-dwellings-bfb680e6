@@ -86,7 +86,12 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       setResolvedName(data.account_name);
       toast({ title: 'Account Found', description: `Account name: ${data.account_name}` });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Could not resolve account', variant: 'destructive' });
+      const rawMsg = error.message || '';
+      let userMsg = 'Account details not found. Please confirm your bank and account number and try again.';
+      if (rawMsg.includes('account_name') || rawMsg.includes('resolve')) {
+        userMsg = 'Account details not found. Please confirm your bank and account number and try again.';
+      }
+      toast({ title: 'Account Not Found', description: userMsg, variant: 'destructive' });
     } finally {
       setResolving(false);
     }
