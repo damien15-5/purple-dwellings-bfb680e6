@@ -86,11 +86,18 @@ export const Browse = () => {
         isPromoted: promotedIds.has(p.id),
       }));
 
-      // Sort: promoted first
+      // Sort: promoted first, then deprioritize properties older than 3 months
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
       propertiesWithPromo.sort((a, b) => {
         if (a.isPromoted && !b.isPromoted) return -1;
         if (!a.isPromoted && b.isPromoted) return 1;
-        return 0;
+        const aOld = new Date(a.created_at) < threeMonthsAgo;
+        const bOld = new Date(b.created_at) < threeMonthsAgo;
+        if (!aOld && bOld) return -1;
+        if (aOld && !bOld) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
       setAllProperties(propertiesWithPromo);
