@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, Send, Paperclip, Search, Trash2, HandshakeIcon } from 'lucide-react';
+import { MessageSquare, Send, Paperclip, Search, Trash2, HandshakeIcon, Banknote, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -34,6 +34,18 @@ export const Messages = () => {
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
+  const [extraPaymentDialogOpen, setExtraPaymentDialogOpen] = useState(false);
+  const [extraPaymentAmount, setExtraPaymentAmount] = useState('');
+  const [extraPaymentNote, setExtraPaymentNote] = useState('');
+  const [bankDetailsDialogOpen, setBankDetailsDialogOpen] = useState(false);
+  const [activeExtraPayment, setActiveExtraPayment] = useState<{ messageId: string; amount: number } | null>(null);
+  const [payeeBankDetails, setPayeeBankDetails] = useState<{
+    full_name: string;
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
+  } | null>(null);
+  const [processingExtraPaymentIds, setProcessingExtraPaymentIds] = useState<Set<string>>(new Set());
   const [escrowStatuses, setEscrowStatuses] = useState<Map<string, any>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -99,6 +111,47 @@ export const Messages = () => {
 
     setConversations(data || []);
     setLoading(false);
+  };
+
+  const copyToClipboard = async (value?: string | null) => {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: 'Copied',
+        description: 'Copied to clipboard.',
+      });
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy value to clipboard.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const loadPayeeBankDetails = async (conversation: any) => {
+    const payeeId = conversation?.property?.user_id || conversation?.seller_id;
+
+    if (!payeeId) {
+      setPayeeBankDetails(null);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, bank_name, account_number, account_name')
+      .eq('id', payeeId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading payee bank details:', error);
+      setPayeeBankDetails(null);
+      return;
+    }
+
+    setPayeeBankDetails(data || null);
   };
 
   const loadMessages = async (convId: string) => {
@@ -240,10 +293,22 @@ export const Messages = () => {
   };
 
   const handleSendOffer = async () => {
-    if (!offerAmount || !selectedConversation || !currentUserId) return;
+    if (!offerAmount || !selectedConversation) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: 'Login required',
+        description: 'Please log in again to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const senderId = user.id;
 
     // Property owner cannot make an offer on their own property
-    const isOwner = currentUserId === selectedConversation.property?.user_id;
+    const isOwner = senderId === selectedConversation.property?.user_id;
     if (isOwner) {
       toast({
         title: 'Cannot make offer',
@@ -263,32 +328,44 @@ export const Messages = () => {
       return;
     }
 
+    const recipientId =
+      senderId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    if (!recipientId) {
+      toast({
+        title: 'Error',
+        description: 'Could not identify the other party in this conversation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const content =
         offerMessage ||
         `I'd like to make an offer of ₦${amount.toLocaleString()} for this property.`;
 
-      const { error: msgError } = await supabase.from('messages').insert({
-        conversation_id: selectedConversation.id,
-        sender_id: currentUserId,
-        content,
-        message_type: 'offer',
-        offer_amount: amount,
-        offer_status: 'pending',
-      });
+      const { data: insertedOfferMessage, error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_id: senderId,
+          content,
+          message_type: 'offer',
+          offer_amount: amount,
+          offer_status: 'pending',
+        })
+        .select('id')
+        .single();
 
       if (msgError) throw msgError;
 
-      // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
-      // The current user (offer sender) is always the buyer_id to satisfy RLS insert policy
-      const otherUserId = currentUserId === selectedConversation.buyer_id
-        ? selectedConversation.seller_id
-        : selectedConversation.buyer_id;
-
       const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
-        property_id: selectedConversation.property_id,
-        buyer_id: currentUserId,
-        seller_id: otherUserId,
+        property_id: selectedConversation.property ? selectedConversation.property_id : null,
+        buyer_id: senderId,
+        seller_id: recipientId,
         transaction_amount: amount,
         atara_fee: 0,
         platform_fee: 0,
@@ -301,24 +378,18 @@ export const Messages = () => {
       });
 
       if (escrowInsertError) {
-        console.error('Escrow insert error:', escrowInsertError);
+        await supabase.from('messages').delete().eq('id', insertedOfferMessage.id);
+        throw new Error(escrowInsertError.message || 'Failed to save offer transaction record.');
       }
 
-      const recipientId =
-        currentUserId === selectedConversation.buyer_id
-          ? selectedConversation.seller_id
-          : selectedConversation.buyer_id;
-
-      if (recipientId) {
-        await supabase.rpc('create_notification', {
-          p_user_id: recipientId,
-          p_title: 'New Offer Received',
-          p_description: `You received an offer of ₦${amount.toLocaleString()} for ${
-            selectedConversation.property?.title || 'a property'
-          }`,
-          p_type: 'offer',
-        });
-      }
+      await supabase.rpc('create_notification', {
+        p_user_id: recipientId,
+        p_title: 'New Offer Received',
+        p_description: `You received an offer of ₦${amount.toLocaleString()} for ${
+          selectedConversation.property?.title || 'a property'
+        }`,
+        p_type: 'offer',
+      });
 
       await supabase
         .from('conversations')
@@ -331,16 +402,251 @@ export const Messages = () => {
       setOfferAmount('');
       setOfferMessage('');
       setOfferDialogOpen(false);
+      await loadMessages(selectedConversation.id);
+
       toast({
         title: 'Offer sent',
-        description: 'Your offer has been sent to the other party.',
+        description: 'Offer saved and sent successfully.',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending offer:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send offer. Please try again.',
+        description: error?.message || 'Failed to send offer. Please try again.',
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSendExtraPaymentRequest = async () => {
+    if (!selectedConversation || !extraPaymentAmount) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: 'Login required',
+        description: 'Please log in again to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const senderId = user.id;
+    const isPropertyOwner = selectedConversation.property?.user_id === senderId;
+    if (!isPropertyOwner) {
+      toast({
+        title: 'Not allowed',
+        description: 'Only the property owner can request extra payment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const amount = parseFloat(extraPaymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Enter a valid extra payment amount.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const recipientId =
+      senderId === selectedConversation.buyer_id
+        ? selectedConversation.seller_id
+        : selectedConversation.buyer_id;
+
+    const content =
+      extraPaymentNote?.trim() ||
+      `Extra payment request: ₦${amount.toLocaleString()} (miscellaneous cost).`;
+
+    try {
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: senderId,
+        content,
+        message_type: 'extra_payment_request',
+        offer_amount: amount,
+        offer_status: 'pending',
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment request: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      if (recipientId) {
+        await supabase.rpc('create_notification', {
+          p_user_id: recipientId,
+          p_title: 'Extra Payment Requested',
+          p_description: `An extra payment of ₦${amount.toLocaleString()} was requested for ${
+            selectedConversation.property?.title || 'this property'
+          }`,
+          p_type: 'payment',
+        });
+      }
+
+      setExtraPaymentAmount('');
+      setExtraPaymentNote('');
+      setExtraPaymentDialogOpen(false);
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Request sent',
+        description: 'Extra payment request sent in chat.',
+      });
+    } catch (error: any) {
+      console.error('Error sending extra payment request:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to send extra payment request.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleViewTransferDetails = (messageId: string, amount: number) => {
+    setActiveExtraPayment({ messageId, amount });
+    setBankDetailsDialogOpen(true);
+  };
+
+  const handleMarkExtraPaymentPaid = async (messageId: string, amount: number) => {
+    if (!selectedConversation) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setProcessingExtraPaymentIds((prev) => new Set(prev).add(messageId));
+
+    try {
+      await supabase
+        .from('messages')
+        .update({ offer_status: 'paid' })
+        .eq('id', messageId);
+
+      await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: user.id,
+        content: `I have made the extra payment of ₦${amount.toLocaleString()}. Receipt will be sent here.`,
+        message_type: 'system',
+      });
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment marked as paid: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Marked as paid',
+        description: 'Now send your receipt in this chat.',
+      });
+    } catch (error) {
+      console.error('Error marking extra payment as paid:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not update extra payment status.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingExtraPaymentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmExtraPaymentReceived = async (messageId: string, amount: number) => {
+    if (!selectedConversation) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setProcessingExtraPaymentIds((prev) => new Set(prev).add(messageId));
+
+    try {
+      await supabase
+        .from('messages')
+        .update({ offer_status: 'confirmed' })
+        .eq('id', messageId);
+
+      await supabase.from('messages').insert({
+        conversation_id: selectedConversation.id,
+        sender_id: user.id,
+        content: `Extra payment of ₦${amount.toLocaleString()} confirmed by seller.`,
+        message_type: 'system',
+      });
+
+      const participantA = selectedConversation.buyer_id;
+      const participantB = selectedConversation.seller_id;
+
+      const { data: latestEscrow } = await supabase
+        .from('escrow_transactions')
+        .select('id')
+        .eq('property_id', selectedConversation.property_id)
+        .or(`and(buyer_id.eq.${participantA},seller_id.eq.${participantB}),and(buyer_id.eq.${participantB},seller_id.eq.${participantA})`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const manualReference = `manual-extra-${messageId}`;
+
+      const { error: paymentRecordError } = await supabase.from('payment_records').insert({
+        escrow_id: latestEscrow?.id || null,
+        amount,
+        paid_at: new Date().toISOString(),
+        paystack_reference: manualReference,
+        currency: 'NGN',
+        status: 'success',
+        payment_method: 'bank_transfer',
+        webhook_data: {
+          source: 'chat_extra_payment',
+          message_id: messageId,
+          conversation_id: selectedConversation.id,
+        },
+      });
+
+      if (paymentRecordError) {
+        console.error('Failed to save payment record for extra payment:', paymentRecordError);
+      }
+
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: `Extra payment confirmed: ₦${amount.toLocaleString()}`,
+          last_message_time: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      await loadMessages(selectedConversation.id);
+
+      toast({
+        title: 'Payment confirmed',
+        description: 'Extra payment has been confirmed.',
+      });
+    } catch (error) {
+      console.error('Error confirming extra payment:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not confirm extra payment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingExtraPaymentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
       });
     }
   };
@@ -371,16 +677,18 @@ export const Messages = () => {
       });
 
       // Find the matching escrow with precise lookup
+      const participantA = selectedConversation.buyer_id;
+      const participantB = selectedConversation.seller_id;
+
       const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
         .select('id')
         .eq('property_id', selectedConversation.property_id)
-        .eq('buyer_id', selectedConversation.buyer_id)
-        .eq('seller_id', selectedConversation.seller_id)
         .eq('offer_amount', offerAmount)
         .in('offer_status', ['pending', 'none'])
         .eq('status', 'pending_payment')
         .is('payment_verified_at', null)
+        .or(`and(buyer_id.eq.${participantA},seller_id.eq.${participantB}),and(buyer_id.eq.${participantB},seller_id.eq.${participantA})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -462,16 +770,17 @@ export const Messages = () => {
         message_type: 'reject',
       });
 
-      // Precise escrow lookup
+      const participantA = selectedConversation.buyer_id;
+      const participantB = selectedConversation.seller_id;
+
       const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
         .select('id')
         .eq('property_id', selectedConversation.property_id)
-        .eq('buyer_id', selectedConversation.buyer_id)
-        .eq('seller_id', selectedConversation.seller_id)
         .eq('offer_amount', offerAmount)
         .in('offer_status', ['pending', 'none'])
         .eq('status', 'pending_payment')
+        .or(`and(buyer_id.eq.${participantA},seller_id.eq.${participantB}),and(buyer_id.eq.${participantB},seller_id.eq.${participantA})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -623,6 +932,7 @@ export const Messages = () => {
                       onClick={() => {
                         setSelectedConversation(conversation);
                         loadMessages(conversation.id);
+                        loadPayeeBankDetails(conversation);
                       }}
                       className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer"
                     >
@@ -696,16 +1006,30 @@ export const Messages = () => {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 sm:gap-2 text-xs sm:text-sm flex-shrink-0"
-                      onClick={() => setOfferDialogOpen(true)}
-                    >
-                      <HandshakeIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline">Offer / Negotiation</span>
-                      <span className="sm:hidden">Offer</span>
-                    </Button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {selectedConversation.property?.user_id === currentUserId && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                          onClick={() => setExtraPaymentDialogOpen(true)}
+                        >
+                          <Banknote className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden sm:inline">Make Extra Payment</span>
+                          <span className="sm:hidden">Extra</span>
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                        onClick={() => setOfferDialogOpen(true)}
+                      >
+                        <HandshakeIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Offer / Negotiation</span>
+                        <span className="sm:hidden">Offer</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -743,12 +1067,16 @@ export const Messages = () => {
                         senderName={message.sender_id === currentUserId ? 'You' : 'User'}
                         onAcceptOffer={handleAcceptOffer}
                         onRejectOffer={handleRejectOffer}
+                        onMarkExtraPaymentPaid={handleMarkExtraPaymentPaid}
+                        onConfirmExtraPaymentReceived={handleConfirmExtraPaymentReceived}
+                        onViewTransferDetails={handleViewTransferDetails}
                         isPaidOrConfirmed={
                           escrowStatuses.get(selectedConversation.id)?.payment_verified_at != null ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'funded' ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'inspection_period' ||
                           escrowStatuses.get(selectedConversation.id)?.status === 'completed'
                         }
+                        isProcessingExtraPayment={processingExtraPaymentIds.has(message.id)}
                       />
                     ))
                   )}
@@ -841,6 +1169,103 @@ export const Messages = () => {
                       </Button>
                       <Button onClick={handleSendOffer} disabled={uploading}>
                         Send Offer
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={extraPaymentDialogOpen} onOpenChange={setExtraPaymentDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Make Extra Payment Request</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                      <div>
+                        <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
+                        <Input
+                          id="extra-payment-amount"
+                          type="number"
+                          value={extraPaymentAmount}
+                          onChange={(e) => setExtraPaymentAmount(e.target.value)}
+                          placeholder="Enter extra payment amount"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="extra-payment-note">Reason (optional)</Label>
+                        <Input
+                          id="extra-payment-note"
+                          value={extraPaymentNote}
+                          onChange={(e) => setExtraPaymentNote(e.target.value)}
+                          placeholder="Explain what this extra payment is for"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSendExtraPaymentRequest}>
+                        Send Request
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={bankDetailsDialogOpen} onOpenChange={setBankDetailsDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Transfer Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {payeeBankDetails?.account_number ? (
+                        <div className="rounded-lg border border-border p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Payee</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.full_name}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Bank</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.bank_name || '—'}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Account Number</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold tracking-wide">{payeeBankDetails.account_number}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => copyToClipboard(payeeBankDetails.account_number)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Account Name</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.account_name || '—'}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                            <span className="text-sm text-muted-foreground">Requested Amount</span>
+                            <span className="text-base font-bold">₦{activeExtraPayment?.amount?.toLocaleString() || '0'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                          Seller has not added bank details yet.
+                        </div>
+                      )}
+
+                      <div className="text-xs text-muted-foreground">
+                        After transfer, upload your receipt in this chat and click <strong>I've Paid</strong>.
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setBankDetailsDialogOpen(false)}>
+                        Close
                       </Button>
                     </DialogFooter>
                   </DialogContent>
