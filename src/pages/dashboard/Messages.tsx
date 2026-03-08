@@ -455,11 +455,13 @@ export const Messages = () => {
     if (!selectedConversation || !currentUserId) return;
 
     try {
-      const { data: offerMessage } = await supabase
+      const { data: offerMsg } = await supabase
         .from('messages')
-        .select('offer_amount')
+        .select('offer_amount, content')
         .eq('id', messageId)
         .maybeSingle();
+
+      const offerAmount = Number(offerMsg?.offer_amount || 0);
 
       await supabase
         .from('messages')
@@ -469,18 +471,34 @@ export const Messages = () => {
       await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_id: currentUserId,
-        content: 'Offer has been rejected.',
+        content: `Offer of ₦${offerAmount.toLocaleString()} has been rejected.`,
         message_type: 'reject',
       });
 
-      await supabase
+      // Precise escrow lookup
+      const { data: escrowToUpdate } = await supabase
         .from('escrow_transactions')
-        .update({
-          offer_status: 'rejected',
-          seller_responded_at: new Date().toISOString(),
-          seller_response: 'rejected',
-        })
-        .eq('property_id', selectedConversation.property_id);
+        .select('id')
+        .eq('property_id', selectedConversation.property_id)
+        .eq('buyer_id', selectedConversation.buyer_id)
+        .eq('seller_id', selectedConversation.seller_id)
+        .eq('offer_amount', offerAmount)
+        .in('offer_status', ['pending', 'none'])
+        .eq('status', 'pending_payment')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (escrowToUpdate) {
+        await supabase
+          .from('escrow_transactions')
+          .update({
+            offer_status: 'rejected',
+            seller_responded_at: new Date().toISOString(),
+            seller_response: 'rejected',
+          })
+          .eq('id', escrowToUpdate.id);
+      }
 
       const otherPartyId =
         currentUserId === selectedConversation.buyer_id
