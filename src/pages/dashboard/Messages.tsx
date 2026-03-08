@@ -280,23 +280,34 @@ export const Messages = () => {
       if (msgError) throw msgError;
 
       // Persist each offer as its own escrow record so every negotiation is reflected in Offers page
-      if (currentUserId === selectedConversation.buyer_id) {
-        const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
-          property_id: selectedConversation.property_id,
-          buyer_id: selectedConversation.buyer_id,
-          seller_id: selectedConversation.seller_id,
-          transaction_amount: amount,
-          atara_fee: 0,
-          platform_fee: 0,
-          escrow_fee: 0,
-          total_amount: amount,
-          offer_amount: amount,
-          offer_status: 'pending',
-          offer_message: content,
-          status: 'pending_payment',
-        });
+      // The person sending the offer is always the "buyer" in the escrow context
+      const offererIsBuyer = currentUserId === selectedConversation.buyer_id;
+      const escrowBuyerId = offererIsBuyer ? selectedConversation.buyer_id : selectedConversation.seller_id;
+      const escrowSellerId = offererIsBuyer ? selectedConversation.seller_id : selectedConversation.buyer_id;
 
-        if (escrowInsertError) throw escrowInsertError;
+      const { error: escrowInsertError } = await supabase.from('escrow_transactions').insert({
+        property_id: selectedConversation.property_id,
+        buyer_id: escrowBuyerId,
+        seller_id: escrowSellerId,
+        transaction_amount: amount,
+        atara_fee: 0,
+        platform_fee: 0,
+        escrow_fee: 0,
+        total_amount: amount,
+        offer_amount: amount,
+        offer_status: 'pending',
+        offer_message: content,
+        status: 'pending_payment',
+      });
+
+      if (escrowInsertError) {
+        console.error('Escrow insert error:', escrowInsertError);
+        // Don't throw - the message was already sent, just log the error
+        toast({
+          title: 'Warning',
+          description: 'Offer sent but may not appear in Offers page. Please try again.',
+          variant: 'destructive',
+        });
       }
 
       const recipientId =
