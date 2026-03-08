@@ -279,9 +279,6 @@ export const Messages = () => {
 
       // Only buyer can create escrow transaction
       if (currentUserId === selectedConversation.buyer_id) {
-        // Paystack Processing Fee: 1.8% capped at ₦2,500
-        const paystackFee = Math.min(Math.round(amount * 0.018), 2500);
-
         const { data: existingEscrow } = await supabase
           .from('escrow_transactions')
           .select('*')
@@ -297,8 +294,8 @@ export const Messages = () => {
               transaction_amount: amount,
               atara_fee: 0,
               platform_fee: 0,
-              escrow_fee: paystackFee,
-              total_amount: amount + paystackFee,
+              escrow_fee: 0,
+              total_amount: amount,
               offer_amount: amount,
               offer_status: 'pending',
               offer_message: content,
@@ -313,8 +310,8 @@ export const Messages = () => {
             transaction_amount: amount,
             atara_fee: 0,
             platform_fee: 0,
-            escrow_fee: paystackFee,
-            total_amount: amount + paystackFee,
+            escrow_fee: 0,
+            total_amount: amount,
             offer_amount: amount,
             offer_status: 'pending',
             offer_message: content,
@@ -380,10 +377,6 @@ export const Messages = () => {
         message_type: 'accept',
       });
 
-      const ataraFee = amount * 0.015;
-      const platformFee = amount > 30000000 ? amount * 0.005 : amount * 0.01;
-      const totalFees = ataraFee + platformFee;
-
       const { data: existingEscrow } = await supabase
         .from('escrow_transactions')
         .select('*')
@@ -397,10 +390,10 @@ export const Messages = () => {
           .from('escrow_transactions')
           .update({
             transaction_amount: amount,
-            atara_fee: ataraFee,
-            platform_fee: platformFee,
-            escrow_fee: totalFees,
-            total_amount: amount + totalFees,
+            atara_fee: 0,
+            platform_fee: 0,
+            escrow_fee: 0,
+            total_amount: amount,
             offer_amount: amount,
             offer_status: 'accepted',
             seller_responded_at: new Date().toISOString(),
@@ -693,6 +686,23 @@ export const Messages = () => {
                       <HandshakeIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="hidden sm:inline">Offer / Negotiation</span>
                       <span className="sm:hidden">Offer</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Telegram Banner */}
+                <div className="px-3 sm:px-4 pt-2">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between gap-2">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      📱 Connect Telegram for instant notifications
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}
+                    >
+                      Connect
                     </Button>
                   </div>
                 </div>

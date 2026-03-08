@@ -387,9 +387,6 @@ export const ChatWithSeller = () => {
 
       if (error) throw error;
 
-      // Paystack Processing Fee: 1.8% capped at ₦2,500
-      const paystackFee = Math.min(Math.round(amount * 0.018), 2500);
-
       // Always create a new offer escrow row so each offer is independently rendered/tracked
       const { error: escrowInsertError } = await supabase
         .from('escrow_transactions')
@@ -398,10 +395,10 @@ export const ChatWithSeller = () => {
           buyer_id: currentUserId,
           seller_id: property.user_id,
           transaction_amount: amount,
-          escrow_fee: paystackFee,
+          escrow_fee: 0,
           platform_fee: 0,
           atara_fee: 0,
-          total_amount: amount + paystackFee,
+          total_amount: amount,
           offer_amount: amount,
           offer_status: 'pending',
           offer_message: content,
@@ -736,7 +733,21 @@ export const ChatWithSeller = () => {
                 Make Payment
               </Button>
             </Link>
-            <Card className="h-[calc(100vh-280px)] min-h-[400px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
+            {/* Telegram Connection Banner */}
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between gap-3">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                📱 Connect your Telegram to receive instant notifications about messages, offers, and payment updates.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0 text-xs"
+                onClick={() => window.open('https://t.me/xavorian_bot', '_blank')}
+              >
+                Connect Telegram
+              </Button>
+            </div>
+            <Card className="h-[calc(100vh-330px)] min-h-[400px] flex flex-col bg-white border-2 border-light-purple-border animate-fade-in">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
                 {messages.length === 0 ? (

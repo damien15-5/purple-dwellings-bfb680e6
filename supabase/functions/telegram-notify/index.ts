@@ -298,6 +298,27 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'payment_made': {
+        const { userId: pmUserId, amount: pmAmount, propertyTitle: pmTitle, buyerName: pmBuyer } = data;
+        await notifyUser(pmUserId, `💸 <b>Payment Notification</b>\n\n🏠 Property: "${pmTitle}"\n💰 Amount: ₦${Number(pmAmount).toLocaleString()}\n👤 From: ${pmBuyer}\n\n⚠️ Please check your bank account and confirm in your <b>Transactions</b> page on Xavorian.`);
+        await notifyAdmins(`💸 <b>Buyer Confirmed Payment</b>\n\n🏠 "${pmTitle}"\n💰 ₦${Number(pmAmount).toLocaleString()}\n👤 Buyer: ${pmBuyer}\n\nAwaiting seller confirmation.`);
+        break;
+      }
+
+      case 'payment_confirmed': {
+        const { userId: pcUserId, amount: pcAmount, propertyTitle: pcTitle, sellerName: pcSeller } = data;
+        await notifyUser(pcUserId, `✅ <b>Payment Confirmed!</b>\n\n🏠 "${pcTitle}"\n💰 ₦${Number(pcAmount).toLocaleString()}\n\nThe seller (${pcSeller}) has confirmed receiving your payment. Transaction complete! 🎉`);
+        await notifyAdmins(`✅ <b>Seller Confirmed Payment</b>\n\n🏠 "${pcTitle}"\n💰 ₦${Number(pcAmount).toLocaleString()}\n👤 Seller: ${pcSeller}`);
+        break;
+      }
+
+      case 'payment_denied': {
+        const { userId: pdUserId, propertyTitle: pdTitle, sellerName: pdSeller } = data;
+        await notifyUser(pdUserId, `❌ <b>Payment Not Confirmed</b>\n\n🏠 "${pdTitle}"\n\nThe seller (${pdSeller}) has not confirmed receiving your payment. Please contact the seller or raise a dispute on Xavorian.`);
+        await notifyAdmins(`❌ <b>Seller Denied Payment</b>\n\n🏠 "${pdTitle}"\n👤 Seller: ${pdSeller}\n\n⚠️ Potential dispute.`);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Unknown type' }), { status: 400, headers: corsHeaders });
     }

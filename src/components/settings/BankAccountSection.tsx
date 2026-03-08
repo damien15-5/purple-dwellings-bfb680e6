@@ -113,18 +113,17 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed to save bank account');
 
-      // Update local state to show verified view
       setBankDetails({
         bank_name: selectedBank.name,
         account_number: accountNumber,
         account_name: resolvedName,
         bank_verified: true,
-        paystack_subaccount_code: data.subaccount_code || '',
+        paystack_subaccount_code: '',
       });
 
       toast({
         title: 'Bank Account Verified ✅',
-        description: 'Your bank account has been linked successfully. Payments will be settled directly to your account.',
+        description: 'Your bank account has been linked successfully. Buyers will see your account details when making payments.',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Failed to save bank account', variant: 'destructive' });
@@ -163,7 +162,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
           </div>
           <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>Payments from buyers are settled directly to your account within <strong>T+1 business day</strong> (Paystack processing time, not ours).</span>
+            <span>Your bank details will be shown to buyers when they make payments for your properties. Payments are made directly to your account via bank transfer.</span>
           </div>
         </CardContent>
       </Card>
@@ -180,15 +179,8 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Add your bank account for receiving payments. Your account will be verified and linked for direct settlements.
+          Add your bank account so buyers can pay you directly. Your account will be verified before it can be displayed.
         </p>
-
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2 text-sm">
-          <Info className="h-4 w-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span className="text-amber-800 dark:text-amber-200">
-            A one-time <strong>₦100</strong> initialization fee will be charged by Paystack to verify your account. This is a standard Paystack verification charge and will be refunded to you.
-          </span>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -254,7 +246,7 @@ export const BankAccountSection = ({ bankDetails, setBankDetails, userId }: Bank
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating Split Account...
+                  Saving...
                 </>
               ) : (
                 'Save & Link Account'
