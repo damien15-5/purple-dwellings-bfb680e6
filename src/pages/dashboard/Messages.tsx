@@ -1156,6 +1156,103 @@ export const Messages = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+
+                <Dialog open={extraPaymentDialogOpen} onOpenChange={setExtraPaymentDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Make Extra Payment Request</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                      <div>
+                        <Label htmlFor="extra-payment-amount">Amount (₦)</Label>
+                        <Input
+                          id="extra-payment-amount"
+                          type="number"
+                          value={extraPaymentAmount}
+                          onChange={(e) => setExtraPaymentAmount(e.target.value)}
+                          placeholder="Enter extra payment amount"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="extra-payment-note">Reason (optional)</Label>
+                        <Input
+                          id="extra-payment-note"
+                          value={extraPaymentNote}
+                          onChange={(e) => setExtraPaymentNote(e.target.value)}
+                          placeholder="Explain what this extra payment is for"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setExtraPaymentDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSendExtraPaymentRequest}>
+                        Send Request
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={bankDetailsDialogOpen} onOpenChange={setBankDetailsDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Transfer Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {payeeBankDetails?.account_number ? (
+                        <div className="rounded-lg border border-border p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Payee</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.full_name}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Bank</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.bank_name || '—'}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Account Number</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold tracking-wide">{payeeBankDetails.account_number}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => copyToClipboard(payeeBankDetails.account_number)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Account Name</span>
+                            <span className="text-sm font-medium">{payeeBankDetails.account_name || '—'}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                            <span className="text-sm text-muted-foreground">Requested Amount</span>
+                            <span className="text-base font-bold">₦{activeExtraPayment?.amount?.toLocaleString() || '0'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                          Seller has not added bank details yet.
+                        </div>
+                      )}
+
+                      <div className="text-xs text-muted-foreground">
+                        After transfer, upload your receipt in this chat and click <strong>I've Paid</strong>.
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setBankDetailsDialogOpen(false)}>
+                        Close
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </>
             ) : (
               <CardContent className="flex items-center justify-center h-full">
