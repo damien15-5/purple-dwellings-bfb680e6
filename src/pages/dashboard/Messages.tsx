@@ -605,7 +605,7 @@ export const Messages = () => {
                 />
               </div>
             </div>
-            <div className="overflow-y-auto h-[calc(500px-64px)] sm:h-[calc(600px-80px)]">
+            <div className="overflow-y-auto flex-1">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
