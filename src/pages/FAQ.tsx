@@ -1,5 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SEOHead } from '@/components/SEOHead';
+import { Helmet } from 'react-helmet-async';
 
 export const FAQ = () => {
   const faqs = [
