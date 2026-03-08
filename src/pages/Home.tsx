@@ -266,12 +266,19 @@ export const Home = () => {
     [filteredProperties, userLocation, userState]
   );
 
-  // Explore more: promoted first by amount
+  // Explore more: promoted first by amount, then personalized
   const exploreMoreProperties = useMemo(() => 
     [...filteredProperties]
-      .sort(promotionSort)
+      .sort((a, b) => {
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
+        // Secondary: personalization score
+        const aScore = getPersonalizationScore(a, preferences);
+        const bScore = getPersonalizationScore(b, preferences);
+        return bScore - aScore;
+      })
       .slice(0, 9),
-    [filteredProperties]
+    [filteredProperties, preferences]
   );
 
   // Recommended: personalized by viewing history, promoted by amount gets priority
