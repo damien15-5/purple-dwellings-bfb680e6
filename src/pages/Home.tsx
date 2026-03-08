@@ -218,54 +218,66 @@ export const Home = () => {
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
-  // Featured: promoted first, then by clicks
+  // Sort helper: promoted first by amount_paid (higher = higher priority), then fallback
+  const promotionSort = (a: Property, b: Property) => {
+    if (a.isPromoted && !b.isPromoted) return -1;
+    if (!a.isPromoted && b.isPromoted) return 1;
+    if (a.isPromoted && b.isPromoted) {
+      return (b.promotionAmount || 0) - (a.promotionAmount || 0);
+    }
+    return 0;
+  };
+
+  // Featured: promoted first (by amount), then by clicks
   const featuredProperties = useMemo(() => 
     [...filteredProperties]
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return b.clicks - a.clicks;
       })
       .slice(0, 6),
     [filteredProperties]
   );
 
-  // Locality: promoted first in user's area
+  // Locality: match by detected state/city, promoted first by amount
   const localityProperties = useMemo(() => 
     filteredProperties
       .filter(p => {
-        if (!userLocation) return true;
-        return p.city?.toLowerCase().includes(userLocation.toLowerCase()) || 
-               p.state?.toLowerCase().includes(userLocation.toLowerCase()) ||
-               p.location.toLowerCase().includes(userLocation.toLowerCase());
+        // Match by state first (from IP), then city
+        if (userState) {
+          if (p.state?.toLowerCase().includes(userState.toLowerCase())) return true;
+        }
+        if (userLocation) {
+          if (p.city?.toLowerCase().includes(userLocation.toLowerCase())) return true;
+          if (p.location.toLowerCase().includes(userLocation.toLowerCase())) return true;
+        }
+        // If no location detected, show all
+        return !userState && !userLocation;
       })
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return 0;
       })
       .slice(0, 8),
-    [filteredProperties, userLocation]
+    [filteredProperties, userLocation, userState]
   );
 
-  // Explore more: promoted first
+  // Explore more: promoted first by amount
   const exploreMoreProperties = useMemo(() => 
     [...filteredProperties]
-      .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
-        return 0;
-      })
+      .sort(promotionSort)
       .slice(0, 9),
     [filteredProperties]
   );
 
-  // Recommended: promoted properties prioritized
+  // Recommended: promoted by amount, then match score
   const recommendedProperties = useMemo(() => 
     [...filteredProperties]
       .sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
+        const promoResult = promotionSort(a, b);
+        if (promoResult !== 0) return promoResult;
         return (b.matchScore || 0) - (a.matchScore || 0);
       })
       .slice(0, 8),
