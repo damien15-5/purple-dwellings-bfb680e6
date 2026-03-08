@@ -32,6 +32,7 @@ type Property = {
   state?: string;
   address?: string;
   isPromoted?: boolean;
+  promotionAmount?: number;
   isVerifiedSeller?: boolean;
 };
 
