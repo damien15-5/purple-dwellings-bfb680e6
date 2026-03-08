@@ -55,9 +55,10 @@ export const MyListingCard = ({ property, onDelete }: MyListingCardProps) => {
       toast.success('Property deleted successfully');
       onDelete();
       setShowDeleteDialog(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting property:', error);
-      toast.error('Failed to delete property');
+      const msg = error?.message || error?.details || 'Something went wrong';
+      toast.error(`Failed to delete property: ${msg}`);
     } finally {
       setDeleting(false);
     }
