@@ -187,7 +187,21 @@ export const OffersNegotiations = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (offer: any) => {
+    // If payment completed (seller confirmed)
+    if (offer.status === 'completed') {
+      return <Badge className="bg-emerald-600 gap-2"><CheckCircle className="h-3 w-3" />Payment Confirmed</Badge>;
+    }
+    // If payment made by buyer, waiting for seller
+    if (offer.status === 'funded') {
+      return <Badge className="bg-blue-500 gap-2"><Clock className="h-3 w-3" />Payment Made - Awaiting Confirmation</Badge>;
+    }
+    // If disputed
+    if (offer.status === 'disputed') {
+      return <Badge className="bg-red-600 gap-2"><XCircle className="h-3 w-3" />Disputed</Badge>;
+    }
+    
+    const status = offer.offer_status;
     switch (status) {
       case 'pending':
       case 'none':
