@@ -74,6 +74,14 @@ export const EscrowTransactions = () => {
         })
         .eq('id', escrowId);
 
+      // Mark property as sold (take it down)
+      if (transaction?.property_id) {
+        await supabase
+          .from('properties')
+          .update({ status: 'sold' })
+          .eq('id', transaction.property_id);
+      }
+
       // Notify buyer
       if (transaction) {
         await supabase.rpc('create_notification', {
@@ -83,7 +91,6 @@ export const EscrowTransactions = () => {
           p_type: 'payment_confirmed',
         });
 
-        // Telegram notify buyer
         try {
           await supabase.functions.invoke('telegram-notify', {
             body: {
@@ -101,7 +108,7 @@ export const EscrowTransactions = () => {
         }
       }
 
-      toast.success('Payment confirmed! Transaction completed.');
+      toast.success('Payment confirmed! Transaction completed. Property has been taken down.');
       loadTransactions();
     } catch (error: any) {
       console.error('Error confirming payment:', error);
