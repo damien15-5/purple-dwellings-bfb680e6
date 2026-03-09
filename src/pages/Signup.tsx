@@ -46,8 +46,8 @@ export const Signup = () => {
       return;
     }
     const ageNum = parseInt(age);
-    if (isNaN(ageNum) || ageNum < 18) {
-      toast({ title: 'Invalid age', description: 'You must be at least 18 years old', variant: 'destructive' });
+    if (isNaN(ageNum) || ageNum < 16) {
+      toast({ title: 'Invalid age', description: 'You must be at least 16 years old', variant: 'destructive' });
       return;
     }
 
