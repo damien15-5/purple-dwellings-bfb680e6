@@ -143,7 +143,7 @@ export const Signup = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="age" className="text-sm font-medium">Age</Label>
-                    <Input id="age" type="number" placeholder="18" min="18" value={age} onChange={(e) => setAge(e.target.value)} required className="h-12" />
+                    <Input id="age" type="number" placeholder="16" min="16" value={age} onChange={(e) => setAge(e.target.value)} required className="h-12" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="accountType" className="text-sm font-medium">Account Type</Label>
