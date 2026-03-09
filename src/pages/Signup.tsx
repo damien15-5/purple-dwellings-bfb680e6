@@ -158,38 +158,24 @@ export const Signup = () => {
               </>
             ) : (
               <>
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-bold text-foreground">KYC Verification</h2>
-                  <p className="text-muted-foreground">Complete your identity verification (optional)</p>
+                <div className="space-y-2 text-center">
+                  <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mx-auto mb-4">
+                    <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <h2 className="text-3xl font-bold text-foreground">Account Created!</h2>
+                  <p className="text-muted-foreground">Your account has been created successfully. Complete your KYC verification to unlock full platform access.</p>
                 </div>
 
-                <form onSubmit={handleStep2Submit} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="identityType" className="text-sm font-medium">Identity Document Type</Label>
-                    <Select value={identityType} onValueChange={(value: any) => setIdentityType(value)}>
-                      <SelectTrigger className="h-12"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nin">National Identity Number (NIN)</SelectItem>
-                        <SelectItem value="passport">International Passport</SelectItem>
-                        <SelectItem value="drivers_license">Driver's License</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="identityNumber" className="text-sm font-medium">Identity Number</Label>
-                    <Input id="identityNumber" type="text" placeholder="Enter your identity number" value={identityNumber} onChange={(e) => setIdentityNumber(e.target.value)} required className="h-12" />
-                  </div>
-                  <div className="space-y-3">
-                    <Button type="submit" className="w-full h-12 bg-gradient-to-r from-primary to-accent-purple hover:opacity-90 transition-opacity" disabled={loading}>
-                      {loading ? 'Submitting...' : 'Submit KYC'}
-                    </Button>
-                    <Button type="button" variant="outline" className="w-full h-12" onClick={handleSkipKYC} disabled={loading}>
-                      Skip for now
-                    </Button>
-                  </div>
-                </form>
+                <div className="space-y-3 pt-4">
+                  <Button className="w-full h-12 bg-gradient-to-r from-primary to-accent-purple hover:opacity-90 transition-opacity" onClick={handleContinueKYC}>
+                    Complete KYC Now
+                  </Button>
+                  <Button variant="outline" className="w-full h-12" onClick={handleSkipKYC}>
+                    Skip for now
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  You can complete KYC verification later from your profile settings
+                  You can complete KYC verification later from your dashboard
                 </p>
               </>
             )}
