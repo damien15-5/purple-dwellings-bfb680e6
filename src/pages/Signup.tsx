@@ -81,29 +81,12 @@ export const Signup = () => {
     }
   };
 
-  const handleStep2Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
-
-      const { error } = await supabase
-        .from('kyc_documents')
-        .insert({ user_id: user.id, identity_type: identityType, identity_number: identityNumber });
-
-      if (error) throw error;
-      toast({ title: 'KYC submitted!', description: 'Your documents are being verified' });
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast({ title: 'KYC submission failed', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
+  const handleContinueKYC = () => {
+    navigate('/dashboard/verification');
   };
 
-  const handleSkipKYC = async () => {
-    toast({ title: 'KYC skipped', description: 'You can complete KYC verification later from your profile' });
+  const handleSkipKYC = () => {
+    toast({ title: 'KYC skipped', description: 'You can complete KYC verification later from your dashboard' });
     navigate('/dashboard');
   };
 
