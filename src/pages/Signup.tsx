@@ -23,8 +23,6 @@ export const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accountType, setAccountType] = useState<'buyer' | 'seller' | 'agent'>('buyer');
 
-  const [identityType, setIdentityType] = useState<'nin' | 'passport' | 'drivers_license'>('nin');
-  const [identityNumber, setIdentityNumber] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
