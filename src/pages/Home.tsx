@@ -36,6 +36,7 @@ type Property = {
   isPromoted?: boolean;
   promotionAmount?: number;
   isVerifiedSeller?: boolean;
+  isPaid?: boolean;
 };
 
 // Loading skeleton for property sections
