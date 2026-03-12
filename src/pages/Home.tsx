@@ -36,6 +36,7 @@ type Property = {
   isPromoted?: boolean;
   promotionAmount?: number;
   isVerifiedSeller?: boolean;
+  isPaid?: boolean;
 };
 
 // Loading skeleton for property sections
@@ -94,8 +95,8 @@ export const Home = () => {
 
   const fetchProperties = async () => {
     try {
-      // Fetch properties and active promotions in parallel
-      const [propertiesRes, promotionsRes] = await Promise.all([
+      // Fetch properties, active promotions, and paid properties in parallel
+      const [propertiesRes, promotionsRes, paidPropertiesRes] = await Promise.all([
         supabase
           .from('properties')
           .select('id, title, price, images, city, state, address, bedrooms, property_type, status, views, clicks, is_verified')
@@ -107,6 +108,10 @@ export const Home = () => {
           .select('property_id, amount_paid, is_active, expires_at')
           .eq('is_active', true)
           .gt('expires_at', new Date().toISOString()),
+        supabase
+          .from('purchase_transactions')
+          .select('property_id')
+          .in('status', ['completed', 'confirmed']),
       ]);
 
       if (propertiesRes.error) throw propertiesRes.error;
@@ -118,6 +123,11 @@ export const Home = () => {
         promotionAmounts.set(p.property_id, current + Number(p.amount_paid));
       });
       const promotedIds = new Set(promotionAmounts.keys());
+
+      // Build set of paid property IDs
+      const paidPropertyIds = new Set(
+        (paidPropertiesRes.data || []).map(t => t.property_id).filter(Boolean)
+      );
 
       if (propertiesRes.data) {
         const transformedProperties: Property[] = propertiesRes.data.map(p => ({
@@ -138,6 +148,7 @@ export const Home = () => {
           isPromoted: promotedIds.has(p.id),
           promotionAmount: promotionAmounts.get(p.id) || 0,
           isVerifiedSeller: p.is_verified === true,
+          isPaid: paidPropertyIds.has(p.id),
         }));
 
         setAllProperties(transformedProperties);
@@ -221,8 +232,11 @@ export const Home = () => {
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
-  // Sort helper: promoted first by amount_paid (higher = higher priority), then fallback
+  // Sort helper: paid properties go to bottom, then promoted first by amount_paid
   const promotionSort = (a: Property, b: Property) => {
+    // Paid properties always rank lower
+    if (a.isPaid && !b.isPaid) return 1;
+    if (!a.isPaid && b.isPaid) return -1;
     if (a.isPromoted && !b.isPromoted) return -1;
     if (!a.isPromoted && b.isPromoted) return 1;
     if (a.isPromoted && b.isPromoted) {

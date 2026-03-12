@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Lock, FileText } from 'lucide-react';
+import { ExternalLink, Lock, FileText, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type Property = {
@@ -77,6 +77,13 @@ export const PropertyInfoPanel = ({
 
       {/* Action Buttons */}
       <div className="space-y-2 pt-2 border-t border-border">
+        <Link to={`/start-payment/${property.id}`} className="block">
+          <Button variant="default" className="w-full bg-gradient-to-r from-primary to-primary/80">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Make Payment
+          </Button>
+        </Link>
+
         <Link to={`/property/${property.id}`} className="block">
           <Button variant="outline" className="w-full">
             <ExternalLink className="w-4 h-4 mr-2" />
