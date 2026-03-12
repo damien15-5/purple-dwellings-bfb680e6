@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Lock, FileText } from 'lucide-react';
+import { ExternalLink, Lock, FileText, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type Property = {
