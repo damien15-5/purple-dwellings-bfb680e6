@@ -232,8 +232,11 @@ export const Home = () => {
     return matchesPrice && matchesLocation && matchesType && matchesBedrooms && matchesStatus && matchesSearch && matchesCountry && matchesState && matchesTown;
   }), [allProperties, priceRange, location, propertyType, bedrooms, status, searchTerm, country, state, town]);
 
-  // Sort helper: promoted first by amount_paid (higher = higher priority), then fallback
+  // Sort helper: paid properties go to bottom, then promoted first by amount_paid
   const promotionSort = (a: Property, b: Property) => {
+    // Paid properties always rank lower
+    if (a.isPaid && !b.isPaid) return 1;
+    if (!a.isPaid && b.isPaid) return -1;
     if (a.isPromoted && !b.isPromoted) return -1;
     if (!a.isPromoted && b.isPromoted) return 1;
     if (a.isPromoted && b.isPromoted) {
