@@ -1,4 +1,15 @@
 User-agent: *
 Allow: /
+Allow: /property/
+Allow: /location/
+Allow: /agents/
+Allow: /blog/
+Allow: /browse
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api
+Disallow: /chat
+Disallow: /offers
+Disallow: /damienxavorianezeani
 
 Sitemap: https://www.xavorian.xyz/sitemap.xml

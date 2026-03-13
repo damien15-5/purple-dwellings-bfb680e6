@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Bed, Bath, Square, MapPin, Heart, Share2, MessageSquare, Play, ChevronLeft, ChevronRight, Eye, Car, Wifi, Dumbbell, Waves, ShieldCheck, Zap, Droplets, AirVent, Trees, CheckCircle2 } from 'lucide-react';
