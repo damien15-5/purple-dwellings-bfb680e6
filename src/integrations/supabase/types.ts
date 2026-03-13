@@ -199,6 +199,45 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          author: string
+          content: string
+          created_at: string
+          excerpt: string
+          id: string
+          published_at: string | null
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string
+          content?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          published_at?: string | null
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string
+          content?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          published_at?: string | null
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           buyer_id: string
@@ -888,6 +927,7 @@ export type Database = {
           property_type: string
           rent_duration: string | null
           service_fee: number | null
+          slug: string | null
           state: string | null
           status: string
           street: string | null
@@ -951,6 +991,7 @@ export type Database = {
           property_type: string
           rent_duration?: string | null
           service_fee?: number | null
+          slug?: string | null
           state?: string | null
           status?: string
           street?: string | null
@@ -1014,6 +1055,7 @@ export type Database = {
           property_type?: string
           rent_duration?: string | null
           service_fee?: number | null
+          slug?: string | null
           state?: string | null
           status?: string
           street?: string | null
