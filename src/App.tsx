@@ -149,6 +149,7 @@ const App = () => {
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
+                    <Route path="/properties" element={<Navigate to="/browse" replace />} />
                     <Route path="/property/:id" element={<PropertyDetails />} />
                     <Route path="/seller/:sellerId" element={<SellerProperties />} />
                     <Route path="/edit-listing/:id" element={<EditListing />} />
