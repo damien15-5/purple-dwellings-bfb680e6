@@ -174,8 +174,23 @@ const App = () => {
                     <Route path="/vision" element={<OurVision />} />
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/faq" element={<FAQ />} />
-                    <Route path="/blog" element={<BlogRedirect />} />
+                    <Route path="/blog" element={<BlogIndex />} />
+                    <Route path="/blog/:slug" element={<BlogPost />} />
                     <Route path="/support" element={<Support />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/agents" element={<AgentsIndex />} />
+                    <Route path="/location/:city" element={<LocationCity />} />
+                    <Route path="/location/:city/:area" element={<LocationArea />} />
+                    
+                    {/* High-intent landing pages */}
+                    <Route path="/land-for-sale-lagos" element={<LandingPage slug="land-for-sale-lagos" />} />
+                    <Route path="/land-for-sale-benin-city" element={<LandingPage slug="land-for-sale-benin-city" />} />
+                    <Route path="/cheap-land-ibeju-lekki" element={<LandingPage slug="cheap-land-ibeju-lekki" />} />
+                    <Route path="/duplex-for-sale-lekki" element={<LandingPage slug="duplex-for-sale-lekki" />} />
+                    <Route path="/apartments-for-rent-benin-city" element={<LandingPage slug="apartments-for-rent-benin-city" />} />
+                    <Route path="/student-accommodation-benin-city" element={<LandingPage slug="student-accommodation-benin-city" />} />
+                    <Route path="/houses-for-rent-ugbowo" element={<LandingPage slug="houses-for-rent-ugbowo" />} />
+                    <Route path="/property-for-sale-edo-state" element={<LandingPage slug="property-for-sale-edo-state" />} />
                     <Route path="/customer-service" element={<CustomerServiceDashboard />} />
                     <Route path="/ai-support" element={<CustomerServiceChat />} />
                     <Route path="/dashboard/listings" element={<MyListings />} />
