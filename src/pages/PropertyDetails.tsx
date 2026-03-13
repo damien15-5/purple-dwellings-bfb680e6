@@ -266,11 +266,56 @@ export const PropertyDetails = () => {
   return (
     <div className="min-h-screen py-8">
       <SEOHead 
-        title={property.title} 
-        description={`${property.property_type} in ${property.address} - ₦${property.price.toLocaleString()}. ${property.bedrooms || 0} bed, ${property.bathrooms || 0} bath.`} 
+        title={`${property.bedrooms || ''} Bed ${property.property_type} for ${property.listing_type || 'Sale'} in ${property.city || property.address}`} 
+        description={`₦${property.price.toLocaleString()}${property.listing_type === 'rent' ? '/yr' : ''} · ${property.bedrooms || 0} bed · ${property.bathrooms || 0} bath · Verified listing on Xavorian. Contact agent directly.`} 
         path={`/property/${property.id}`} 
       />
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "RealEstateListing",
+            "name": property.title,
+            "description": property.description,
+            "url": `https://www.xavorian.xyz/property/${property.id}`,
+            "offers": { "@type": "Offer", "price": String(property.price), "priceCurrency": "NGN" },
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": property.street || property.address,
+              "addressLocality": property.city || "Benin City",
+              "addressRegion": property.state || "Edo State",
+              "addressCountry": "NG"
+            }
+          })}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.xavorian.xyz/" },
+              { "@type": "ListItem", "position": 2, "name": "Properties", "item": "https://www.xavorian.xyz/browse" },
+              { "@type": "ListItem", "position": 3, "name": property.title }
+            ]
+          })}
+        </script>
+      </Helmet>
       <div className="container mx-auto px-4">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-4 flex-wrap" aria-label="breadcrumb">
+          <Link to="/" className="hover:text-primary">Home</Link>
+          <span>/</span>
+          <Link to="/browse" className="hover:text-primary">Properties</Link>
+          {property.city && (
+            <>
+              <span>/</span>
+              <Link to={`/location/${property.city.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-primary">{property.city}</Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-foreground truncate max-w-[200px]">{property.title}</span>
+        </nav>
+
         {/* Back Button */}
         <Link to="/browse" className="inline-flex items-center text-muted-foreground hover:text-primary mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
