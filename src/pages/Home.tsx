@@ -314,7 +314,11 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="Buy & Sell Properties in Nigeria" description="Find verified properties for sale and rent across Nigeria. Browse thousands of listings with secure transactions on Xavorian." path="/" />
+      <SEOHead 
+        title="Verified Real Estate in Benin City, Edo State | Buy, Rent & Sell" 
+        description="Find trusted agents and verified property listings in Benin City, Edo State. Rent, buy or sell scam-free on Xavorian – Nigeria's trust-first real estate marketplace." 
+        path="/" 
+      />
       <section className="relative h-[50vh] md:h-[60vh] overflow-hidden">
         <div className="absolute inset-0">
           <img 
