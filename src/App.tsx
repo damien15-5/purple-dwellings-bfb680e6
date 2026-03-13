@@ -17,7 +17,6 @@ import { BrowserNotifications } from "@/components/BrowserNotifications";
 
 // Lazy load all pages
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
-const BlogRedirect = lazy(() => import("./components/BlogRedirect").then(m => ({ default: m.BlogRedirect })));
 const Browse = lazy(() => import("./pages/Browse").then(m => ({ default: m.Browse })));
 const PropertyDetails = lazy(() => import("./pages/PropertyDetails").then(m => ({ default: m.PropertyDetails })));
 const SellerProperties = lazy(() => import("./pages/SellerProperties").then(m => ({ default: m.SellerProperties })));
@@ -61,6 +60,15 @@ const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Sup
 const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
 const CustomerServiceChat = lazy(() => import("./pages/CustomerServiceChat"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// SEO pages
+const LocationCity = lazy(() => import("./pages/LocationCity").then(m => ({ default: m.LocationCity })));
+const LocationArea = lazy(() => import("./pages/LocationArea").then(m => ({ default: m.LocationArea })));
+const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
+const BlogIndex = lazy(() => import("./pages/BlogIndex").then(m => ({ default: m.BlogIndex })));
+const BlogPost = lazy(() => import("./pages/BlogPost").then(m => ({ default: m.BlogPost })));
+const AgentsIndex = lazy(() => import("./pages/AgentsIndex").then(m => ({ default: m.AgentsIndex })));
+const Contact = lazy(() => import("./pages/Contact").then(m => ({ default: m.Contact })));
 
 // Admin pages
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
