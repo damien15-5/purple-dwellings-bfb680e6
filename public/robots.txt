@@ -5,11 +5,15 @@ Allow: /location/
 Allow: /agents/
 Allow: /blog/
 Allow: /browse
+
 Disallow: /dashboard
 Disallow: /admin
 Disallow: /api
 Disallow: /chat
 Disallow: /offers
-Disallow: /damienxavorianezeani
+Disallow: /login
+Disallow: /signup
+Disallow: /verify-email
+Disallow: /reset-password
 
 Sitemap: https://www.xavorian.xyz/sitemap.xml
