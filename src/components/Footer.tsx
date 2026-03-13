@@ -9,8 +9,19 @@ export const Footer = () => {
       links: [
         { label: 'About Us', to: '/about' },
         { label: 'Our Vision', to: '/vision' },
-        { label: 'Support', to: '/support' },
         { label: 'Blog', to: '/blog' },
+        { label: 'Contact', to: '/contact' },
+        { label: 'Find Agents', to: '/agents' },
+      ],
+    },
+    {
+      title: 'Locations',
+      links: [
+        { label: 'Benin City', to: '/location/benin-city' },
+        { label: 'Lagos', to: '/location/lagos' },
+        { label: 'Abuja', to: '/location/abuja' },
+        { label: 'Port Harcourt', to: '/location/port-harcourt' },
+        { label: 'All Properties', to: '/browse' },
       ],
     },
     {
@@ -18,12 +29,7 @@ export const Footer = () => {
       links: [
         { label: 'How It Works', to: '/how-it-works' },
         { label: 'FAQ', to: '/faq' },
-        { label: 'Customer Support', to: '/support' },
-      ],
-    },
-    {
-      title: 'Legal',
-      links: [
+        { label: 'Support', to: '/support' },
         { label: 'Terms & Conditions', to: '/terms' },
         { label: 'Privacy Policy', to: '/privacy' },
       ],
@@ -45,7 +51,7 @@ export const Footer = () => {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Your trusted platform for secure property transactions
+              Nigeria's trust-first real estate marketplace. Verified agents, scam-free listings.
             </p>
             <div className="flex space-x-4">
               <a href="https://www.instagram.com/xavorianxyz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">

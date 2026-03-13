@@ -314,7 +314,11 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="Buy & Sell Properties in Nigeria" description="Find verified properties for sale and rent across Nigeria. Browse thousands of listings with secure transactions on Xavorian." path="/" />
+      <SEOHead 
+        title="Verified Real Estate in Benin City, Edo State | Buy, Rent & Sell" 
+        description="Find trusted agents and verified property listings in Benin City, Edo State. Rent, buy or sell scam-free on Xavorian – Nigeria's trust-first real estate marketplace." 
+        path="/" 
+      />
       <section className="relative h-[50vh] md:h-[60vh] overflow-hidden">
         <div className="absolute inset-0">
           <img 
@@ -517,6 +521,36 @@ export const Home = () => {
               </Link>
             </div>
           )}
+
+          {/* Internal Links Section */}
+          <div className="container mx-auto px-4 py-12">
+            <h2 className="text-2xl font-bold mb-6">Explore by Location</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Link to="/location/benin-city" className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 hover:shadow-md transition-all text-center">
+                <h3 className="font-semibold">Benin City</h3>
+                <p className="text-sm text-muted-foreground">Edo State</p>
+              </Link>
+              <Link to="/location/lagos" className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 hover:shadow-md transition-all text-center">
+                <h3 className="font-semibold">Lagos</h3>
+                <p className="text-sm text-muted-foreground">Lagos State</p>
+              </Link>
+              <Link to="/location/abuja" className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 hover:shadow-md transition-all text-center">
+                <h3 className="font-semibold">Abuja</h3>
+                <p className="text-sm text-muted-foreground">FCT</p>
+              </Link>
+              <Link to="/location/port-harcourt" className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 hover:shadow-md transition-all text-center">
+                <h3 className="font-semibold">Port Harcourt</h3>
+                <p className="text-sm text-muted-foreground">Rivers State</p>
+              </Link>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-3 justify-center">
+              <Link to="/blog" className="text-primary hover:underline text-sm font-medium">Read our Blog</Link>
+              <span className="text-muted-foreground">·</span>
+              <Link to="/agents" className="text-primary hover:underline text-sm font-medium">Find Agents</Link>
+              <span className="text-muted-foreground">·</span>
+              <Link to="/how-it-works" className="text-primary hover:underline text-sm font-medium">How It Works</Link>
+            </div>
+          </div>
         </>
       )}
     </div>

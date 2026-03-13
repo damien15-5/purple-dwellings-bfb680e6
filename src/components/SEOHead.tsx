@@ -6,11 +6,13 @@ interface SEOHeadProps {
   path?: string;
   type?: string;
   noIndex?: boolean;
+  image?: string;
 }
 
 const SITE_NAME = 'Xavorian';
 const BASE_URL = 'https://www.xavorian.xyz';
-const DEFAULT_DESCRIPTION = "Nigeria's trusted property marketplace. Buy, sell, and rent verified properties with secure transactions.";
+const DEFAULT_DESCRIPTION = "Find trusted agents and verified property listings in Benin City, Edo State. Rent, buy or sell scam-free on Xavorian – Nigeria's trust-first real estate marketplace.";
+const DEFAULT_IMAGE = `${BASE_URL}/favicon.ico`;
 
 export const SEOHead = ({
   title,
@@ -18,9 +20,11 @@ export const SEOHead = ({
   path = '/',
   type = 'website',
   noIndex = false,
+  image,
 }: SEOHeadProps) => {
-  const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} - Nigeria's Secure Property Marketplace`;
+  const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} – Verified Real Estate in Benin City, Edo State | Buy, Rent & Sell`;
   const url = `${BASE_URL}${path}`;
+  const ogImage = image || DEFAULT_IMAGE;
 
   return (
     <Helmet>
@@ -33,9 +37,11 @@ export const SEOHead = ({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
       <meta property="og:type" content={type} />
+      <meta property="og:image" content={ogImage} />
 
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={ogImage} />
     </Helmet>
   );
 };

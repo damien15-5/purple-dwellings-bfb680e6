@@ -17,7 +17,6 @@ import { BrowserNotifications } from "@/components/BrowserNotifications";
 
 // Lazy load all pages
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
-const BlogRedirect = lazy(() => import("./components/BlogRedirect").then(m => ({ default: m.BlogRedirect })));
 const Browse = lazy(() => import("./pages/Browse").then(m => ({ default: m.Browse })));
 const PropertyDetails = lazy(() => import("./pages/PropertyDetails").then(m => ({ default: m.PropertyDetails })));
 const SellerProperties = lazy(() => import("./pages/SellerProperties").then(m => ({ default: m.SellerProperties })));
@@ -61,6 +60,15 @@ const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Sup
 const CustomerServiceDashboard = lazy(() => import("./pages/CustomerServiceDashboard").then(m => ({ default: m.CustomerServiceDashboard })));
 const CustomerServiceChat = lazy(() => import("./pages/CustomerServiceChat"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// SEO pages
+const LocationCity = lazy(() => import("./pages/LocationCity").then(m => ({ default: m.LocationCity })));
+const LocationArea = lazy(() => import("./pages/LocationArea").then(m => ({ default: m.LocationArea })));
+const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
+const BlogIndex = lazy(() => import("./pages/BlogIndex").then(m => ({ default: m.BlogIndex })));
+const BlogPost = lazy(() => import("./pages/BlogPost").then(m => ({ default: m.BlogPost })));
+const AgentsIndex = lazy(() => import("./pages/AgentsIndex").then(m => ({ default: m.AgentsIndex })));
+const Contact = lazy(() => import("./pages/Contact").then(m => ({ default: m.Contact })));
 
 // Admin pages
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
@@ -141,6 +149,7 @@ const App = () => {
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
+                    <Route path="/properties" element={<Navigate to="/browse" replace />} />
                     <Route path="/property/:id" element={<PropertyDetails />} />
                     <Route path="/seller/:sellerId" element={<SellerProperties />} />
                     <Route path="/edit-listing/:id" element={<EditListing />} />
@@ -166,8 +175,23 @@ const App = () => {
                     <Route path="/vision" element={<OurVision />} />
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/faq" element={<FAQ />} />
-                    <Route path="/blog" element={<BlogRedirect />} />
+                    <Route path="/blog" element={<BlogIndex />} />
+                    <Route path="/blog/:slug" element={<BlogPost />} />
                     <Route path="/support" element={<Support />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/agents" element={<AgentsIndex />} />
+                    <Route path="/location/:city" element={<LocationCity />} />
+                    <Route path="/location/:city/:area" element={<LocationArea />} />
+                    
+                    {/* High-intent landing pages */}
+                    <Route path="/land-for-sale-lagos" element={<LandingPage slug="land-for-sale-lagos" />} />
+                    <Route path="/land-for-sale-benin-city" element={<LandingPage slug="land-for-sale-benin-city" />} />
+                    <Route path="/cheap-land-ibeju-lekki" element={<LandingPage slug="cheap-land-ibeju-lekki" />} />
+                    <Route path="/duplex-for-sale-lekki" element={<LandingPage slug="duplex-for-sale-lekki" />} />
+                    <Route path="/apartments-for-rent-benin-city" element={<LandingPage slug="apartments-for-rent-benin-city" />} />
+                    <Route path="/student-accommodation-benin-city" element={<LandingPage slug="student-accommodation-benin-city" />} />
+                    <Route path="/houses-for-rent-ugbowo" element={<LandingPage slug="houses-for-rent-ugbowo" />} />
+                    <Route path="/property-for-sale-edo-state" element={<LandingPage slug="property-for-sale-edo-state" />} />
                     <Route path="/customer-service" element={<CustomerServiceDashboard />} />
                     <Route path="/ai-support" element={<CustomerServiceChat />} />
                     <Route path="/dashboard/listings" element={<MyListings />} />
