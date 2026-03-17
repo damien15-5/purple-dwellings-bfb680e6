@@ -96,7 +96,7 @@ serve(async (req) => {
     // Send via Gmail SMTP
     const client = new SMTPClient({
       connection: {
-        hostname: "smtp.gmail.com",
+        hostname: "smtp.zoho.com",
         port: 465,
         tls: true,
         auth: {
