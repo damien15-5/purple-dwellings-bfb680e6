@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,40 +86,102 @@ serve(async (req) => {
       </div>
     </div>
     <div style="text-align:center;padding:16px;border-radius:0 0 16px 16px;background:#f3f4f6;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} Xavorian. All rights reserved.</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} Xavorian. All rights reserved.</p>
     </div>
   </div>
 </body>
 </html>`;
 
-    // Send via Gmail SMTP
-    const client = new SMTPClient({
-      connection: {
-        hostname: "smtp.gmail.com",
-        port: 465,
-        tls: true,
-        auth: {
-          username: notificationEmail,
-          password: notificationPassword,
-        },
-      },
+    // Use Gmail SMTP via raw TCP (Deno.connect with TLS)
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    const conn = await Deno.connectTls({
+      hostname: "smtp.gmail.com",
+      port: 465,
     });
 
-    await client.send({
-      from: `Xavorian <${notificationEmail}>`,
-      to: profile.email,
-      subject: `${emoji} ${title} - Xavorian`,
-      content: "auto",
-      html: htmlBody,
-    });
+    const readResponse = async (): Promise<string> => {
+      const buf = new Uint8Array(4096);
+      const n = await conn.read(buf);
+      if (n === null) return '';
+      return decoder.decode(buf.subarray(0, n));
+    };
 
-    await client.close();
+    const sendCommand = async (cmd: string): Promise<string> => {
+      await conn.write(encoder.encode(cmd + "\r\n"));
+      return await readResponse();
+    };
 
-    console.log(`Email sent to ${profile.email} for: ${title}`);
+    // Read greeting
+    await readResponse();
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // EHLO
+    await sendCommand("EHLO localhost");
+
+    // AUTH LOGIN
+    await sendCommand("AUTH LOGIN");
+    await sendCommand(btoa(notificationEmail));
+    const authResult = await sendCommand(btoa(notificationPassword));
+
+    if (!authResult.startsWith('235')) {
+      conn.close();
+      console.error('SMTP auth failed:', authResult);
+      return new Response(JSON.stringify({ error: 'SMTP authentication failed', details: authResult }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // MAIL FROM
+    await sendCommand(`MAIL FROM:<${notificationEmail}>`);
+
+    // RCPT TO
+    await sendCommand(`RCPT TO:<${profile.email}>`);
+
+    // DATA
+    await sendCommand("DATA");
+
+    // Build email with MIME
+    const boundary = "----=_Part_" + Date.now();
+    const emailData = [
+      `From: Xavorian <${notificationEmail}>`,
+      `To: ${profile.email}`,
+      `Subject: ${emoji} ${title} - Xavorian`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      `${title}\n\n${description}\n\nVisit: https://www.xavorian.xyz/dashboard`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      ``,
+      htmlBody,
+      ``,
+      `--${boundary}--`,
+    ].join("\r\n");
+
+    const sendResult = await sendCommand(emailData + "\r\n.");
+
+    // QUIT
+    await sendCommand("QUIT");
+    conn.close();
+
+    if (sendResult.startsWith('250')) {
+      console.log(`Email sent to ${profile.email} for: ${title}`);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } else {
+      console.error('SMTP send failed:', sendResult);
+      return new Response(JSON.stringify({ error: 'Send failed', details: sendResult }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   } catch (error) {
     console.error('Error sending notification email:', error);
     return new Response(JSON.stringify({ error: error.message, success: false }), {
