@@ -1,5 +1,29 @@
 {
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://bmzjeamkuxeksbfjusui.supabase.co/functions/v1/dynamic-sitemap"
+    },
+    {
+      "source": "/seo/property/:slug",
+      "destination": "https://bmzjeamkuxeksbfjusui.supabase.co/functions/v1/property-seo-page?slug=:slug"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        { "key": "Content-Type", "value": "application/xml" },
+        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    }
   ]
 }
