@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Allow: /property/
 Allow: /seo/property/
+Allow: /seo/
 Allow: /location/
 Allow: /agents/
 Allow: /blog/
@@ -11,6 +12,12 @@ Allow: /about
 Allow: /contact
 Allow: /vision
 Allow: /faq
+Allow: /support
+Allow: /privacy
+Allow: /terms
+Allow: /disclaimer
+Allow: /signup
+Allow: /login
 Allow: /land-for-sale-lagos
 Allow: /land-for-sale-benin-city
 Allow: /cheap-land-ibeju-lekki
@@ -25,5 +32,12 @@ Disallow: /api
 Disallow: /chat
 Disallow: /offers
 Disallow: /damienxavorianezeani
+Disallow: /pay/
+Disallow: /start-escrow/
+Disallow: /upload-documents/
+Disallow: /account-settings
+Disallow: /my-listings
+Disallow: /customer-service
+Disallow: /ai-support
 
 Sitemap: https://www.xavorian.xyz/sitemap.xml

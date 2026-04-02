@@ -8,6 +8,10 @@
       "source": "/seo/property/:slug",
       "destination": "https://bmzjeamkuxeksbfjusui.supabase.co/functions/v1/property-seo-page?slug=:slug"
     },
+    {
+      "source": "/seo/:path*",
+      "destination": "https://bmzjeamkuxeksbfjusui.supabase.co/functions/v1/site-prerender?path=/:path*"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
