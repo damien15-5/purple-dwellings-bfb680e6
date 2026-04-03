@@ -69,6 +69,16 @@ export const Signup = () => {
               body: { type: 'new_user', data: { fullName, email, accountType, userId: data.user!.id } },
             });
           } catch (e) { console.error('Telegram notify error:', e); }
+
+          // Send welcome notification email
+          try {
+            await supabase.rpc('create_notification', {
+              p_user_id: data.user!.id,
+              p_title: 'Welcome to Xavorian! 🎉',
+              p_description: `Hi ${fullName}, your account has been created successfully. Start browsing verified properties or complete your KYC to unlock all features.`,
+              p_type: 'general',
+            });
+          } catch (e) { console.error('Welcome notification error:', e); }
         }, 2000);
         
         setStep(2);

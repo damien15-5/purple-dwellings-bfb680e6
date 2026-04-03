@@ -46,6 +46,18 @@ export const Login = () => {
           }
         });
       } catch (e) { /* silent */ }
+
+      // Send login notification email
+      try {
+        if (data.user?.id) {
+          await supabase.rpc('create_notification', {
+            p_user_id: data.user.id,
+            p_title: 'Welcome Back!',
+            p_description: `You just logged in to your Xavorian account on ${new Date().toLocaleString()}. If this wasn't you, please change your password immediately.`,
+            p_type: 'login',
+          });
+        }
+      } catch (e) { /* silent */ }
       
       toast({
         title: 'Welcome back!',

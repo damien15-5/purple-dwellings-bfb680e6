@@ -14,12 +14,22 @@ Deno.serve(async () => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Fetch all published properties
-  const { data: properties } = await supabase
-    .from("properties")
-    .select("slug, updated_at, images")
-    .eq("status", "published")
-    .order("created_at", { ascending: false });
+  // Fetch ALL published properties (handle >1000 with pagination)
+  let allProperties: any[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("properties")
+      .select("slug, updated_at, images, title, city, property_type, listing_type, bedrooms, price")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    allProperties = allProperties.concat(data);
+    if (data.length < pageSize) break;
+    offset += pageSize;
+  }
 
   // Fetch all published blog posts
   const { data: blogs } = await supabase
@@ -28,7 +38,7 @@ Deno.serve(async () => {
     .eq("status", "published")
     .order("published_at", { ascending: false });
 
-  // Static pages with priorities
+  // Static pages
   const staticPages = [
     { loc: "/", changefreq: "daily", priority: "1.0" },
     { loc: "/browse", changefreq: "daily", priority: "0.9" },
@@ -47,7 +57,6 @@ Deno.serve(async () => {
     { loc: "/disclaimer", changefreq: "yearly", priority: "0.3" },
   ];
 
-  // Location pages
   const locationPages = [
     "/location/benin-city",
     "/location/lagos",
@@ -73,7 +82,6 @@ Deno.serve(async () => {
     "/location/abuja/garki",
   ];
 
-  // Landing pages
   const landingPages = [
     "/land-for-sale-lagos",
     "/land-for-sale-benin-city",
@@ -119,34 +127,35 @@ Deno.serve(async () => {
   </url>\n`;
   }
 
-  // Property pages from DB
-  if (properties) {
-    for (const prop of properties) {
-      if (!prop.slug) continue;
-      const lastmod = prop.updated_at
-        ? prop.updated_at.split("T")[0]
-        : today;
-      const hasImages = prop.images && prop.images.length > 0;
-      urls += `  <url>
+  // Property pages - each property gets its own sitemap entry with multiple images
+  for (const prop of allProperties) {
+    if (!prop.slug) continue;
+    const lastmod = prop.updated_at ? prop.updated_at.split("T")[0] : today;
+    const images = prop.images || [];
+    const caption = escapeXml(prop.title || "");
+
+    let imageXml = "";
+    // Include up to 5 images per property for rich results
+    for (let i = 0; i < Math.min(images.length, 5); i++) {
+      imageXml += `\n    <image:image>
+      <image:loc>${escapeXml(images[i])}</image:loc>
+      <image:caption>${caption}${prop.city ? ` in ${escapeXml(prop.city)}` : ""}</image:caption>
+    </image:image>`;
+    }
+
+    urls += `  <url>
     <loc>${BASE_URL}/property/${prop.slug}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>${
-        hasImages
-          ? `\n    <image:image>\n      <image:loc>${prop.images[0]}</image:loc>\n    </image:image>`
-          : ""
-      }
+    <priority>0.7</priority>${imageXml}
   </url>\n`;
-    }
   }
 
-  // Blog posts from DB
+  // Blog posts
   if (blogs) {
     for (const blog of blogs) {
       if (!blog.slug) continue;
-      const lastmod = blog.updated_at
-        ? blog.updated_at.split("T")[0]
-        : today;
+      const lastmod = blog.updated_at ? blog.updated_at.split("T")[0] : today;
       urls += `  <url>
     <loc>${BASE_URL}/blog/${blog.slug}</loc>
     <lastmod>${lastmod}</lastmod>
@@ -163,3 +172,13 @@ ${urls}</urlset>`;
 
   return new Response(sitemap, { headers: corsHeaders });
 });
+
+function escapeXml(str: string): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
