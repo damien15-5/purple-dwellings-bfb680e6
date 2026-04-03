@@ -1,9 +1,8 @@
 User-agent: *
 Allow: /
-Allow: /property/
-Allow: /seo/property/
-Allow: /seo/
+Allow: /sitemap.xml
 Allow: /static/
+Allow: /property/
 Allow: /location/
 Allow: /agents/
 Allow: /blog/
