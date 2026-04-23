@@ -1,55 +1,170 @@
-# Welcome to your Lovable project
+# Xavorian
 
-## Project info
+> Nigeria's trust-first real estate marketplace — built for Benin City, engineered to scale.
 
-**URL**: https://lovable.dev/projects/7bd266f6-2110-422d-9ffc-2d8146bb9a42
+Xavorian solves the core problem in Nigerian property search: **you can't trust what you're looking at**. We fix that with KYC-backed agent verification, scam detection infrastructure, and a verified listings layer — before we touch anything else.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## What This Repo Is
 
-**Use Lovable**
+This is the core platform monorepo. It contains:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7bd266f6-2110-422d-9ffc-2d8146bb9a42) and start prompting.
+- **Frontend** — React + Vite SPA, deployed on Vercel
+- **Backend** — Supabase (PostgreSQL + RLS + Edge Functions on Deno)
+- **Storage** — Cloudinary (cloud name: `dp21kb6dy`, preset: `xavorian_uploads`)
+- **Payments** — Paystack (listings fees + agent payouts via Transfer API)
+- **Email** — Zoho Mail at `infos@xavorian.xyz`, integrated via Supabase Edge Functions
+- **SEO** — Static prerender + dynamic rendering via `middleware.ts`, `vercel.json`, `generate-static.js`
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, TypeScript |
+| Hosting | Vercel |
+| Database | Supabase (PostgreSQL + Row Level Security) |
+| Serverless | Supabase Edge Functions (Deno) |
+| Image Storage | Cloudinary |
+| Payments | Paystack |
+| Email | Zoho Mail (custom domain) |
+| SEO | Static prerender + middleware dynamic rendering |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## Project Structure
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+xavorian/
+├── src/
+│   ├── components/       # Reusable UI components
+│   ├── pages/            # Route-level page components
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Supabase client, Cloudinary config, Paystack utils
+│   └── types/            # TypeScript types and interfaces
+├── supabase/
+│   ├── functions/        # Deno Edge Functions
+│   └── migrations/       # SQL migration files
+├── public/               # Static assets
+├── scripts/
+│   └── generate-static.js  # Static prerender script for SEO
+├── middleware.ts          # Vercel middleware for dynamic rendering
+├── vercel.json            # Vercel routing and header config
+├── .env.example           # Environment variable template
+└── README.md
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## URL Schema
 
-**Use GitHub Codespaces**
+| Route | Purpose |
+|---|---|
+| `/property/[slug]` | Individual property listing |
+| `/location/[city]/[area]` | Location/neighborhood pages |
+| `/agents/[slug]` | Agent profile pages |
+| `/blog/[slug]` | SEO blog content |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
+## Core Features
+
+### Trust Infrastructure
+- **Agent KYC Verification** — Agents are verified before listings go live. Verified badge managed via admin Telegram bot.
+- **Scam Detection** — Listing-level signals flagged for review.
+- **Identity Layer** — Supabase RLS enforces data access at the row level across all tables.
+
+### Listings
+- Property upload with Cloudinary image storage (unsigned upload preset).
+- Listings tied to verified agent accounts.
+- Search and filter by location, price, and property type.
+
+### Payments
+- Listing fees collected via Paystack.
+- Agent payouts handled via Paystack Transfer API (not subaccounts).
+
+### Email
+- Transactional email via Zoho Mail (`infos@xavorian.xyz`).
+- Sent through Supabase Edge Functions using SMTP.
+
+### SEO
+- SPA client-side rendering problem solved with a hybrid approach:
+  - `generate-static.js` prerenders key routes to static HTML at build time.
+  - `middleware.ts` handles dynamic rendering for crawlers at request time.
+  - `vercel.json` configures routing rules and cache headers.
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_CLOUDINARY_CLOUD_NAME=dp21kb6dy
+VITE_CLOUDINARY_UPLOAD_PRESET=xavorian_uploads
+VITE_PAYSTACK_PUBLIC_KEY=
+ZOHO_SMTP_USER=infos@xavorian.xyz
+ZOHO_SMTP_PASS=
+PAYSTACK_SECRET_KEY=
+```
+
+---
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run static prerender (before deploy)
+node scripts/generate-static.js
+```
+
+---
+
+## Supabase Edge Functions
+
+```bash
+# Deploy a function
+supabase functions deploy <function-name>
+
+# Set secrets
+supabase secrets set ZOHO_SMTP_PASS=your_password
+```
+
+---
+
+## Deployment
+
+The frontend deploys automatically to Vercel on push to `main`. Supabase functions are deployed manually via the Supabase CLI.
+
+Make sure to run `generate-static.js` before each production build to keep prerendered pages fresh.
+
+---
+
+## Current Focus — Benin City
+
+Xavorian is currently live and operating in **Benin City, Edo State**. Location pages cover neighborhoods across Oredo, Egor, and Ikpoba-Okha LGAs.
+
+Growth is driven by direct agent recruitment and organic SEO targeting Benin City real estate queries.
+
+---
+
+## Repo Access
+
+Private. Internal use only.
+
+Built by [@damien15-5](https://github.com/damien15-5) · [xavorian.xyz](https://xavorian.xyz) · [@Eze_Damien](https://x.com/Eze_Damien)
 ## What technologies are used for this project?
 
 This project is built with:
@@ -60,14 +175,3 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/7bd266f6-2110-422d-9ffc-2d8146bb9a42) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
